@@ -338,6 +338,27 @@ pub fn xterm256(r: u8, g: u8, b: u8) -> u8 {
     }
 }
 
+/// The 16 named ANSI colours, in palette order. crossterm still writes them as
+/// `38;5;n`, which the Linux console has parsed since kernel 3.16.
+const NAMED16: [Color; 16] = [
+    Color::Black,
+    Color::Red,
+    Color::Green,
+    Color::Yellow,
+    Color::Blue,
+    Color::Magenta,
+    Color::Cyan,
+    Color::Gray,
+    Color::DarkGray,
+    Color::LightRed,
+    Color::LightGreen,
+    Color::LightYellow,
+    Color::LightBlue,
+    Color::LightMagenta,
+    Color::LightCyan,
+    Color::White,
+];
+
 /// RGB of an indexed or named colour as xterm draws it by default.
 pub fn indexed_rgb(color: Color) -> (u8, u8, u8) {
     let base: [(u8, u8, u8); 16] = [
@@ -358,24 +379,7 @@ pub fn indexed_rgb(color: Color) -> (u8, u8, u8) {
         (0, 255, 255),
         (255, 255, 255),
     ];
-    let named = [
-        Color::Black,
-        Color::Red,
-        Color::Green,
-        Color::Yellow,
-        Color::Blue,
-        Color::Magenta,
-        Color::Cyan,
-        Color::Gray,
-        Color::DarkGray,
-        Color::LightRed,
-        Color::LightGreen,
-        Color::LightYellow,
-        Color::LightBlue,
-        Color::LightMagenta,
-        Color::LightCyan,
-        Color::White,
-    ];
+    let named = NAMED16;
     match color {
         Color::Rgb(r, g, b) => (r, g, b),
         Color::Indexed(i) if i < 16 => base[i as usize],
@@ -421,8 +425,8 @@ fn ansi16(color: Color, theme: &Theme) -> Color {
         return if light { *l } else { *d };
     }
     let target = rgb(color);
-    (0..16u8)
-        .map(Color::Indexed)
+    NAMED16
+        .into_iter()
         .min_by_key(|c| dist(indexed_rgb(*c), target))
         .unwrap_or(color)
 }

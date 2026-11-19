@@ -587,6 +587,13 @@ mod tests {
                             || matches!(c.bg, ratatui::style::Color::Rgb(..))
                     });
                     assert!(!rgb, "{depth:?} {theme:?} {tab:?} left an RGB colour");
+                    if depth == ColorDepth::Ansi16 {
+                        let indexed = terminal.backend().buffer().content.iter().any(|c| {
+                            matches!(c.fg, ratatui::style::Color::Indexed(_))
+                                || matches!(c.bg, ratatui::style::Color::Indexed(_))
+                        });
+                        assert!(!indexed, "{theme:?} {tab:?} left the 16 colour palette");
+                    }
                 }
             }
         }
