@@ -110,6 +110,15 @@
 - [x] 12.3 Handle clicks and wheel scrolls, including double-click to expand. Verify: a PTY run with an SGR click on the Performance tab switched panels and left mouse mode on exit.
 - [x] 12.4 Add vim movement, g/G, Ctrl+d/Ctrl+u, `?` help, and Alt+F/O/V/H menu access. Verify: unit tests cover every new key and the help table lists them.
 
+## 13. Navigation stability and layout review
+
+- [x] 13.1 Record the moved row as the selection so a sample cannot restore the old row. Verify: `a_sample_does_not_undo_a_move` fails without the key update and passes with it.
+- [x] 13.2 Hold row order for two seconds after a move while values keep refreshing. Verify: `navigation_freezes_the_order_until_the_pause_ends` shows the order held, then re-sorted.
+- [x] 13.3 Move the list position into the status bar and drop metrics from the least important end when the terminal is narrow. Verify: goldens at 120 and 80 show no overlap and no clipped link.
+- [x] 13.4 Split User and Session into separate columns. Verify: the Users golden shows the Session header and a tty per row.
+- [x] 13.5 Compact the Performance stat boxes to two rows and remove the duplicate outer frame. Verify: the Performance golden has a single chart frame and denser boxes.
+- [x] 13.6 Mark startup entries whose program is missing. Verify: the Startup golden shows `(missing)` for that entry.
+
 ## Workflow follow-up
 
 - Archive the change after the release checks pass and the goldens are reviewed.

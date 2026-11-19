@@ -26,12 +26,13 @@ daemon MUST NOT appear as a session.
 
 ### Requirement: User columns
 
-The tab SHALL show User, Status, CPU, Memory, and Disk, and MUST mark the session
-running this application.
+The tab SHALL show User, Session, Status, CPU, Memory, and Disk, and MUST mark the
+session running this application. The Session column MUST identify the terminal or
+console so that two sessions for one user are distinguishable.
 
 #### Scenario: Values
 - **WHEN** a row is shown
-- **THEN** CPU and memory are the sum of that user's processes, formatted like the Processes tab
+- **THEN** the Session column names the tty or console, and CPU and memory are the sum of that user's processes, formatted like the Processes tab
 
 #### Scenario: Current session
 - **WHEN** the tab lists the session this application runs in

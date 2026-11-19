@@ -2,7 +2,7 @@
 
 use crate::app::{App, ResourceChoice};
 use crate::theme::Theme;
-use crate::ui::chrome::{fill_area, panel, put, put_right};
+use crate::ui::chrome::{fill_area, panel, put};
 use crate::ui::format::{DASH, bit_rate, bytes, bytes_opt, duration, mhz, pct, rate, truncate};
 use crate::ui::graph::{self, Series};
 use crate::ui::hits::{HitMap, Target};
@@ -86,12 +86,10 @@ fn draw_rail(buf: &mut Buffer, area: Rect, app: &App, narrow: bool, hits: &mut H
 }
 
 fn draw_panel(buf: &mut Buffer, area: Rect, app: &App) {
-    let theme = app.theme();
     if area.width < 10 || area.height < 5 {
         return;
     }
-    let title = app.performance.resource.label();
-    let inner = panel(buf, area, title, theme);
+    let inner = area;
     match app.performance.resource {
         ResourceChoice::Cpu => draw_cpu(buf, inner, app),
         ResourceChoice::Memory => draw_memory(buf, inner, app),
@@ -468,9 +466,10 @@ fn draw_gpu(buf: &mut Buffer, inner: Rect, app: &App) {
     draw_stat_row(buf, boxes_area, &boxes, app);
 }
 
-/// Height a stat box row needs: one row of boxes on wide panels, two on narrow.
+/// Height the stat boxes need: label and value on wide panels, two stacked rows
+/// of both on narrow ones.
 fn stat_height(width: u16) -> u16 {
-    if width >= 80 { 3 } else { 6 }
+    if width >= 80 { 2 } else { 4 }
 }
 
 /// A row of Windows 10 stat boxes, wrapping to two rows when narrow.
@@ -520,9 +519,9 @@ fn draw_stat_box(buf: &mut Buffer, area: Rect, label: &str, value: &str, app: &A
         area,
     );
     if area.height > 1 {
-        put_right(
+        put(
             buf,
-            area.x + area.width,
+            area.x,
             area.y + 1,
             &truncate(value, area.width as usize),
             Style::default()

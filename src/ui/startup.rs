@@ -110,7 +110,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         };
         let mut label = format!("{} {}", box_glyph, row.name);
         if row.missing_program {
-            label.push_str(" program missing");
+            label.push_str("  (missing)");
         }
         put(buf, body.x, y, &truncate(&label, name as usize), base, body);
         let status = if row.enabled { "Enabled" } else { "Disabled" };
@@ -189,7 +189,7 @@ mod tests {
         assert!(screen.contains("Enabled"));
         assert!(screen.contains("Not measured"));
         assert!(screen.contains("Broken tool"));
-        assert!(screen.contains("program missing"));
+        assert!(screen.contains("(missing)"));
     }
 
     #[test]

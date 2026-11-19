@@ -82,7 +82,13 @@ survives tab switches because it lives in `App`, not in a per-frame struct.
 
 Crucially, selection is keyed by `ProcKey { pid, start_time }`, never by row index.
 That is what keeps a selection on the same process when rows reorder, and what prevents
-a reused PID from inheriting a stale selection.
+a reused PID from inheriting a stale selection. Every move writes the new key at once;
+leaving the old key in place makes the next sample restore the previous row.
+
+Sorting live by CPU and rebuilding the list every second still moves rows under the
+cursor. So a move also starts a two second hold: samples keep refreshing values, but
+the last block order is kept. A block is a kind header or a group with its children,
+so reordering can never split a group. After the hold expires the next sample re-sorts.
 
 *Alternatives.* Storing the `sysinfo::System` in the UI and querying it during render
 couples rendering to the platform and makes golden tests impossible without a live

@@ -230,17 +230,7 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     } else {
         ""
     };
-    let mut x = area.x + 1;
-    if !action.is_empty() {
-        let style = Style::default()
-            .fg(theme.accent)
-            .bg(theme.surface)
-            .add_modifier(Modifier::UNDERLINED);
-        let width = action.chars().count() as u16;
-        put(buf, x, area.y, action, style, area);
-        hits.add(Rect::new(x, area.y, width, 1), Target::FewerDetails);
-        x += width + 2;
-    }
+    let position = status_position(app);
 
     let snapshot = &app.snapshot;
     let memory = if snapshot.memory.total > 0 {
@@ -256,24 +246,65 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         "paused" => "Paused",
         _ => "Normal",
     };
-    let mut summary = format!(
-        "CPU {}   Memory {}   Disk {}   Network {}   {}",
-        pct(snapshot.cpu.total),
-        memory,
-        crate::ui::format::rate(disk),
-        bit_rate(network),
-        speed
-    );
+
+    // Metrics are dropped from the least important end until the bar fits.
+    let mut parts = vec![
+        format!("CPU {}", pct(snapshot.cpu.total)),
+        format!("Memory {memory}"),
+        format!("Disk {}", crate::ui::format::rate(disk)),
+        format!("Network {}", bit_rate(network)),
+        speed.to_string(),
+    ];
     if !snapshot.gpus.is_empty() {
         let gpu = snapshot.gpus.iter().map(|g| g.usage).fold(0.0, f32::max);
-        summary.push_str(&format!("   GPU {}", pct(gpu)));
+        parts.push(format!("GPU {}", pct(gpu)));
+    }
+
+    let mut show_action = !action.is_empty();
+    let mut show_position = position.is_some();
+    let summary = loop {
+        let summary = parts.join("   ");
+        let left = left_width(action, show_action, &position, show_position);
+        if left + summary.chars().count() as u16 + 2 <= area.width {
+            break summary;
+        }
+        if parts.len() > 2 {
+            parts.pop();
+            continue;
+        }
+        if show_position {
+            show_position = false;
+            continue;
+        }
+        if show_action {
+            show_action = false;
+            continue;
+        }
+        break summary;
+    };
+
+    let mut x = area.x + 1;
+    if show_action {
+        let style = Style::default()
+            .fg(theme.accent)
+            .bg(theme.surface)
+            .add_modifier(Modifier::UNDERLINED);
+        let width = action.chars().count() as u16;
+        put(buf, x, area.y, action, style, area);
+        hits.add(Rect::new(x, area.y, width, 1), Target::FewerDetails);
+        x += width + 2;
+    }
+    if show_position && let Some(position) = &position {
+        let width = position.chars().count() as u16;
+        put(buf, x, area.y, position, bar, area);
+        x += width + 2;
     }
 
     // A notice takes the middle when there is room for both without clipping.
-    let summary_width = summary.chars().count() as u16;
-    let notice = app.notices.last();
-    if let Some(notice) = notice {
-        let room = area.width.saturating_sub(summary_width + x - area.x + 3);
+    if let Some(notice) = app.notices.last() {
+        let room = area
+            .width
+            .saturating_sub((x - area.x) + summary.chars().count() as u16 + 3);
         if room > 20 {
             let text = truncate(notice, room.min(60) as usize);
             put(
@@ -287,14 +318,37 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         }
     }
 
-    put_right(
-        buf,
-        area.x + area.width - 1 - 1,
-        area.y,
-        &summary,
-        bar,
-        area,
-    );
+    put_right(buf, area.x + area.width - 2, area.y, &summary, bar, area);
+}
+
+fn left_width(
+    action: &str,
+    show_action: bool,
+    position: &Option<String>,
+    show_position: bool,
+) -> u16 {
+    let mut width = 0;
+    if show_action {
+        width += action.chars().count() as u16 + 2;
+    }
+    if show_position && let Some(position) = position {
+        width += position.chars().count() as u16 + 2;
+    }
+    width
+}
+
+/// Where the selection sits inside the active list, when it has rows.
+fn status_position(app: &App) -> Option<String> {
+    let (selected, len) = match app.tab {
+        Tab::Processes => (app.process.selected, app.process.items.len()),
+        Tab::Details => (app.details.selected, app.details_rows().len()),
+        Tab::Services => (app.services.selected, app.service_rows().len()),
+        Tab::Startup => (app.startup.selected, app.startup_rows().len()),
+        Tab::Users => (app.users.selected, app.user_rows().len()),
+        Tab::AppHistory => (app.app_history.selected, app.history_rows().len()),
+        Tab::Performance => return None,
+    };
+    (len > 1).then(|| format!("{}/{}", selected + 1, len))
 }
 
 fn draw_menu_dropdown(

@@ -112,6 +112,10 @@ impl Resource {
     }
 }
 
+/// How long a fresh sample leaves the row order alone after a move, so each
+/// keypress moves one visible row instead of chasing a re-sorted list.
+pub const NAV_FREEZE: std::time::Duration = std::time::Duration::from_millis(2_000);
+
 #[derive(Debug, Default)]
 pub struct ProcessTab {
     pub items: Vec<ProcItem>,
@@ -124,6 +128,7 @@ pub struct ProcessTab {
     pub filter: String,
     pub more_details: bool,
     pub show_optional_columns: bool,
+    pub last_navigation: Option<std::time::Instant>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -159,7 +164,7 @@ impl SortKeyState {
 
 impl ProcessTab {
     pub fn refresh(&mut self, snapshot: &Snapshot) {
-        self.items = group::build(
+        let fresh = group::build(
             &snapshot.processes,
             self.sort.key,
             self.sort.dir,
@@ -167,7 +172,34 @@ impl ProcessTab {
             &self.expanded_groups,
             &self.filter,
         );
+        self.items = if self.navigating() {
+            group::keep_order(&self.items, fresh)
+        } else {
+            fresh
+        };
         self.sync(snapshot);
+    }
+
+    /// True while the row order should hold still for the user.
+    pub fn navigating(&self) -> bool {
+        self.last_navigation
+            .is_some_and(|at| at.elapsed() < NAV_FREEZE)
+    }
+
+    pub fn mark_navigation(&mut self) {
+        self.last_navigation = Some(std::time::Instant::now());
+    }
+
+    /// Test hook: run a refresh with the freeze forced on or off.
+    pub fn refresh_with(&mut self, snapshot: &Snapshot, freeze: bool) {
+        let was = self.last_navigation;
+        self.last_navigation = if freeze {
+            Some(std::time::Instant::now())
+        } else {
+            None
+        };
+        self.refresh(snapshot);
+        self.last_navigation = was;
     }
 
     fn sync(&mut self, snapshot: &Snapshot) {
@@ -809,7 +841,19 @@ impl App {
         match self.tab {
             Tab::Processes => {
                 let len = self.process.items.len();
-                move_index(&mut self.process.selected, len, delta)
+                if move_index(&mut self.process.selected, len, delta) {
+                    // Track the new row, otherwise the next sample restores the
+                    // selection to the row the user just left.
+                    self.process.key = self
+                        .process
+                        .items
+                        .get(self.process.selected)
+                        .map(ProcItem::sel);
+                    self.process.mark_navigation();
+                    true
+                } else {
+                    false
+                }
             }
             Tab::Details => {
                 let len = self.details_rows().len();
@@ -1030,6 +1074,40 @@ mod tests {
             app.process.key,
             Some(app.process.items[app.process.selected].sel())
         );
+    }
+
+    #[test]
+    fn a_sample_does_not_undo_a_move() {
+        let mut app = app();
+        app.move_selection(1);
+        let key = app.process.items[app.process.selected].sel();
+        let mut snapshot = app.snapshot.clone();
+        for process in &mut snapshot.processes {
+            if process.name == "node" {
+                process.cpu = 99.0;
+            }
+        }
+        app.apply_snapshot(snapshot);
+        assert_eq!(app.process.items[app.process.selected].sel(), key);
+    }
+
+    #[test]
+    fn navigation_freezes_the_order_until_the_pause_ends() {
+        let mut app = app();
+        app.move_selection(1);
+        let before: Vec<_> = app.process.items.iter().map(|item| item.sel()).collect();
+        let mut snapshot = app.snapshot.clone();
+        for process in &mut snapshot.processes {
+            if process.name == "postgres" {
+                process.cpu = 99.0;
+            }
+        }
+        app.apply_snapshot(snapshot.clone());
+        let during: Vec<_> = app.process.items.iter().map(|item| item.sel()).collect();
+        assert_eq!(before, during, "order holds while navigating");
+        app.process.refresh_with(&snapshot, false);
+        let after: Vec<_> = app.process.items.iter().map(|item| item.sel()).collect();
+        assert_ne!(during, after, "it re-sorts after the pause");
     }
 
     #[test]

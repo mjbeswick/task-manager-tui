@@ -22,7 +22,15 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         (area, None)
     };
 
-    let name = table.width.saturating_sub(14 + 8 + 10 + 12).max(10);
+    let session = 10;
+    let status = 14;
+    let cpu = 8;
+    let memory = 10;
+    let disk = 12;
+    let name = table
+        .width
+        .saturating_sub(session + status + cpu + memory + disk)
+        .max(8);
     let header = theme.header_style();
     fill_area(
         buf,
@@ -41,31 +49,39 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         buf,
         table.x + name,
         table.y,
-        &pad_left("Status", 12),
+        &truncate("Session", session as usize),
         header,
         table,
     );
     put(
         buf,
-        table.x + name + 14,
+        table.x + name + session,
         table.y,
-        &pad_left("CPU", 6),
+        &pad_left("Status", (status - 2) as usize),
         header,
         table,
     );
     put(
         buf,
-        table.x + name + 22,
+        table.x + name + session + status,
         table.y,
-        &pad_left("Memory", 8),
+        &pad_left("CPU", (cpu - 2) as usize),
         header,
         table,
     );
     put(
         buf,
-        table.x + name + 32,
+        table.x + name + session + status + cpu,
         table.y,
-        &pad_left("Disk", 10),
+        &pad_left("Memory", (memory - 2) as usize),
+        header,
+        table,
+    );
+    put(
+        buf,
+        table.x + name + session + status + cpu + memory,
+        table.y,
+        &pad_left("Disk", (disk - 2) as usize),
         header,
         table,
     );
@@ -105,20 +121,43 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
             theme.surface_style()
         };
         fill_area(buf, Rect::new(body.x, y, body.width, 1), base);
-        let mut label = format!("{}  {}", row.user, row.tty);
+        let mut user = row.user.clone();
         if row.current {
-            label.push_str("  (current)");
+            user.push_str("  (current)");
         }
-        if !row.host.is_empty() {
-            label.push_str(&format!("  from {}", row.host));
-        }
-        put(buf, body.x, y, &truncate(&label, name as usize), base, body);
-        put_right(buf, body.x + name + 12, y, row.status.label(), base, body);
-        put_right(buf, body.x + name + 20, y, &pct(row.cpu), base, body);
-        put_right(buf, body.x + name + 30, y, &bytes(row.memory), base, body);
+        put(buf, body.x, y, &truncate(&user, name as usize), base, body);
+        put(
+            buf,
+            body.x + name,
+            y,
+            &truncate(&row.tty, session as usize),
+            base,
+            body,
+        );
+        let status_x = body.x + name + session;
         put_right(
             buf,
-            body.x + name + 42,
+            status_x + status - 2,
+            y,
+            row.status.label(),
+            base,
+            body,
+        );
+        let cpu_x = status_x + status;
+        put_right(buf, cpu_x + cpu - 2, y, &pct(row.cpu), base, body);
+        let memory_x = cpu_x + cpu;
+        put_right(
+            buf,
+            memory_x + memory - 2,
+            y,
+            &bytes(row.memory),
+            base,
+            body,
+        );
+        let disk_x = memory_x + memory;
+        put_right(
+            buf,
+            disk_x + disk - 2,
             y,
             &rate(row.disk.io_bps()),
             base,

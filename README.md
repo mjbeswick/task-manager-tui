@@ -78,8 +78,10 @@ rows. Dialog buttons respond to clicks. Every action still has a key.
 ## Tabs
 
 - **Processes** - groups under Apps, Background processes, and System processes.
-  App rows collapse by default; expanding one lists its processes. End task asks
-  before touching a system process or another user's process.
+  App rows collapse by default; expanding one lists its processes. While you move
+  the selection the row order holds for two seconds, so the list does not re-sort
+  under the cursor; values keep updating. End task asks before touching a system
+  process or another user's process.
 - **Performance** - CPU, Memory, Disk, Network, and GPU panels with a bordered
   60 second graph, stat boxes, and one bordered graph per logical processor.
   Percentage graphs keep a fixed 0-100 scale, so a quiet graph looks quiet. Disk

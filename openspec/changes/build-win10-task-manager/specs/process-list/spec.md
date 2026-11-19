@@ -128,6 +128,27 @@ of silently failing.
 - **WHEN** a process ignores the termination request
 - **THEN** the user can choose a force option that sends an unconditional termination
 
+### Requirement: Navigation is not interrupted by samples
+
+While the user is moving the selection, the tab SHALL hold the current row order for
+two seconds and refresh values in place. A move MUST NOT be undone by a later sample.
+
+#### Scenario: Move during a refresh
+- **WHEN** the user moves one row and a sample arrives within two seconds
+- **THEN** the same row stays selected and the rows keep their positions under the cursor
+
+#### Scenario: After the pause
+- **WHEN** no navigation key has been pressed for two seconds
+- **THEN** the next sample re-sorts rows by the active column
+
+#### Scenario: No revert
+- **WHEN** the user moves to a different row
+- **THEN** a later sample never restores the previously selected row
+
+#### Scenario: Values stay live
+- **WHEN** the order is held during navigation
+- **THEN** CPU, memory, disk, network, and GPU values in every row still update on each sample
+
 ### Requirement: Selection is stable across samples
 
 The selected process SHALL remain selected when samples arrive and when the sort order

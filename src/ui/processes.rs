@@ -123,18 +123,6 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         );
         draw_item(buf, area, y, item, &layout, app, is_selected);
     }
-
-    if items.len() > visible {
-        let marker = format!("{}/{}", selected + 1, items.len());
-        put_right(
-            buf,
-            area.x + area.width - 1,
-            rows_area.y + rows_area.height - 1,
-            &marker,
-            Style::default().fg(theme.muted).bg(theme.surface),
-            rows_area,
-        );
-    }
 }
 
 fn draw_header(buf: &mut Buffer, area: Rect, y: u16, layout: &Layout, app: &App) {

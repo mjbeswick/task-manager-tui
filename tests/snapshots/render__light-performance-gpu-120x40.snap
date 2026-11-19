@@ -4,41 +4,41 @@ expression: "screen(&app, 120, 40)"
 ---
  File  Options  View  Help                                                                                 Task Manager 
 Processes │ Performance │ App history │ Startup │ Users │ Details │ Services                                            
-  CPU               ┌─ GPU ────────────────────────────────────────────────────────────────────────────────────────────┐
-  Memory            │                                                                                                  │
-  Disk              │                                                                                                  │
-  Network           │                                                                                                  │
-▌ GPU               │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                   Not available on this system                                   │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    │                                                                                                  │
-                    └──────────────────────────────────────────────────────────────────────────────────────────────────┘
+  CPU                                                                                                                   
+  Memory                                                                                                                
+  Disk                                                                                                                  
+  Network                                                                                                               
+▌ GPU                                                                                                                   
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                        Not available on this system                                    
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
                                                  CPU 27.0%   Memory 62.5%   Disk 5.3 MB/s   Network 12.0 Mbps   Normal

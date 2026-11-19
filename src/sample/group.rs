@@ -251,6 +251,38 @@ fn sort_rows(rows: &mut [&ProcRow], sort: SortKey, dir: SortDir) {
     });
 }
 
+/// Keep the previous block order while values refresh. A block is a kind header
+/// or a group header with its children, so grouping can never interleave.
+pub fn keep_order(old: &[ProcItem], fresh: Vec<ProcItem>) -> Vec<ProcItem> {
+    use std::collections::HashMap;
+    let previous: HashMap<ProcSel, usize> = old
+        .iter()
+        .enumerate()
+        .map(|(index, item)| (item.sel(), index))
+        .collect();
+
+    let mut blocks: Vec<Vec<ProcItem>> = Vec::new();
+    for item in fresh {
+        match &item {
+            ProcItem::Child { .. } => {
+                if let Some(last) = blocks.last_mut() {
+                    last.push(item);
+                } else {
+                    blocks.push(vec![item]);
+                }
+            }
+            _ => blocks.push(vec![item]),
+        }
+    }
+    blocks.sort_by_key(|block| {
+        block
+            .first()
+            .and_then(|item| previous.get(&item.sel()).copied())
+            .unwrap_or(usize::MAX)
+    });
+    blocks.into_iter().flatten().collect()
+}
+
 /// Build the visible rows: groups in Windows 10 order, children when expanded.
 pub fn build(
     rows: &[ProcRow],
@@ -542,6 +574,45 @@ mod tests {
             ProcItem::Group { name, .. } | ProcItem::Child { name, .. } => name == "Chrome",
             ProcItem::Header { .. } => true,
         }));
+    }
+
+    #[test]
+    fn keep_order_preserves_blocks_and_appends_new_ones() {
+        let old_rows = vec![
+            row(1, "alpha", Kind::App, 10.0, 10),
+            row(2, "beta", Kind::App, 2.0, 20),
+        ];
+        let old = build(
+            &old_rows,
+            SortKey::Cpu,
+            SortDir::Desc,
+            &HashSet::new(),
+            &HashSet::new(),
+            "",
+        );
+        // beta becomes the busiest, and a new app appears.
+        let fresh_rows = vec![
+            row(1, "alpha", Kind::App, 1.0, 10),
+            row(2, "beta", Kind::App, 90.0, 20),
+            row(3, "gamma", Kind::App, 3.0, 30),
+        ];
+        let fresh = build(
+            &fresh_rows,
+            SortKey::Cpu,
+            SortDir::Desc,
+            &HashSet::new(),
+            &HashSet::new(),
+            "",
+        );
+        let ordered = keep_order(&old, fresh);
+        let names: Vec<_> = ordered
+            .iter()
+            .filter_map(|item| match item {
+                ProcItem::Group { name, .. } => Some(name.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(names, vec!["alpha", "beta", "gamma"]);
     }
 
     #[test]
