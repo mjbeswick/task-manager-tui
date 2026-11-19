@@ -74,9 +74,13 @@ fn parse_color(value: &str) -> Result<String, String> {
 fn parse_theme(value: &str) -> Result<String, String> {
     match crate::theme::ThemeName::parse(value) {
         Some(name) => Ok(name.key().to_string()),
-        None => Err(format!(
-            "unknown theme '{value}'; try light, dark, nord, gruvbox, phosphor, or amber"
-        )),
+        None => {
+            let keys: Vec<&str> = crate::theme::ThemeName::ALL
+                .iter()
+                .map(|name| name.key())
+                .collect();
+            Err(format!("unknown theme '{value}'; try {}", keys.join(", ")))
+        }
     }
 }
 

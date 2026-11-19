@@ -194,29 +194,16 @@ impl ChartColor {
         }
     }
 
-    /// Resolve against the active theme and the series being drawn, so dark mode
-    /// keeps contrast and Per resource gives each resource its Windows 10 colour.
+    /// Resolve against the active theme and the series being drawn, so Per resource
+    /// gives each resource that theme's own colour.
     pub fn color(
         self,
         theme: &crate::theme::Theme,
         resource: crate::app::ResourceChoice,
     ) -> ratatui::style::Color {
-        use crate::app::ResourceChoice as R;
         use ratatui::style::Color;
-        let dark = crate::theme::is_dark(theme.bg);
         match self {
-            ChartColor::PerResource => match (resource, dark) {
-                (R::Cpu, false) => Color::Rgb(0x11, 0x7D, 0xBB),
-                (R::Memory, false) => Color::Rgb(0x8B, 0x12, 0xAE),
-                (R::Disk, false) => Color::Rgb(0x3E, 0x87, 0x0A),
-                (R::Network, false) => Color::Rgb(0xA7, 0x4F, 0x01),
-                (R::Gpu, false) => Color::Rgb(0x1E, 0x8A, 0x73),
-                (R::Cpu, true) => Color::Rgb(0x4C, 0xB0, 0xF0),
-                (R::Memory, true) => Color::Rgb(0xC7, 0x74, 0xE8),
-                (R::Disk, true) => Color::Rgb(0x7E, 0xD0, 0x50),
-                (R::Network, true) => Color::Rgb(0xF0, 0x95, 0x4A),
-                (R::Gpu, true) => Color::Rgb(0x4C, 0xC2, 0xA8),
-            },
+            ChartColor::PerResource => theme.charts[resource.index()],
             ChartColor::Teal => theme.graph_fill,
             ChartColor::Blue => Color::Rgb(0x2B, 0x88, 0xC4),
             ChartColor::Orange => Color::Rgb(0xD1, 0x6B, 0x1F),
@@ -860,6 +847,24 @@ mod tests {
             );
         }
         assert_eq!(snap.thread_count, Some(24));
+    }
+
+    #[test]
+    fn per_resource_colours_follow_the_theme() {
+        use crate::app::ResourceChoice as R;
+        let tokyo = crate::theme::Theme::from_name(crate::theme::ThemeName::TokyoNight, false);
+        let nord = crate::theme::Theme::from_name(crate::theme::ThemeName::Nord, false);
+        for resource in [R::Cpu, R::Memory, R::Disk, R::Network, R::Gpu] {
+            let a = ChartColor::PerResource.color(&tokyo, resource);
+            let b = ChartColor::PerResource.color(&nord, resource);
+            assert_ne!(a, b, "{resource:?} did not follow the theme");
+        }
+        let colours: std::collections::HashSet<_> =
+            [R::Cpu, R::Memory, R::Disk, R::Network, R::Gpu]
+                .into_iter()
+                .map(|resource| ChartColor::PerResource.color(&tokyo, resource))
+                .collect();
+        assert_eq!(colours.len(), 5, "one colour per resource");
     }
 
     #[test]

@@ -10,16 +10,24 @@ pub enum ThemeName {
     Gruvbox,
     Phosphor,
     Amber,
+    TokyoNight,
+    Catppuccin,
+    SolarizedLight,
+    RosePine,
 }
 
 impl ThemeName {
-    pub const ALL: [ThemeName; 6] = [
+    pub const ALL: [ThemeName; 10] = [
         ThemeName::Light,
         ThemeName::Dark,
         ThemeName::Nord,
         ThemeName::Gruvbox,
         ThemeName::Phosphor,
         ThemeName::Amber,
+        ThemeName::TokyoNight,
+        ThemeName::Catppuccin,
+        ThemeName::SolarizedLight,
+        ThemeName::RosePine,
     ];
 
     pub fn label(self) -> &'static str {
@@ -30,6 +38,10 @@ impl ThemeName {
             ThemeName::Gruvbox => "Gruvbox Dark",
             ThemeName::Phosphor => "Phosphor",
             ThemeName::Amber => "Amber",
+            ThemeName::TokyoNight => "Tokyo Night",
+            ThemeName::Catppuccin => "Catppuccin Mocha",
+            ThemeName::SolarizedLight => "Solarized Light",
+            ThemeName::RosePine => "Rosé Pine",
         }
     }
 
@@ -41,6 +53,10 @@ impl ThemeName {
             ThemeName::Gruvbox => "gruvbox",
             ThemeName::Phosphor => "phosphor",
             ThemeName::Amber => "amber",
+            ThemeName::TokyoNight => "tokyo-night",
+            ThemeName::Catppuccin => "catppuccin",
+            ThemeName::SolarizedLight => "solarized-light",
+            ThemeName::RosePine => "rose-pine",
         }
     }
 
@@ -87,6 +103,8 @@ pub struct Theme {
     pub good: Color,
     pub warn: Color,
     pub bad: Color,
+    /// Per-resource chart colours: CPU, Memory, Disk, Network, GPU.
+    pub charts: [Color; 5],
     /// Processes cell shading, palest first.
     pub heat: [Color; 5],
     pub ascii: bool,
@@ -112,6 +130,13 @@ pub const LIGHT: Theme = Theme {
     good: Color::Rgb(0x10, 0x7C, 0x10),
     warn: Color::Rgb(0x9D, 0x5A, 0x00),
     bad: Color::Rgb(0xC4, 0x2B, 0x1C),
+    charts: [
+        Color::Rgb(17, 125, 187),
+        Color::Rgb(139, 18, 174),
+        Color::Rgb(62, 135, 10),
+        Color::Rgb(167, 79, 1),
+        Color::Rgb(30, 138, 115),
+    ],
     heat: [
         Color::Rgb(0xFF, 0xF4, 0xC4),
         Color::Rgb(0xFF, 0xE9, 0xA8),
@@ -141,6 +166,13 @@ pub const DARK: Theme = Theme {
     good: Color::Rgb(0x6C, 0xC6, 0x6C),
     warn: Color::Rgb(0xE0, 0xA0, 0x40),
     bad: Color::Rgb(0xF0, 0x70, 0x60),
+    charts: [
+        Color::Rgb(76, 176, 240),
+        Color::Rgb(199, 116, 232),
+        Color::Rgb(126, 208, 80),
+        Color::Rgb(240, 149, 74),
+        Color::Rgb(76, 194, 168),
+    ],
     heat: [
         Color::Rgb(0x3A, 0x33, 0x22),
         Color::Rgb(0x4A, 0x3D, 0x20),
@@ -170,6 +202,13 @@ pub const NORD: Theme = Theme {
     good: Color::Rgb(0xA3, 0xBE, 0x8C),
     warn: Color::Rgb(0xEB, 0xCB, 0x8B),
     bad: Color::Rgb(0xBF, 0x61, 0x6A),
+    charts: [
+        Color::Rgb(136, 192, 208),
+        Color::Rgb(180, 142, 173),
+        Color::Rgb(163, 190, 140),
+        Color::Rgb(208, 135, 112),
+        Color::Rgb(94, 129, 172),
+    ],
     heat: [
         Color::Rgb(0x3A, 0x41, 0x4A),
         Color::Rgb(0x46, 0x44, 0x4A),
@@ -199,6 +238,13 @@ pub const GRUVBOX: Theme = Theme {
     good: Color::Rgb(0xB8, 0xBB, 0x26),
     warn: Color::Rgb(0xFA, 0xBD, 0x2F),
     bad: Color::Rgb(0xFB, 0x49, 0x34),
+    charts: [
+        Color::Rgb(131, 165, 152),
+        Color::Rgb(211, 134, 155),
+        Color::Rgb(184, 187, 38),
+        Color::Rgb(254, 128, 25),
+        Color::Rgb(250, 189, 47),
+    ],
     heat: [
         Color::Rgb(0x3A, 0x33, 0x24),
         Color::Rgb(0x4A, 0x3C, 0x22),
@@ -228,6 +274,13 @@ pub const PHOSPHOR: Theme = Theme {
     good: Color::Rgb(0x33, 0xFF, 0x99),
     warn: Color::Rgb(0xFF, 0xCE, 0x54),
     bad: Color::Rgb(0xFF, 0x6B, 0x6B),
+    charts: [
+        Color::Rgb(51, 255, 153),
+        Color::Rgb(125, 249, 165),
+        Color::Rgb(0, 204, 102),
+        Color::Rgb(182, 255, 92),
+        Color::Rgb(51, 204, 204),
+    ],
     heat: [
         Color::Rgb(0x12, 0x30, 0x1C),
         Color::Rgb(0x1B, 0x3D, 0x22),
@@ -257,12 +310,163 @@ pub const AMBER: Theme = Theme {
     good: Color::Rgb(0x9B, 0xD7, 0x6B),
     warn: Color::Rgb(0xFF, 0xB0, 0x00),
     bad: Color::Rgb(0xFF, 0x6B, 0x5A),
+    charts: [
+        Color::Rgb(255, 176, 0),
+        Color::Rgb(255, 140, 0),
+        Color::Rgb(255, 210, 74),
+        Color::Rgb(224, 108, 43),
+        Color::Rgb(255, 107, 90),
+    ],
     heat: [
         Color::Rgb(0x2A, 0x22, 0x13),
         Color::Rgb(0x3A, 0x2C, 0x12),
         Color::Rgb(0x4A, 0x35, 0x10),
         Color::Rgb(0x5A, 0x3A, 0x14),
         Color::Rgb(0x6B, 0x2E, 0x1A),
+    ],
+    ascii: false,
+    coarse: false,
+};
+
+pub const TOKYO_NIGHT: Theme = Theme {
+    name: ThemeName::TokyoNight,
+    bg: Color::Rgb(0x1A, 0x1B, 0x26),
+    surface: Color::Rgb(0x1F, 0x23, 0x35),
+    surface_alt: Color::Rgb(0x23, 0x25, 0x36),
+    chrome: Color::Rgb(0x16, 0x16, 0x1E),
+    status: Color::Rgb(0x1A, 0x1B, 0x26),
+    text: Color::Rgb(0xC0, 0xCA, 0xF5),
+    muted: Color::Rgb(0x7A, 0xA2, 0xF7),
+    border: Color::Rgb(0x29, 0x2E, 0x42),
+    accent: Color::Rgb(0x7A, 0xA2, 0xF7),
+    on_accent: Color::Rgb(0x1A, 0x1B, 0x26),
+    selection: Color::Rgb(0x2A, 0x35, 0x60),
+    graph_fill: Color::Rgb(0x7D, 0xCF, 0xFF),
+    graph_grid: Color::Rgb(0x29, 0x2E, 0x42),
+    good: Color::Rgb(0x9E, 0xCE, 0x6A),
+    warn: Color::Rgb(0xE0, 0xAF, 0x68),
+    bad: Color::Rgb(0xF7, 0x76, 0x8E),
+    charts: [
+        Color::Rgb(0x7A, 0xA2, 0xF7),
+        Color::Rgb(0xBB, 0x9A, 0xF7),
+        Color::Rgb(0x9E, 0xCE, 0x6A),
+        Color::Rgb(0xE0, 0xAF, 0x68),
+        Color::Rgb(0x7D, 0xCF, 0xFF),
+    ],
+    heat: [
+        Color::Rgb(0x2A, 0x2E, 0x42),
+        Color::Rgb(0x34, 0x31, 0x4A),
+        Color::Rgb(0x45, 0x33, 0x4D),
+        Color::Rgb(0x55, 0x30, 0x49),
+        Color::Rgb(0x63, 0x2C, 0x46),
+    ],
+    ascii: false,
+    coarse: false,
+};
+
+pub const CATPPUCCIN: Theme = Theme {
+    name: ThemeName::Catppuccin,
+    bg: Color::Rgb(0x1E, 0x1E, 0x2E),
+    surface: Color::Rgb(0x31, 0x32, 0x44),
+    surface_alt: Color::Rgb(0x2A, 0x2A, 0x3C),
+    chrome: Color::Rgb(0x18, 0x18, 0x25),
+    status: Color::Rgb(0x1E, 0x1E, 0x2E),
+    text: Color::Rgb(0xCD, 0xD6, 0xF4),
+    muted: Color::Rgb(0xA6, 0xAD, 0xC8),
+    border: Color::Rgb(0x45, 0x47, 0x5A),
+    accent: Color::Rgb(0x89, 0xB4, 0xFA),
+    on_accent: Color::Rgb(0x1E, 0x1E, 0x2E),
+    selection: Color::Rgb(0x45, 0x47, 0x5A),
+    graph_fill: Color::Rgb(0x89, 0xB4, 0xFA),
+    graph_grid: Color::Rgb(0x31, 0x32, 0x44),
+    good: Color::Rgb(0xA6, 0xE3, 0xA1),
+    warn: Color::Rgb(0xF9, 0xE2, 0xAF),
+    bad: Color::Rgb(0xF3, 0x8B, 0xA8),
+    charts: [
+        Color::Rgb(0x89, 0xB4, 0xFA),
+        Color::Rgb(0xCB, 0xA6, 0xF7),
+        Color::Rgb(0xA6, 0xE3, 0xA1),
+        Color::Rgb(0xF9, 0xE2, 0xAF),
+        Color::Rgb(0x94, 0xE2, 0xD5),
+    ],
+    heat: [
+        Color::Rgb(0x3A, 0x35, 0x48),
+        Color::Rgb(0x45, 0x38, 0x4E),
+        Color::Rgb(0x51, 0x3B, 0x4E),
+        Color::Rgb(0x5C, 0x3C, 0x4C),
+        Color::Rgb(0x68, 0x3B, 0x49),
+    ],
+    ascii: false,
+    coarse: false,
+};
+
+pub const SOLARIZED: Theme = Theme {
+    name: ThemeName::SolarizedLight,
+    bg: Color::Rgb(0xFD, 0xF6, 0xE3),
+    surface: Color::Rgb(0xFF, 0xFB, 0xF0),
+    surface_alt: Color::Rgb(0xF7, 0xF1, 0xDE),
+    chrome: Color::Rgb(0xEE, 0xE8, 0xD5),
+    status: Color::Rgb(0xF5, 0xEF, 0xDC),
+    text: Color::Rgb(0x07, 0x36, 0x42),
+    muted: Color::Rgb(0x58, 0x6E, 0x75),
+    border: Color::Rgb(0xD5, 0xCD, 0xB6),
+    accent: Color::Rgb(0x1C, 0x6F, 0xA8),
+    on_accent: Color::Rgb(0xFD, 0xF6, 0xE3),
+    selection: Color::Rgb(0xCF, 0xE3, 0xEA),
+    graph_fill: Color::Rgb(0x2A, 0xA1, 0x98),
+    graph_grid: Color::Rgb(0xE4, 0xDD, 0xC8),
+    good: Color::Rgb(0x56, 0x72, 0x00),
+    warn: Color::Rgb(0x8A, 0x62, 0x00),
+    bad: Color::Rgb(0xDC, 0x32, 0x2F),
+    charts: [
+        Color::Rgb(0x26, 0x8B, 0xD2),
+        Color::Rgb(0x6C, 0x71, 0xC4),
+        Color::Rgb(0x85, 0x99, 0x00),
+        Color::Rgb(0xCB, 0x4B, 0x16),
+        Color::Rgb(0x2A, 0xA1, 0x98),
+    ],
+    heat: [
+        Color::Rgb(0xFF, 0xF0, 0xC4),
+        Color::Rgb(0xFF, 0xE3, 0xA6),
+        Color::Rgb(0xF9, 0xCE, 0x86),
+        Color::Rgb(0xF2, 0xB2, 0x71),
+        Color::Rgb(0xE8, 0x94, 0x78),
+    ],
+    ascii: false,
+    coarse: false,
+};
+
+pub const ROSE_PINE: Theme = Theme {
+    name: ThemeName::RosePine,
+    bg: Color::Rgb(0x19, 0x17, 0x24),
+    surface: Color::Rgb(0x1F, 0x1D, 0x2E),
+    surface_alt: Color::Rgb(0x23, 0x21, 0x36),
+    chrome: Color::Rgb(0x16, 0x14, 0x1F),
+    status: Color::Rgb(0x19, 0x17, 0x24),
+    text: Color::Rgb(0xE0, 0xDE, 0xF4),
+    muted: Color::Rgb(0x90, 0x8C, 0xAA),
+    border: Color::Rgb(0x40, 0x3D, 0x52),
+    accent: Color::Rgb(0xC4, 0xA7, 0xE7),
+    on_accent: Color::Rgb(0x19, 0x17, 0x24),
+    selection: Color::Rgb(0x40, 0x3D, 0x52),
+    graph_fill: Color::Rgb(0x9C, 0xCF, 0xD8),
+    graph_grid: Color::Rgb(0x26, 0x23, 0x3A),
+    good: Color::Rgb(0x9C, 0xCF, 0xD8),
+    warn: Color::Rgb(0xF6, 0xC1, 0x77),
+    bad: Color::Rgb(0xEB, 0x6F, 0x92),
+    charts: [
+        Color::Rgb(0xC4, 0xA7, 0xE7),
+        Color::Rgb(0xEB, 0xBC, 0xBA),
+        Color::Rgb(0x9C, 0xCF, 0xD8),
+        Color::Rgb(0xF6, 0xC1, 0x77),
+        Color::Rgb(0xEB, 0x6F, 0x92),
+    ],
+    heat: [
+        Color::Rgb(0x2A, 0x24, 0x40),
+        Color::Rgb(0x35, 0x2A, 0x45),
+        Color::Rgb(0x43, 0x2F, 0x47),
+        Color::Rgb(0x53, 0x33, 0x45),
+        Color::Rgb(0x61, 0x35, 0x43),
     ],
     ascii: false,
     coarse: false,
@@ -356,6 +560,10 @@ impl Theme {
             ThemeName::Gruvbox => GRUVBOX,
             ThemeName::Phosphor => PHOSPHOR,
             ThemeName::Amber => AMBER,
+            ThemeName::TokyoNight => TOKYO_NIGHT,
+            ThemeName::Catppuccin => CATPPUCCIN,
+            ThemeName::SolarizedLight => SOLARIZED,
+            ThemeName::RosePine => ROSE_PINE,
         };
         theme.ascii = ascii;
         theme
@@ -796,6 +1004,27 @@ mod tests {
     }
 
     #[test]
+    fn every_theme_has_five_distinct_visible_chart_colours() {
+        for theme in all_themes() {
+            for i in 0..5 {
+                for j in i + 1..5 {
+                    assert_ne!(
+                        theme.charts[i], theme.charts[j],
+                        "{:?} repeats a chart colour",
+                        theme.name
+                    );
+                }
+                assert!(
+                    contrast(theme.charts[i], theme.surface) >= 2.0,
+                    "{:?} chart {i} is {}",
+                    theme.name,
+                    contrast(theme.charts[i], theme.surface)
+                );
+            }
+        }
+    }
+
+    #[test]
     fn stripes_collapse_at_sixteen_colours() {
         for theme in all_themes() {
             assert_eq!(
@@ -934,13 +1163,13 @@ mod tests {
     #[test]
     fn theme_names_toggle_and_parse() {
         assert_eq!(ThemeName::Light.next(), ThemeName::Dark);
-        assert_eq!(ThemeName::Light.previous(), ThemeName::Amber);
+        assert_eq!(ThemeName::Light.previous(), ThemeName::RosePine);
         assert_eq!(
             ThemeName::ALL
                 .iter()
                 .filter(|n| ThemeName::parse(n.key()) == Some(**n))
                 .count(),
-            6
+            10
         );
         assert_eq!(ThemeName::parse("dark"), Some(ThemeName::Dark));
         assert_eq!(ThemeName::parse("nope"), None);

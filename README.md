@@ -41,7 +41,7 @@ taskmgr
 | Flag | Meaning |
 |---|---|
 | `--tab <name>` | Open `processes`, `performance`, `app-history`, `startup`, `users`, `details`, or `services` |
-| `--theme <name>` | `light`, `dark`, `nord`, `gruvbox`, `phosphor`, or `amber` for this run |
+| `--theme <name>` | `light`, `dark`, `nord`, `gruvbox`, `phosphor`, `amber`, `tokyo-night`, `catppuccin`, `solarized-light`, or `rose-pine` for this run |
 | `--interval <speed>` | `high` (0.5 s), `normal` (1 s), `low` (2 s), `paused` |
 | `--ascii` | ASCII glyphs instead of box drawing and blocks |
 | `--color <depth>` | `auto`, `truecolor`, `256`, or `16`. Auto reads `COLORTERM` and `TERM` |
@@ -126,7 +126,8 @@ dropped and the position counter in the status bar takes over.
   the colour of the highest sample in each braille cell, and resampling interpolates
   when the plot is wide and keeps peaks when it is narrow. View > Appearance, or F2,
   switches between Filled, Line, and Dots rendering and chart colours: Teal, Blue,
-  Orange, Magenta, Mono, or Theme.
+  Orange, Magenta, Mono, or Theme. Per resource takes five distinct colours from the
+  active theme, one per resource.
 - **App history** - CPU time, peak memory, and disk totals per application,
   accumulated across restarts.
 - **Startup** - login agents from launchd or XDG autostart, with their real
@@ -138,7 +139,8 @@ dropped and the position counter in the status bar takes over.
 ## Table readability
 
 The theme collection holds Windows Light, Windows Dark, Nord, Gruvbox Dark, Phosphor,
-and Amber. `t`, the Appearance dialog, and `--theme` cycle through them in that order.
+Amber, Tokyo Night, Catppuccin Mocha, Solarized Light, and Rosé Pine. `t`, the Appearance
+dialog, and `--theme` cycle through them in that order.
 
 List tables alternate a slightly lighter or darker row background so a wide row is
 easier to follow across its columns. Processes escalate cell shading through 1, 3, 8,

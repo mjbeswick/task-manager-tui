@@ -265,6 +265,16 @@ pub enum ResourceChoice {
 }
 
 impl ResourceChoice {
+    pub fn index(self) -> usize {
+        match self {
+            ResourceChoice::Cpu => 0,
+            ResourceChoice::Memory => 1,
+            ResourceChoice::Disk => 2,
+            ResourceChoice::Network => 3,
+            ResourceChoice::Gpu => 4,
+        }
+    }
+
     pub fn next(self) -> Self {
         match self {
             ResourceChoice::Cpu => ResourceChoice::Memory,
@@ -1423,6 +1433,10 @@ mod tests {
             ThemeName::Gruvbox,
             ThemeName::Phosphor,
             ThemeName::Amber,
+            ThemeName::TokyoNight,
+            ThemeName::Catppuccin,
+            ThemeName::SolarizedLight,
+            ThemeName::RosePine,
             ThemeName::Light,
         ] {
             app.toggle_theme();
