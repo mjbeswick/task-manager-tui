@@ -1,0 +1,44 @@
+---
+source: tests/render.rs
+expression: "screen(&app(tab, \"dark\"), 120, 40)"
+---
+ File  Options  View  Help                                                                                 Task Manager 
+Processes │ Performance │ App history │ Startup │ Users │ Details │ Services                                            
+User                                                                              Status     CPU    Memory        Disk  
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+michael  ttys001  (current)  from localhost                                       Active   24.0%    4.0 GB  576.0 KB/s  
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                 CPU 27.0%   Memory 62.5%   Disk 5.3 MB/s   Network 12.0 Mbps   Normal

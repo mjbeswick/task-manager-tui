@@ -1,0 +1,44 @@
+---
+source: tests/render.rs
+expression: "screen(&app, 120, 40)"
+---
+ File  Options  View  Help                                                                                 Task Manager 
+Processes │ Performance │ App history │ Startup │ Users │ Details │ Services                                            
+Name                                                                                                    CPU ▼   Memory  
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+▾ Apps (2)                                                                                                              
+  ▸ Safari (1)                                                                                         6.4%     1.2 GB  
+  ▸ Ghostty (1)                                                                                        2.1%     380 MB  
+▾ Background processes (2)                                                                                              
+  ▸ node (1)                                                                                          12.5%     512 MB  
+  ▸ postgres (1)                                                                                       1.1%    96.0 MB  
+▾ System processes (2)                                                                                                  
+  ▸ WindowServer (1)                                                                                   4.8%     1.2 GB  
+  ▸ launchd (1)                                                                                        0.2%    12.0 MB  
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+ More details                                    CPU 27.0%   Memory 62.5%   Disk 5.3 MB/s   Network 12.0 Mbps   Normal

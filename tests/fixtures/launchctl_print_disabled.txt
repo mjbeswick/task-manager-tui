@@ -1,0 +1,4 @@
+disabled services = {
+	"com.example.backup" => true
+	"com.example.flaky" => false
+}

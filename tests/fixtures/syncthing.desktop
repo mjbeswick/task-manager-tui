@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Syncthing
+Exec=/usr/bin/syncthing --no-browser --home=/home/michael/.config/syncthing
+Hidden=false
+X-GNOME-Autostart-enabled=true

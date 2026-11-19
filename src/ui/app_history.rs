@@ -1,0 +1,195 @@
+//! App history tab: accumulated usage per application.
+
+use crate::app::App;
+use crate::ui::chrome::{fill_area, put, put_right};
+use crate::ui::format::{DASH, bytes, cpu_time, pad_left, truncate};
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
+use ratatui::style::Style;
+
+pub fn draw(buf: &mut Buffer, area: Rect, app: &App) {
+    let theme = app.theme();
+    fill_area(buf, area, theme.surface_style());
+    if area.height < 3 {
+        return;
+    }
+
+    // Title, width, right-aligned.
+    let columns: [(&str, u16, bool); 5] = [
+        ("CPU time", 10, true),
+        ("Peak memory", 12, true),
+        ("Disk", 21, true),
+        ("Last seen", 10, true),
+        ("Network", 9, true),
+    ];
+    let used: u16 = columns.iter().map(|(_, width, _)| *width).sum();
+    let name = area.width.saturating_sub(used).max(10);
+
+    let header = theme.header_style();
+    fill_area(
+        buf,
+        Rect::new(area.x, area.y, area.width, 1),
+        Style::default().bg(theme.surface),
+    );
+    let mut x = area.x;
+    put(
+        buf,
+        x,
+        area.y,
+        &truncate("Name", name as usize),
+        header,
+        area,
+    );
+    x += name;
+    for (title, width, right) in columns {
+        if right {
+            put(
+                buf,
+                x,
+                area.y,
+                &pad_left(title, width as usize - 1),
+                header,
+                area,
+            );
+        } else {
+            put(
+                buf,
+                x,
+                area.y,
+                &truncate(title, width as usize),
+                header,
+                area,
+            );
+        }
+        x += width;
+    }
+
+    let rule = Style::default().fg(theme.border).bg(theme.surface);
+    let glyphs = theme.glyphs();
+    for x in area.x..area.x + area.width {
+        buf[(x, area.y + 1)].set_char(glyphs.hline).set_style(rule);
+    }
+
+    let rows = app.history_rows();
+    if rows.is_empty() {
+        put(
+            buf,
+            area.x,
+            area.y + 2,
+            "No usage recorded yet. Totals appear as applications run.",
+            theme.muted_style(),
+            area,
+        );
+        return;
+    }
+
+    let now = crate::store::history::now_epoch();
+    let body = Rect::new(
+        area.x,
+        area.y + 2,
+        area.width,
+        area.height.saturating_sub(2),
+    );
+    for (index, row) in rows.iter().take(body.height as usize).enumerate() {
+        let y = body.y + index as u16;
+        let selected = index == app.app_history.selected;
+        let base = if selected {
+            theme.selected_style()
+        } else {
+            theme.surface_style()
+        };
+        fill_area(buf, Rect::new(body.x, y, body.width, 1), base);
+        let mut x = body.x;
+        put(buf, x, y, &truncate(&row.name, name as usize), base, body);
+        x += name;
+        put_right(buf, x + 8, y, &cpu_time(row.cpu_ms), base, body);
+        x += 10;
+        put_right(buf, x + 10, y, &bytes(row.peak_memory), base, body);
+        x += 12;
+        let disk = format!("{} / {}", bytes(row.disk_read), bytes(row.disk_written));
+        put_right(buf, x + 19, y, &disk, base, body);
+        x += 21;
+        let last_seen = if row.last_seen == 0 {
+            DASH.to_string()
+        } else {
+            ago(now.saturating_sub(row.last_seen))
+        };
+        put_right(buf, x + 8, y, &last_seen, base, body);
+        x += 10;
+        let network = row.network.map(bytes).unwrap_or_else(|| DASH.to_string());
+        put_right(buf, x + 7, y, &network, base, body);
+    }
+}
+
+pub fn ago(seconds: u64) -> String {
+    if seconds < 60 {
+        "just now".to_string()
+    } else if seconds < 3_600 {
+        format!("{}m ago", seconds / 60)
+    } else if seconds < 86_400 {
+        format!("{}h ago", seconds / 3_600)
+    } else {
+        format!("{}d ago", seconds / 86_400)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::App;
+    use crate::store::settings::Settings;
+    use crate::ui::test_util::render;
+
+    fn app() -> App {
+        let (mut app, _) = App::new(Settings::default(), false);
+        let mut snapshot = crate::model::Snapshot::fixture();
+        let now = crate::store::history::now_epoch();
+        for row in &mut snapshot.app_usage {
+            row.last_seen = now - 3_600;
+        }
+        app.apply_snapshot(snapshot);
+        app.tab = crate::app::Tab::AppHistory;
+        app
+    }
+
+    #[test]
+    fn columns_and_values() {
+        let screen = render(&app(), 130, 30);
+        for header in [
+            "Name",
+            "CPU time",
+            "Peak memory",
+            "Disk",
+            "Last seen",
+            "Network",
+        ] {
+            assert!(screen.contains(header), "missing {header}");
+        }
+        assert!(screen.contains("Safari"));
+        assert!(screen.contains("1:00:00"));
+        assert!(screen.contains("1h ago"));
+    }
+
+    #[test]
+    fn network_is_a_dash_here_too() {
+        let screen = render(&app(), 130, 30);
+        let safari_line = screen.lines().find(|line| line.contains("Safari")).unwrap();
+        assert!(safari_line.contains('-'));
+    }
+
+    #[test]
+    fn empty_history_explains_itself() {
+        let (mut app, _) = App::new(Settings::default(), false);
+        app.tab = crate::app::Tab::AppHistory;
+        let screen = render(&app, 120, 24);
+        assert!(screen.contains("No usage recorded yet"));
+    }
+
+    #[test]
+    fn relative_times() {
+        assert_eq!(ago(10), "just now");
+        assert_eq!(ago(120), "2m ago");
+        assert_eq!(ago(7_200), "2h ago");
+        assert_eq!(ago(200_000), "2d ago");
+    }
+}

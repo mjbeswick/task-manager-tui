@@ -1,0 +1,929 @@
+//! Actions to effects. The interface never signals a process itself; it returns
+//! work for the main loop, which keeps this layer testable.
+
+use crate::app::{App, Dialog, Effect, MENUS, MenuState, PendingAction, Tab};
+use crate::input::Action;
+use crate::model::{Kind, ProcKey, ProcRow, ProcSel, Status};
+use crate::platform::ServiceAction;
+use crate::sample::group::SortKey;
+
+impl App {
+    pub fn dispatch(&mut self, action: Action) -> Vec<Effect> {
+        let mut effects = Vec::new();
+
+        if self.dialog.is_some() {
+            return self.dispatch_dialog(action);
+        }
+        if self.menu.is_some() {
+            return self.dispatch_menu(action);
+        }
+        if self.filter_editing {
+            match action {
+                Action::FilterChar(ch) => self.filter_push(ch),
+                Action::FilterBackspace => self.filter_backspace(),
+                Action::FilterClear => self.filter_clear(),
+                Action::FilterDone => self.filter_editing = false,
+                Action::Cancel => self.filter_clear(),
+                _ => {}
+            }
+            return effects;
+        }
+
+        match action {
+            Action::Quit => {
+                self.quit = true;
+                effects.push(Effect::Quit);
+            }
+            Action::NextTab => self.switch_tab(self.tab.next()),
+            Action::PreviousTab => self.switch_tab(self.tab.previous()),
+            Action::GoTab(index) => self.switch_tab(Tab::from_index(index)),
+            Action::MoveUp => {
+                self.move_selection(-1);
+            }
+            Action::MoveDown => {
+                self.move_selection(1);
+            }
+            Action::PageUp => {
+                self.move_selection(-10);
+            }
+            Action::PageDown => {
+                self.move_selection(10);
+            }
+            Action::Top => {
+                self.move_selection(-100_000);
+            }
+            Action::Bottom => {
+                self.move_selection(100_000);
+            }
+            Action::Expand => match self.tab {
+                Tab::Processes => self.toggle_expand(),
+                _ => self.inspect(),
+            },
+            Action::Collapse => {
+                if self.tab == Tab::Processes {
+                    if let Some(ProcSel::Group(_, _)) = self.process.selected_key() {
+                        self.toggle_expand();
+                    } else {
+                        self.move_selection(-1);
+                    }
+                }
+            }
+            Action::SortNext => self.cycle_sort(true),
+            Action::SortPrevious => self.cycle_sort(false),
+            Action::SortFlip => self.flip_sort(),
+            Action::ToggleDetails => {
+                if self.tab == Tab::Processes {
+                    self.process.more_details = !self.process.more_details;
+                }
+            }
+            Action::ToggleOptionalColumns => {
+                self.process.show_optional_columns = !self.process.show_optional_columns;
+            }
+            Action::ToggleTheme => {
+                self.toggle_theme();
+                effects.push(Effect::PersistSettings);
+            }
+            Action::SpeedFaster => {
+                let next = self.settings.faster_speed();
+                self.set_speed(next, &mut effects);
+            }
+            Action::SpeedSlower => {
+                let next = self.settings.next_speed();
+                self.set_speed(next, &mut effects);
+            }
+            Action::Refresh => effects.push(Effect::Refresh),
+            Action::FilterStart => {
+                if self.filter_mut().is_some() {
+                    self.filter_editing = true;
+                }
+            }
+            Action::FilterChar(_)
+            | Action::FilterBackspace
+            | Action::FilterClear
+            | Action::FilterDone => {}
+            Action::EndTask | Action::EndTree => {
+                let tree = action == Action::EndTree;
+                if let Some(row) = self.selected_process() {
+                    effects.extend(self.confirm_end_task(&row, tree));
+                } else {
+                    self.notice("No process is selected on this tab.");
+                }
+            }
+            Action::ToggleStartup => {
+                if let Some(row) = self.selected_startup() {
+                    effects.push(Effect::Startup {
+                        name: row.name.clone(),
+                        enabled: !row.enabled,
+                    });
+                }
+            }
+            Action::ServiceStart | Action::ServiceStop | Action::ServiceRestart => {
+                let service_action = match action {
+                    Action::ServiceStart => ServiceAction::Start,
+                    Action::ServiceStop => ServiceAction::Stop,
+                    _ => ServiceAction::Restart,
+                };
+                if let Some(row) = self.selected_service() {
+                    if service_action == ServiceAction::Start {
+                        effects.push(Effect::Service {
+                            name: row.name.clone(),
+                            action: service_action,
+                        });
+                    } else {
+                        self.dialog = Some(Dialog::Confirm {
+                            title: format!("{} service", service_action.label()),
+                            message: format!(
+                                "{} {}? Services that depend on it may also stop or restart.",
+                                service_action.label(),
+                                row.name
+                            ),
+                            confirm_label: service_action.label().to_string(),
+                            action: PendingAction::Service(row.name.clone(), service_action),
+                        });
+                    }
+                } else {
+                    self.notice("No service is selected.");
+                }
+            }
+            Action::Inspect => self.inspect(),
+            Action::SetPriority => self.open_priority_dialog(),
+            Action::SetAffinity => {
+                self.notice("Set affinity is not supported on Linux or macOS.");
+            }
+            Action::ShowProperties => self.show_properties(),
+            Action::Help => self.dialog = Some(Dialog::Help),
+            Action::DeleteHistory => {
+                self.dialog = Some(Dialog::Confirm {
+                    title: "Delete usage history".to_string(),
+                    message: "Every application's accumulated CPU time, peak memory, and disk totals will be cleared."
+                        .to_string(),
+                    confirm_label: "Delete usage history".to_string(),
+                    action: PendingAction::ClearHistory,
+                });
+            }
+            Action::MenuOpen => self.menu = Some(MenuState::default()),
+            Action::MenuClose
+            | Action::MenuLeft
+            | Action::MenuRight
+            | Action::MenuUp
+            | Action::MenuDown
+            | Action::MenuActivate => {}
+            Action::Cancel => {
+                if !self.filter().is_empty() {
+                    self.filter_clear();
+                }
+            }
+            Action::Confirm | Action::RunSubmit | Action::RunChar(_) | Action::RunBackspace => {}
+        }
+        effects
+    }
+
+    fn switch_tab(&mut self, tab: Tab) {
+        self.tab = tab;
+        self.filter_editing = false;
+        self.settings.last_tab = tab.index();
+        match tab {
+            Tab::Processes => self.process.refresh(&self.snapshot),
+            Tab::Details => self.sync_details_public(),
+            Tab::Services => self.sync_services_public(),
+            Tab::Startup => self.sync_startup_public(),
+            Tab::Users => self.sync_users_public(),
+            Tab::AppHistory => self.sync_history_public(),
+            _ => {}
+        }
+    }
+
+    fn set_speed(&mut self, speed: &str, effects: &mut Vec<Effect>) {
+        self.settings.set_speed(speed);
+        effects.push(Effect::SetInterval(self.settings.interval()));
+        effects.push(Effect::PersistSettings);
+    }
+
+    fn sorted_keys(&self) -> Vec<SortKey> {
+        match self.tab {
+            Tab::Processes => SortKey::PROCESS_KEYS.to_vec(),
+            Tab::Details => SortKey::DETAIL_KEYS.to_vec(),
+            Tab::AppHistory => vec![SortKey::Name, SortKey::Cpu, SortKey::Memory, SortKey::Disk],
+            _ => Vec::new(),
+        }
+    }
+
+    fn cycle_sort(&mut self, forward: bool) {
+        let keys = self.sorted_keys();
+        if keys.is_empty() {
+            return;
+        }
+        let state = match self.tab {
+            Tab::Processes => &mut self.process.sort,
+            Tab::Details => &mut self.details.sort,
+            Tab::AppHistory => &mut self.app_history.sort,
+            _ => return,
+        };
+        if forward {
+            state.next_column(&keys);
+        } else {
+            state.previous_column(&keys);
+        }
+        self.refresh_active();
+    }
+
+    fn flip_sort(&mut self) {
+        let state = match self.tab {
+            Tab::Processes => &mut self.process.sort,
+            Tab::Details => &mut self.details.sort,
+            Tab::AppHistory => &mut self.app_history.sort,
+            _ => return,
+        };
+        state.flip();
+        self.refresh_active();
+    }
+
+    fn refresh_active(&mut self) {
+        match self.tab {
+            Tab::Processes => self.process.refresh(&self.snapshot),
+            Tab::Details => self.sync_details_public(),
+            Tab::AppHistory => self.sync_history_public(),
+            _ => {}
+        }
+    }
+
+    fn open_priority_dialog(&mut self) {
+        let Some(row) = self.selected_process() else {
+            self.notice("Select a process on the Details tab first.");
+            return;
+        };
+        self.dialog = Some(Dialog::Priority {
+            key: row.key,
+            name: row.name,
+            selected: row.priority.level_index(),
+        });
+    }
+
+    fn inspect(&mut self) {
+        match self.tab {
+            Tab::Details => {
+                self.details.panel = !self.details.panel;
+            }
+            Tab::Users => {
+                self.users.panel = !self.users.panel;
+            }
+            _ => self.show_properties(),
+        }
+    }
+
+    fn show_properties(&mut self) {
+        let lines = match self.tab {
+            Tab::Services => self.selected_service().map(|row| {
+                vec![
+                    format!("Name: {}", row.name),
+                    format!(
+                        "Description: {}",
+                        row.description.unwrap_or_else(|| "-".into())
+                    ),
+                    format!("Status: {}", row.state.label()),
+                    format!(
+                        "PID: {}",
+                        row.pid.map(|p| p.to_string()).unwrap_or_else(|| "-".into())
+                    ),
+                    format!("Group: {}", row.scope.label()),
+                ]
+            }),
+            Tab::Startup => self.selected_startup().map(|row| {
+                vec![
+                    format!("Name: {}", row.name),
+                    format!("Command: {}", row.command),
+                    format!("Owner: {}", row.owner),
+                    format!("Source: {}", row.source),
+                    format!(
+                        "Status: {}",
+                        if row.enabled { "Enabled" } else { "Disabled" }
+                    ),
+                    format!("Startup impact: {}", row.impact.label()),
+                    format!(
+                        "Program present: {}",
+                        if row.missing_program { "no" } else { "yes" }
+                    ),
+                ]
+            }),
+            Tab::Details => self.selected_process().map(|row| process_lines(&row)),
+            _ => self.selected_process().map(|row| process_lines(&row)),
+        };
+        if let Some(lines) = lines {
+            self.dialog = Some(Dialog::Properties {
+                title: "Properties".to_string(),
+                lines,
+            });
+        }
+    }
+
+    fn confirm_end_task(&mut self, row: &ProcRow, tree: bool) -> Vec<Effect> {
+        let mut effects = Vec::new();
+        if row.status == Status::Stopped {
+            self.notice("That process has already exited.");
+            return effects;
+        }
+        let key = row.key;
+        if tree {
+            let count = descendants(&self.snapshot.processes, key.pid).len() + 1;
+            self.dialog = Some(Dialog::Confirm {
+                title: "End process tree".to_string(),
+                message: format!(
+                    "End {} and its {count} process{}? Unsaved work will be lost.",
+                    row.name,
+                    if count == 1 { "" } else { "es" }
+                ),
+                confirm_label: "End process tree".to_string(),
+                action: PendingAction::EndTree(key),
+            });
+            return effects;
+        }
+        let needs_confirm =
+            row.kind == Kind::System || row.uid != Some(crate::platform::current_uid());
+        if needs_confirm {
+            self.dialog = Some(Dialog::Confirm {
+                title: "End task".to_string(),
+                message: format!(
+                    "End {} (PID {})? This process belongs to {}, so ending it may need administrator rights.",
+                    row.name,
+                    key.pid,
+                    row.user.clone().unwrap_or_else(|| "another user".into())
+                ),
+                confirm_label: "End task".to_string(),
+                action: PendingAction::EndTask(key),
+            });
+        } else {
+            effects.push(Effect::Signal {
+                key,
+                force: false,
+                tree: false,
+            });
+        }
+        effects
+    }
+
+    fn dispatch_dialog(&mut self, action: Action) -> Vec<Effect> {
+        let mut effects = Vec::new();
+        match action {
+            Action::Cancel => {
+                self.dialog = None;
+            }
+            Action::RunChar(ch) => {
+                if let Some(Dialog::Run { input }) = &mut self.dialog {
+                    input.push(ch);
+                }
+            }
+            Action::RunBackspace => {
+                if let Some(Dialog::Run { input }) = &mut self.dialog {
+                    input.pop();
+                }
+            }
+            Action::RunSubmit => {
+                if let Some(Dialog::Run { input }) = self.dialog.take() {
+                    let parts = split_command_line(&input);
+                    match parts.split_first() {
+                        Some((program, args)) => effects.push(Effect::Run {
+                            program: program.clone(),
+                            args: args.to_vec(),
+                        }),
+                        None => self.notice("Nothing to run."),
+                    }
+                }
+            }
+            Action::MoveUp | Action::MoveDown => {
+                let delta = if action == Action::MoveUp { -1 } else { 1 };
+                if let Some(Dialog::Priority { selected, .. }) = &mut self.dialog {
+                    let count = crate::model::Priority::LEVELS.len() as isize;
+                    *selected = (*selected as isize + delta).rem_euclid(count) as usize;
+                }
+            }
+            Action::Confirm => {
+                if let Some(Dialog::Priority { key, selected, .. }) = &self.dialog {
+                    let (_, nice) = crate::model::Priority::LEVELS[*selected];
+                    effects.push(Effect::Priority { key: *key, nice });
+                    self.dialog = None;
+                    return effects;
+                }
+                if let Some(Dialog::Confirm { action, .. }) = self.dialog.take() {
+                    match action {
+                        PendingAction::EndTask(key) => effects.push(Effect::Signal {
+                            key,
+                            force: false,
+                            tree: false,
+                        }),
+                        PendingAction::EndTree(key) => effects.push(Effect::Signal {
+                            key,
+                            force: true,
+                            tree: true,
+                        }),
+                        PendingAction::ClearHistory => effects.push(Effect::ClearHistory),
+                        PendingAction::Service(name, action) => {
+                            effects.push(Effect::Service { name, action })
+                        }
+                        PendingAction::Startup(name, enabled) => {
+                            effects.push(Effect::Startup { name, enabled })
+                        }
+                        PendingAction::Priority(key, nice) => {
+                            effects.push(Effect::Priority { key, nice })
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+        effects
+    }
+
+    fn dispatch_menu(&mut self, action: Action) -> Vec<Effect> {
+        let mut state = self.menu.unwrap_or_default();
+        match action {
+            Action::MenuClose | Action::Cancel => {
+                self.menu = None;
+            }
+            Action::MenuLeft => {
+                state.menu = (state.menu + MENUS.len() - 1) % MENUS.len();
+                state.item = 0;
+                self.menu = Some(state);
+            }
+            Action::MenuRight => {
+                state.menu = (state.menu + 1) % MENUS.len();
+                state.item = 0;
+                self.menu = Some(state);
+            }
+            Action::MenuUp => {
+                let count = MENUS[state.menu].1.len();
+                state.item = (state.item + count - 1) % count;
+                self.menu = Some(state);
+            }
+            Action::MenuDown => {
+                let count = MENUS[state.menu].1.len();
+                state.item = (state.item + 1) % count;
+                self.menu = Some(state);
+            }
+            Action::MenuActivate => {
+                let item = MENUS[state.menu].1.get(state.item).map(|(_, item)| *item);
+                self.menu = None;
+                if let Some(item) = item {
+                    return self.menu_item(item);
+                }
+            }
+            _ => {
+                self.menu = Some(state);
+            }
+        }
+        Vec::new()
+    }
+
+    fn menu_item(&mut self, item: crate::app::MenuItem) -> Vec<Effect> {
+        use crate::app::MenuItem;
+        let mut effects = Vec::new();
+        let action = match item {
+            MenuItem::Run => {
+                self.dialog = Some(Dialog::Run {
+                    input: String::new(),
+                });
+                return effects;
+            }
+            MenuItem::Exit => Action::Quit,
+            MenuItem::Theme => Action::ToggleTheme,
+            MenuItem::SpeedHigh => {
+                self.set_speed("high", &mut effects);
+                return effects;
+            }
+            MenuItem::SpeedNormal => {
+                self.set_speed("normal", &mut effects);
+                return effects;
+            }
+            MenuItem::SpeedLow => {
+                self.set_speed("low", &mut effects);
+                return effects;
+            }
+            MenuItem::SpeedPaused => {
+                self.set_speed("paused", &mut effects);
+                return effects;
+            }
+            MenuItem::Refresh => Action::Refresh,
+            MenuItem::ToggleDetails => Action::ToggleDetails,
+            MenuItem::OptionalColumns => Action::ToggleOptionalColumns,
+            MenuItem::SortNext => Action::SortNext,
+            MenuItem::SortReverse => Action::SortFlip,
+            MenuItem::ExpandAll => {
+                self.expand_all();
+                return effects;
+            }
+            MenuItem::CollapseAll => {
+                self.collapse_all();
+                return effects;
+            }
+            MenuItem::EndTask => Action::EndTask,
+            MenuItem::ClearHistory => Action::DeleteHistory,
+            MenuItem::Help => Action::Help,
+        };
+        effects.extend(self.dispatch(action));
+        effects
+    }
+}
+
+pub fn process_lines(row: &ProcRow) -> Vec<String> {
+    vec![
+        format!("Name: {}", row.name),
+        format!("PID: {}", row.key.pid),
+        format!(
+            "Command line: {}",
+            if row.cmd.is_empty() { "-" } else { &row.cmd }
+        ),
+        format!(
+            "Executable: {}",
+            row.exe.clone().unwrap_or_else(|| "-".into())
+        ),
+        format!(
+            "Parent: {}",
+            row.parent_pid
+                .map(|p| p.to_string())
+                .unwrap_or_else(|| "-".into())
+        ),
+        format!("Owner: {}", row.user.clone().unwrap_or_else(|| "-".into())),
+        format!(
+            "Threads: {}",
+            row.thread_count()
+                .map(|t| t.to_string())
+                .unwrap_or_else(|| "-".into())
+        ),
+        format!("Status: {}", row.status.label()),
+        format!("Priority: {}", row.priority.label()),
+        format!(
+            "Affinity: {}",
+            if crate::model::Capabilities::for_current_platform().affinity {
+                "-"
+            } else {
+                "not supported on this platform"
+            }
+        ),
+        format!(
+            "Started: {}",
+            crate::ui::format::duration(row.run_time_secs)
+        ),
+    ]
+}
+
+/// Collect every descendant of `pid` by walking parent links.
+pub fn descendants(processes: &[ProcRow], pid: u32) -> Vec<ProcKey> {
+    let mut found: Vec<ProcKey> = Vec::new();
+    let mut frontier = vec![pid];
+    while let Some(parent) = frontier.pop() {
+        for process in processes.iter().filter(|p| p.parent_pid == Some(parent)) {
+            if process.key.pid == pid || found.contains(&process.key) {
+                continue;
+            }
+            found.push(process.key);
+            frontier.push(process.key.pid);
+        }
+    }
+    found
+}
+
+/// Split a command line into a program and arguments, honouring single and
+/// double quotes. No shell is involved, so metacharacters stay literal.
+pub fn split_command_line(input: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut quote: Option<char> = None;
+    let mut escaped = false;
+
+    for ch in input.chars() {
+        if escaped {
+            current.push(ch);
+            escaped = false;
+            continue;
+        }
+        match quote {
+            Some(q) => {
+                if ch == q {
+                    quote = None;
+                } else if ch == '\\' && q == '"' {
+                    escaped = true;
+                } else {
+                    current.push(ch);
+                }
+            }
+            None => match ch {
+                '"' | '\'' => quote = Some(ch),
+                '\\' => escaped = true,
+                ch if ch.is_whitespace() => {
+                    if !current.is_empty() {
+                        parts.push(std::mem::take(&mut current));
+                    }
+                }
+                ch => current.push(ch),
+            },
+        }
+    }
+    if !current.is_empty() {
+        parts.push(current);
+    }
+    parts
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::App;
+    use crate::input::Action;
+    use crate::store::settings::Settings;
+
+    fn app() -> App {
+        let (mut app, _) = App::new(Settings::default(), false);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        app
+    }
+
+    #[test]
+    fn quit_sets_flag_and_effect() {
+        let mut app = app();
+        let effects = app.dispatch(Action::Quit);
+        assert!(app.quit);
+        assert_eq!(effects, vec![Effect::Quit]);
+    }
+
+    #[test]
+    fn ending_an_owned_process_signals_immediately() {
+        let mut app = app();
+        app.tab = Tab::Details;
+        let row = app
+            .snapshot
+            .processes
+            .iter()
+            .find(|p| p.kind == Kind::Background)
+            .unwrap()
+            .clone();
+        app.details.key = Some(row.key);
+        app.sync_details_public();
+        let effects = app.dispatch(Action::EndTask);
+        assert!(app.dialog.is_none());
+        assert!(matches!(
+            effects.as_slice(),
+            [Effect::Signal { key, force: false, tree: false }] if *key == row.key
+        ));
+    }
+
+    #[test]
+    fn ending_a_system_process_asks_first() {
+        let mut app = app();
+        app.tab = Tab::Details;
+        let row = app
+            .snapshot
+            .processes
+            .iter()
+            .find(|p| p.kind == Kind::System)
+            .unwrap()
+            .clone();
+        app.details.key = Some(row.key);
+        app.sync_details_public();
+        let effects = app.dispatch(Action::EndTask);
+        assert!(effects.is_empty());
+        assert!(matches!(app.dialog, Some(Dialog::Confirm { .. })));
+        let effects = app.dispatch(Action::Confirm);
+        assert!(matches!(
+            effects.as_slice(),
+            [Effect::Signal {
+                force: false,
+                tree: false,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn cancel_leaves_no_effect() {
+        let mut app = app();
+        app.dialog = Some(Dialog::Confirm {
+            title: "End task".into(),
+            message: "Sure?".into(),
+            confirm_label: "End task".into(),
+            action: PendingAction::ClearHistory,
+        });
+        let effects = app.dispatch(Action::Cancel);
+        assert!(app.dialog.is_none());
+        assert!(effects.is_empty());
+    }
+
+    #[test]
+    fn fewer_details_toggles() {
+        let mut app = app();
+        assert!(app.process.more_details);
+        app.dispatch(Action::ToggleDetails);
+        assert!(!app.process.more_details);
+    }
+
+    #[test]
+    fn speed_changes_emit_interval_and_persist() {
+        let mut app = app();
+        let effects = app.dispatch(Action::SpeedSlower);
+        assert!(effects.contains(&Effect::PersistSettings));
+        assert!(matches!(
+            effects.iter().find(|e| matches!(e, Effect::SetInterval(_))),
+            Some(Effect::SetInterval(Some(_)))
+        ));
+        assert_eq!(app.settings.update_speed, "low");
+    }
+
+    #[test]
+    fn stopping_a_service_asks_first() {
+        let mut app = app();
+        app.tab = Tab::Services;
+        app.sync_services_public();
+        let effects = app.dispatch(Action::ServiceStop);
+        assert!(effects.is_empty());
+        assert!(app.dialog.as_ref().unwrap().title().contains("Stop"));
+        let effects = app.dispatch(Action::Confirm);
+        assert!(matches!(
+            effects.as_slice(),
+            [Effect::Service {
+                action: ServiceAction::Stop,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn starting_a_service_runs_without_a_confirmation() {
+        let mut app = app();
+        app.tab = Tab::Services;
+        app.sync_services_public();
+        let effects = app.dispatch(Action::ServiceStart);
+        assert!(app.dialog.is_none());
+        assert!(matches!(
+            effects.as_slice(),
+            [Effect::Service {
+                action: ServiceAction::Start,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn startup_toggle_emits_an_effect() {
+        let mut app = app();
+        app.tab = Tab::Startup;
+        app.sync_startup_public();
+        let enabled = app.selected_startup().unwrap().enabled;
+        let effects = app.dispatch(Action::ToggleStartup);
+        assert!(matches!(
+            effects.as_slice(),
+            [Effect::Startup { enabled: new, .. }] if *new != enabled
+        ));
+    }
+
+    #[test]
+    fn sorting_cycles_columns_and_direction() {
+        let mut app = app();
+        assert_eq!(app.process.sort.key, SortKey::Cpu);
+        app.dispatch(Action::SortNext);
+        assert_eq!(app.process.sort.key, SortKey::Memory);
+        app.dispatch(Action::SortFlip);
+        assert_eq!(app.process.sort.dir, crate::sample::group::SortDir::Asc);
+    }
+
+    #[test]
+    fn menu_navigates_and_activates() {
+        let mut app = app();
+        app.dispatch(Action::MenuOpen);
+        assert!(app.menu.is_some());
+        app.dispatch(Action::MenuRight);
+        assert_eq!(app.menu.unwrap().menu, 1);
+        app.dispatch(Action::MenuDown);
+        app.dispatch(Action::MenuActivate);
+        assert!(app.menu.is_none());
+        assert!(app.dialog.is_none());
+    }
+
+    #[test]
+    fn run_dialog_splits_without_a_shell() {
+        let mut app = app();
+        app.dialog = Some(Dialog::Run {
+            input: "printf '%s' \"a; rm -rf /\"".to_string(),
+        });
+        let effects = app.dispatch(Action::RunSubmit);
+        match effects.as_slice() {
+            [Effect::Run { program, args }] => {
+                assert_eq!(program, "printf");
+                assert_eq!(args, &vec!["%s".to_string(), "a; rm -rf /".to_string()]);
+            }
+            other => panic!("unexpected effects: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn empty_run_dialog_does_nothing() {
+        let mut app = app();
+        app.dialog = Some(Dialog::Run {
+            input: "   ".to_string(),
+        });
+        let effects = app.dispatch(Action::RunSubmit);
+        assert!(effects.is_empty());
+        assert!(app.dialog.is_none());
+    }
+
+    #[test]
+    fn priority_dialog_sets_a_level() {
+        let mut app = app();
+        app.tab = Tab::Details;
+        let row = app
+            .snapshot
+            .processes
+            .iter()
+            .find(|p| p.kind == Kind::Background)
+            .unwrap()
+            .clone();
+        app.details.key = Some(row.key);
+        app.sync_details_public();
+        app.dispatch(Action::SetPriority);
+        assert!(matches!(app.dialog, Some(Dialog::Priority { .. })));
+        app.dispatch(Action::MoveDown);
+        let effects = app.dispatch(Action::Confirm);
+        match effects.as_slice() {
+            [Effect::Priority { key, nice }] => {
+                assert_eq!(*key, row.key);
+                assert_eq!(*nice, 5, "Below normal");
+            }
+            other => panic!("unexpected effects: {other:?}"),
+        }
+        assert!(app.dialog.is_none());
+    }
+
+    #[test]
+    fn affinity_reports_that_it_is_unavailable() {
+        let mut app = app();
+        app.dispatch(Action::SetAffinity);
+        assert!(
+            app.notices
+                .last()
+                .unwrap()
+                .contains("not supported on Linux or macOS")
+        );
+        assert!(app.dialog.is_none());
+    }
+
+    #[test]
+    fn deleting_history_asks_and_emits_the_effect() {
+        let mut app = app();
+        app.dispatch(Action::DeleteHistory);
+        assert!(matches!(app.dialog, Some(Dialog::Confirm { .. })));
+        let effects = app.dispatch(Action::Confirm);
+        assert_eq!(effects, vec![Effect::ClearHistory]);
+    }
+
+    #[test]
+    fn view_menu_can_collapse_everything() {
+        let mut app = app();
+        let view = crate::app::MENUS
+            .iter()
+            .position(|(label, _)| *label == "View")
+            .unwrap();
+        let item = crate::app::MENUS[view]
+            .1
+            .iter()
+            .position(|(label, _)| *label == "Collapse all")
+            .unwrap();
+        app.menu = Some(crate::app::MenuState { menu: view, item });
+        app.dispatch(Action::MenuActivate);
+        assert_eq!(app.process.collapsed_kinds.len(), 3);
+    }
+
+    #[test]
+    fn optional_columns_can_be_hidden_from_the_menu() {
+        let mut app = app();
+        assert!(app.show_optional());
+        app.dispatch(Action::ToggleOptionalColumns);
+        assert!(!app.show_optional());
+        app.dispatch(Action::ToggleOptionalColumns);
+        assert!(app.show_optional());
+    }
+
+    #[test]
+    fn descendants_walk_the_tree() {
+        let processes = crate::model::Snapshot::fixture().processes;
+        let found = descendants(&processes, 1);
+        assert!(found.iter().any(|key| key.pid == 4242));
+    }
+
+    #[test]
+    fn command_line_quoting() {
+        assert_eq!(
+            split_command_line("/bin/echo \"hello world\" plain"),
+            vec!["/bin/echo", "hello world", "plain"]
+        );
+        assert_eq!(split_command_line(""), Vec::<String>::new());
+        assert_eq!(split_command_line("a 'b c' d"), vec!["a", "b c", "d"]);
+    }
+
+    #[test]
+    fn status_bar_speed_steps_through_all_values() {
+        let mut app = app();
+        app.dispatch(Action::SpeedSlower);
+        assert_eq!(app.settings.update_speed, "low");
+        app.dispatch(Action::SpeedSlower);
+        assert_eq!(app.settings.update_speed, "paused");
+        app.dispatch(Action::SpeedSlower);
+        assert_eq!(app.settings.update_speed, "high");
+    }
+}

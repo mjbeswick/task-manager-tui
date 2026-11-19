@@ -1,0 +1,17 @@
+Id=nginx.service
+Description=A high performance web server and a reverse proxy server
+LoadState=loaded
+ActiveState=active
+MainPID=1412
+
+Id=ssh.service
+Description=OpenBSD Secure Shell server
+LoadState=loaded
+ActiveState=inactive
+MainPID=0
+
+Id=broken.service
+Description=
+LoadState=not-found
+ActiveState=inactive
+MainPID=0

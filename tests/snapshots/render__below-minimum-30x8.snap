@@ -1,0 +1,9 @@
+---
+source: tests/render.rs
+expression: "screen(&app(Tab::Processes, \"light\"), 30, 8)"
+---
+                              
+                              
+                              
+                              
+taskmgr needs at least 40 colu
