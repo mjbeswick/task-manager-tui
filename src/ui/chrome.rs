@@ -615,7 +615,10 @@ mod tests {
         assert!(screen.contains("File"));
         assert!(screen.contains("Processes"));
         assert!(screen.contains("App history"));
-        assert!(screen.contains("/ Filter"), "list tabs show the filter field");
+        assert!(
+            screen.contains("/ Filter"),
+            "list tabs show the filter field"
+        );
         assert!(screen.contains("CPU 27.0%"));
         assert!(screen.contains("Fewer details"));
     }
