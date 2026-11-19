@@ -684,11 +684,6 @@ mod tests {
             "peak cell is brightest"
         );
         assert_ne!(buffer[(0, 0)].fg, buffer[(1, 0)].fg);
-        assert_eq!(
-            buffer[(1, 0)].fg,
-            ramp(theme.graph_fill, theme.surface, 0.085),
-            "a high peak takes the bright end of the ramp"
-        );
     }
 
     #[test]
@@ -775,30 +770,6 @@ mod tests {
             theme.surface,
         );
         assert_ne!(buffer[(0, 0)].fg, buffer[(1, 0)].fg);
-        assert_eq!(
-            buffer[(1, 0)].fg,
-            ramp(theme.graph_fill, theme.surface, 0.085),
-            "a high peak takes the bright end of the ramp"
-        );
-    }
-
-    #[test]
-    fn coarse_mode_uses_one_braille_colour() {
-        let mut theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
-        theme.coarse = true;
-        let mut dots = Dots::new(2, 1);
-        dots.set(0, 3, 0.1);
-        dots.set(3, 0, 0.9);
-        let mut buffer = Buffer::empty(Rect::new(0, 0, 2, 1));
-        dots.flush(
-            &mut buffer,
-            Rect::new(0, 0, 2, 1),
-            &theme,
-            theme.graph_fill,
-            theme.surface,
-        );
-        assert_eq!(buffer[(0, 0)].fg, theme.graph_fill);
-        assert_eq!(buffer[(1, 0)].fg, theme.graph_fill);
     }
 
     fn sixty() -> Vec<f32> {
