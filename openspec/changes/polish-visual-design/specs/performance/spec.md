@@ -4,14 +4,14 @@
 
 A Filled graph SHALL resolve its top edge to an eighth of a cell, and SHALL draw
 that edge in a stronger shade than the fill below it. ASCII mode and 16 colour
-mode MUST keep whole and half cell steps.
+mode MUST keep whole and half cell steps in a single shade.
 
 #### Scenario: Partial cell
 - **WHEN** a sample's height ends three eighths into a cell
 - **THEN** that cell shows a three eighths block, not a full or empty cell
 
 #### Scenario: Edge and fill
-- **WHEN** a Filled graph is drawn in Unicode mode
+- **WHEN** a Filled graph is drawn in Unicode mode at 256 colours or truecolor
 - **THEN** the topmost cell of each column uses the edge shade and the cells beneath use the fill shade
 
 #### Scenario: ASCII mode
@@ -20,7 +20,7 @@ mode MUST keep whole and half cell steps.
 
 #### Scenario: 16 colour mode
 - **WHEN** the application draws at 16 colours
-- **THEN** graphs and rail sparklines use only whole and half block steps
+- **THEN** graphs and rail sparklines use only whole and half block steps, all in the chart colour
 
 ## MODIFIED Requirements
 

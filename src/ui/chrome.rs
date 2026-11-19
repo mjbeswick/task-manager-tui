@@ -250,7 +250,9 @@ fn draw_filter_field(buf: &mut Buffer, bar: Rect, free: u16, app: &App, hits: &m
     let end = start + shown.chars().count() as u16;
     if editing {
         let cursor = Style::default().fg(theme.accent).bg(theme.surface);
-        put(buf, end, bar.y, &glyphs.cursor.to_string(), cursor, rect);
+        // Linux console fonts lack the thin bar, so 16 colour mode uses `|`.
+        let glyph = if theme.coarse { '|' } else { glyphs.cursor };
+        put(buf, end, bar.y, &glyph.to_string(), cursor, rect);
     }
     if !text.is_empty() {
         let x = right - 2;

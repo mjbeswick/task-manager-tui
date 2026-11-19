@@ -68,7 +68,7 @@ has no Windows 10 reference, so it uses a muted amber ramp from `#3A3322` to
 implementation. The contrast test is the gate, not these numbers.
 
 At 16 colours the ramp collapses to two steps: shares of 15 percent or more get
-yellow, the rest stay plain.
+yellow on light and red on dark, the rest stay plain.
 
 *Alternative.* Shade by the row's absolute value. Rejected: Disk and Network have
 no fixed ceiling, so a share is the only scale that means the same thing on
@@ -116,7 +116,8 @@ The field replaces the `Task Manager` title on list tabs. Performance keeps the
 title. It is drawn as `/ Filter` when empty and `/ text ×` when set. The `/` is
 both the icon and the key hint. A `⌕` icon was dropped because Linux console
 fonts often lack it. The `×` is a click target that clears. The ASCII twin uses
-`x` and a `|` cursor.
+`x` and a `|` cursor. 16 colour mode also uses the `|` cursor, because Linux
+console fonts lack `▏`.
 
 The existing per-tab filter state and `filter_editing` flag are reused. App
 history and Users gain a filter string in their tab state, and their row lists
@@ -136,7 +137,8 @@ already sorted.
 
 - [Two-row header shifts every row by one] → Row hit targets come from drawing,
   so they move with it. `tests/mouse.rs` gets a case that clicks the first row
-  under the new header. Page size reads the table body height, not a constant.
+  under the new header. Paging stays a fixed ten rows, and the draw scrolls to
+  keep the selection visible, so the taller header needs no paging change.
 - [Every golden frame changes] → Regenerate in one pass and review the diff
   tab by tab before committing.
 - [Heat ramp hurts readability on some monitors] → Contrast test on every step

@@ -24,7 +24,7 @@
 - [x] 4.1 Add the light and dark heat ramps to `Theme` and a step function using the 1, 5, 15, 30 and 50 percent thresholds, with two steps at 16 colours. Verify: unit tests cover each threshold edge and the contrast test checks text on every step.
 - [x] 4.2 Shade CPU, Memory, Disk, and Network cells by share of system total, leaving dash cells, group rows, and the selected row unshaded. Verify: render tests check cell backgrounds for a busy row, an idle row, a dash cell, and a selected row.
 - [x] 4.3 Add the totals row above the resource labels and drop it below twelve content rows. Verify: render tests at 120x36 show `27%` above `CPU` and at 80x14 show a one row header.
-- [x] 4.4 Make page size and scrolling read the table body height. Verify: a test pages down at both header heights and the selection stays visible.
+- [x] 4.4 Confirm paging and scrolling keep the selection visible under both header heights. Paging stays ten rows and the draw scrolls to the selection, so no code change is needed. Verify: a test pages down at both header heights and the selection stays visible.
 
 ## 5. Click to sort
 
