@@ -402,7 +402,8 @@ impl Inner {
     }
 
     fn session_rows(&self, processes: &[ProcRow]) -> Vec<SessionRow> {
-        let mut sessions = platform::list_sessions(self.runner.as_ref()).unwrap_or_default();
+        let sessions = platform::list_sessions(self.runner.as_ref()).unwrap_or_default();
+        let mut sessions = merge_sessions(sessions);
 
         let mut totals: HashMap<u32, (f32, u64, DiskIo)> = HashMap::new();
         for process in processes {
@@ -424,6 +425,29 @@ impl Inner {
         }
         sessions
     }
+}
+
+/// One row per user, as Windows 10 shows it. The current session leads, the
+/// rest are counted, and the user is Active when any session is.
+pub fn merge_sessions(sessions: Vec<SessionRow>) -> Vec<SessionRow> {
+    let mut merged: Vec<SessionRow> = Vec::new();
+    for session in sessions {
+        match merged.iter_mut().find(|row| row.uid == session.uid) {
+            None => merged.push(session),
+            Some(row) => {
+                row.others += 1;
+                if session.status == crate::model::SessionStatus::Active {
+                    row.status = crate::model::SessionStatus::Active;
+                }
+                if session.current && !row.current {
+                    row.tty = session.tty;
+                    row.host = session.host;
+                    row.current = true;
+                }
+            }
+        }
+    }
+    merged
 }
 
 pub fn map_status(status: ProcessStatus) -> Status {
@@ -550,5 +574,31 @@ mod tests {
             "resume must refresh immediately"
         );
         sampler.stop();
+    }
+
+    #[test]
+    fn sessions_merge_into_one_row_per_user() {
+        use crate::model::SessionStatus;
+        let base = crate::model::Snapshot::fixture().sessions[0].clone();
+        let session = |tty: &str, uid: u32, status, current| SessionRow {
+            tty: tty.into(),
+            uid,
+            status,
+            current,
+            ..base.clone()
+        };
+        let rows = merge_sessions(vec![
+            session("pts/0", 1000, SessionStatus::Disconnected, false),
+            session("pts/2", 1000, SessionStatus::Active, true),
+            session("pts/3", 1000, SessionStatus::Disconnected, false),
+            session("pts/4", 1000, SessionStatus::Disconnected, false),
+            session("console", 0, SessionStatus::Active, false),
+        ]);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].others, 3);
+        assert_eq!(rows[0].tty, "pts/2", "the current session leads");
+        assert!(rows[0].current);
+        assert_eq!(rows[0].status, SessionStatus::Active);
+        assert_eq!(rows[1].others, 0);
     }
 }

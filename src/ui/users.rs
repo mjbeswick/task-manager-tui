@@ -142,7 +142,14 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
             buf,
             body.x + name,
             y,
-            &truncate(&row.tty, session as usize),
+            &truncate(
+                &if row.others > 0 {
+                    format!("{} +{}", row.tty, row.others)
+                } else {
+                    row.tty.clone()
+                },
+                session as usize,
+            ),
             base,
             body,
         );
@@ -279,5 +286,18 @@ mod tests {
         app.tab = crate::app::Tab::Users;
         let screen = render(&app, 100, 24);
         assert!(screen.contains("No interactive sessions"));
+    }
+
+    #[test]
+    fn merged_sessions_show_a_count() {
+        let (mut app, _) = App::new(crate::store::settings::Settings::default(), false);
+        let mut snapshot = crate::model::Snapshot::fixture();
+        snapshot.sessions[0].tty = "pts/0".into();
+        snapshot.sessions[0].others = 3;
+        app.apply_snapshot(snapshot);
+        app.tab = crate::app::Tab::Users;
+        let screen = crate::ui::test_util::render(&app, 120, 30);
+        assert!(screen.contains("pts/0 +3"), "{screen}");
+        assert_eq!(screen.matches("michael").count(), 1, "one row for the user");
     }
 }

@@ -417,6 +417,8 @@ pub struct SessionRow {
     pub memory: u64,
     pub disk: DiskIo,
     pub current: bool,
+    /// Further sessions for this user, merged into this row.
+    pub others: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -604,6 +606,7 @@ impl Snapshot {
                     write_bps: 1024.0 * 64.0,
                 },
                 current: true,
+                others: 0,
             }],
             services: vec![
                 ServiceRow {

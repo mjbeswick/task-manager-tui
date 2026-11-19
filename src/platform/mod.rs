@@ -177,6 +177,7 @@ pub fn parse_who(
             memory: 0,
             disk: Default::default(),
             current: current_tty.is_some_and(|current| current == tty_name),
+            others: 0,
         });
     }
     rows
