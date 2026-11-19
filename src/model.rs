@@ -138,16 +138,18 @@ pub enum ChartColor {
     Orange,
     Magenta,
     Mono,
+    Theme,
 }
 
 impl ChartColor {
-    pub const ALL: [ChartColor; 6] = [
+    pub const ALL: [ChartColor; 7] = [
         ChartColor::PerResource,
         ChartColor::Teal,
         ChartColor::Blue,
         ChartColor::Orange,
         ChartColor::Magenta,
         ChartColor::Mono,
+        ChartColor::Theme,
     ];
 
     pub fn label(self) -> &'static str {
@@ -158,6 +160,7 @@ impl ChartColor {
             ChartColor::Orange => "Orange",
             ChartColor::Magenta => "Magenta",
             ChartColor::Mono => "Mono",
+            ChartColor::Theme => "Theme",
         }
     }
 
@@ -174,6 +177,7 @@ impl ChartColor {
             ChartColor::Orange => "orange",
             ChartColor::Magenta => "magenta",
             ChartColor::Mono => "mono",
+            ChartColor::Theme => "theme",
         }
     }
 
@@ -185,6 +189,7 @@ impl ChartColor {
             "orange" => Some(ChartColor::Orange),
             "magenta" => Some(ChartColor::Magenta),
             "mono" => Some(ChartColor::Mono),
+            "theme" => Some(ChartColor::Theme),
             _ => None,
         }
     }
@@ -217,6 +222,7 @@ impl ChartColor {
             ChartColor::Orange => Color::Rgb(0xD1, 0x6B, 0x1F),
             ChartColor::Magenta => Color::Rgb(0xB0, 0x4A, 0xA8),
             ChartColor::Mono => theme.text,
+            ChartColor::Theme => theme.graph_fill,
         }
     }
 }
@@ -857,12 +863,22 @@ mod tests {
     }
 
     #[test]
+    fn theme_chart_colour_follows_the_palette() {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Nord, false);
+        assert_eq!(
+            ChartColor::Theme.color(&theme, crate::app::ResourceChoice::Cpu),
+            theme.graph_fill
+        );
+    }
+
+    #[test]
     fn chart_choices_cycle_and_parse() {
         assert_eq!(ChartStyle::Filled.next(), ChartStyle::Line);
         assert_eq!(ChartStyle::Dots.next(), ChartStyle::Filled);
         assert_eq!(ChartStyle::parse("dots"), Some(ChartStyle::Dots));
         assert_eq!(ChartStyle::parse("nope"), None);
-        assert_eq!(ChartColor::Mono.next(), ChartColor::PerResource);
+        assert_eq!(ChartColor::Theme.next(), ChartColor::PerResource);
+        assert_eq!(ChartColor::Mono.next(), ChartColor::Theme);
         assert_eq!(ChartColor::parse("orange"), Some(ChartColor::Orange));
         assert_eq!(ChartColor::parse("nope"), None);
         for colour in ChartColor::ALL {

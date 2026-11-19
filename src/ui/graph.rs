@@ -133,7 +133,6 @@ pub fn fill_column(
     let (x, top, height) = (column.x, column.y, column.height);
     let glyphs = theme.glyphs();
     let coarse = theme.ascii || theme.coarse;
-    let fill = if coarse { edge } else { mix(edge, bg, 0.55) };
     let mut total = (fraction.clamp(0.0, 1.0) * height as f32 * 8.0).round() as usize;
     if coarse {
         total = (total + 2) / 4 * 4;
@@ -144,13 +143,107 @@ pub fn fill_column(
             break;
         }
         let is_top = total <= (offset + 1) * 8;
-        let style = ratatui::style::Style::default()
-            .fg(if is_top { edge } else { fill })
-            .bg(bg);
+        let rise = if height > 1 {
+            offset as f32 / (height - 1) as f32
+        } else {
+            0.0
+        };
+        let colour = if is_top || coarse {
+            edge
+        } else {
+            mix(edge, bg, 0.15 + 0.6 * rise)
+        };
+        let style = ratatui::style::Style::default().fg(colour).bg(bg);
         let row = top + height - 1 - offset as u16;
         buf[(x, row)]
             .set_char(glyphs.eighths[units - 1])
             .set_style(style);
+    }
+}
+
+/// A per-plot matrix of braille dots: two columns and four rows per cell.
+struct Dots {
+    width: usize,
+    height: usize,
+    mask: Vec<u8>,
+}
+
+impl Dots {
+    fn new(cells_wide: u16, cells_tall: u16) -> Self {
+        let width = cells_wide as usize * 2;
+        let height = cells_tall as usize * 4;
+        Self {
+            width,
+            height,
+            mask: vec![0; width.div_ceil(2) * height.div_ceil(4)],
+        }
+    }
+
+    fn set(&mut self, x: usize, y: usize) {
+        if x >= self.width || y >= self.height {
+            return;
+        }
+        let (cx, cy) = (x / 2, y / 4);
+        let (dx, dy) = (x % 2, y % 4);
+        // Braille dot order: left column 1,2,3,7; right column 4,5,6,8.
+        let bit = match (dy, dx) {
+            (0, 0) => 0x01,
+            (1, 0) => 0x02,
+            (2, 0) => 0x04,
+            (0, 1) => 0x08,
+            (1, 1) => 0x10,
+            (2, 1) => 0x20,
+            (3, 0) => 0x40,
+            (3, 1) => 0x80,
+            _ => 0,
+        };
+        let columns = self.width.div_ceil(2);
+        self.mask[cy * columns + cx] |= bit;
+    }
+
+    /// Bresenham between two dots, so a line is continuous at dot resolution.
+    fn line(&mut self, x0: usize, y0: usize, x1: usize, y1: usize) {
+        let (mut x0, mut y0) = (x0 as isize, y0 as isize);
+        let (x1, y1) = (x1 as isize, y1 as isize);
+        let dx = (x1 - x0).abs();
+        let dy = -(y1 - y0).abs();
+        let sx = if x0 < x1 { 1 } else { -1 };
+        let sy = if y0 < y1 { 1 } else { -1 };
+        let mut error = dx + dy;
+        loop {
+            if x0 >= 0 && y0 >= 0 {
+                self.set(x0 as usize, y0 as usize);
+            }
+            if x0 == x1 && y0 == y1 {
+                break;
+            }
+            let twice = 2 * error;
+            if twice >= dy {
+                error += dy;
+                x0 += sx;
+            }
+            if twice <= dx {
+                error += dx;
+                y0 += sy;
+            }
+        }
+    }
+
+    fn flush(&self, buf: &mut Buffer, area: Rect, style: ratatui::style::Style) {
+        let columns = self.width.div_ceil(2);
+        for cy in 0..self.height.div_ceil(4) {
+            for cx in 0..columns {
+                let mask = self.mask[cy * columns + cx];
+                if mask == 0 {
+                    continue;
+                }
+                if let Some(ch) = char::from_u32(0x2800 + mask as u32) {
+                    buf[(area.x + cx as u16, area.y + cy as u16)]
+                        .set_char(ch)
+                        .set_style(style);
+                }
+            }
+        }
     }
 }
 
@@ -224,6 +317,12 @@ pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: 
     let width = plot.width as usize;
     let height = plot.height as usize;
     let mut previous: Option<usize> = None;
+    let mut dots = if matches!(style, ChartStyle::Line | ChartStyle::Dots) && !theme.ascii {
+        Some(Dots::new(plot.width, plot.height))
+    } else {
+        None
+    };
+    let mut previous_dot: Option<(usize, usize)> = None;
 
     // The time axis is always the last 60 samples spread over the plot width, so
     // a full history fills the chart on any terminal size.
@@ -249,6 +348,22 @@ pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: 
                     theme,
                 );
             }
+            ChartStyle::Line | ChartStyle::Dots if dots.is_some() => {
+                let grid = dots.as_mut().unwrap();
+                let dx = (width - 1 - column) * 2 + 1;
+                let rows = height * 4;
+                let dy = rows
+                    - 1
+                    - ((value / maximum).clamp(0.0, 1.0) * (rows - 1) as f32).round() as usize;
+                if style == ChartStyle::Line
+                    && let Some((px, py)) = previous_dot
+                {
+                    grid.line(px, py, dx, dy);
+                } else {
+                    grid.set(dx, dy);
+                }
+                previous_dot = Some((dx, dy));
+            }
             ChartStyle::Line | ChartStyle::Dots => {
                 let marker_row = plot.y + plot.height - level.clamp(1, height) as u16;
                 buf[(x, marker_row)].set_char(glyphs.bullet).set_style(fill);
@@ -268,6 +383,9 @@ pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: 
             }
         }
         previous = Some(level);
+    }
+    if let Some(dots) = &dots {
+        dots.flush(buf, plot, fill);
     }
 
     let label_style = ratatui::style::Style::default()
@@ -419,7 +537,7 @@ mod tests {
 
     #[test]
     fn line_style_marks_the_point_without_filling_below() {
-        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, true);
         let area = Rect::new(0, 0, 60, 10);
         let mut buffer = Buffer::empty(area);
         let mut series = Series::default();
@@ -464,6 +582,32 @@ mod tests {
         assert_ne!(buffer[(9, 3)].symbol().to_string(), "█");
     }
 
+    #[test]
+    fn braille_dots_land_in_the_right_cells() {
+        let mut dots = Dots::new(2, 1);
+        dots.set(0, 0);
+        dots.set(1, 0);
+        dots.set(3, 3);
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 2, 1));
+        dots.flush(
+            &mut buffer,
+            Rect::new(0, 0, 2, 1),
+            ratatui::style::Style::default(),
+        );
+        assert_eq!(buffer[(0, 0)].symbol(), "⠉");
+        assert_eq!(buffer[(1, 0)].symbol(), "⢀");
+    }
+
+    #[test]
+    fn braille_line_is_continuous() {
+        let mut dots = Dots::new(2, 1);
+        dots.line(0, 3, 3, 0);
+        let columns = dots.width.div_ceil(2);
+        assert!(dots.mask[0] & 0x40 != 0, "start dot is set");
+        assert!(dots.mask[columns - 1] & 0x08 != 0, "end dot is set");
+        assert_eq!(dots.mask.iter().filter(|m| **m != 0).count(), 2);
+    }
+
     fn one_column(theme: &crate::theme::Theme, fraction: f32) -> Buffer {
         let area = Rect::new(0, 0, 1, 2);
         let mut buffer = Buffer::empty(area);
@@ -491,6 +635,75 @@ mod tests {
             theme.graph_fill,
             "cells below are the fill"
         );
+    }
+
+    #[test]
+    fn line_style_draws_braille_not_bullets() {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        let area = Rect::new(0, 0, 30, 8);
+        let mut buffer = Buffer::empty(area);
+        let mut series = Series::default();
+        series.push(30.0);
+        series.push(80.0);
+        draw(
+            &mut buffer,
+            area,
+            &series,
+            &theme,
+            GraphSpec {
+                max: 100.0,
+                value_label: "",
+                footnote: "",
+                style: ChartStyle::Line,
+                color: theme.graph_fill,
+            },
+        );
+        let symbols: Vec<char> = buffer
+            .content
+            .iter()
+            .filter_map(|cell| cell.symbol().chars().next())
+            .collect();
+        assert!(
+            symbols
+                .iter()
+                .any(|ch| ('\u{2800}'..='\u{28ff}').contains(ch)),
+            "no braille cell was drawn"
+        );
+        assert!(!symbols.contains(&theme.glyphs().bullet));
+    }
+
+    #[test]
+    fn sparkline_fades_with_the_same_gradient() {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        let area = Rect::new(0, 0, 2, 6);
+        let mut buffer = Buffer::empty(area);
+        let mut series = Series::default();
+        series.push(100.0);
+        series.push(100.0);
+        sparkline(
+            &mut buffer,
+            area,
+            &series,
+            100.0,
+            theme.graph_fill,
+            theme.surface,
+            &theme,
+        );
+        let colours: std::collections::HashSet<_> = buffer
+            .content
+            .iter()
+            .filter(|cell| cell.symbol() != " ")
+            .map(|cell| cell.fg)
+            .collect();
+        assert!(colours.len() > 1, "the sparkline is one flat colour");
+    }
+
+    #[test]
+    fn filled_columns_fade_toward_the_top() {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        let buffer = one_column(&theme, 1.0);
+        assert_ne!(buffer[(0, 0)].fg, buffer[(0, 1)].fg, "a gradient ran");
+        assert_ne!(buffer[(0, 1)].fg, theme.surface, "the base stays coloured");
     }
 
     #[test]

@@ -112,7 +112,7 @@ clear it. Every action still has a key.
   Percentage graphs keep a fixed 0-100 scale, so a quiet graph looks quiet. Disk
   and network graphs scale to the largest value in the window and label that
   maximum. View > Appearance, or F2, switches between Filled, Line, and Dots
-  rendering and five chart colours: Teal, Blue, Orange, Magenta, or Mono.
+  rendering and chart colours: Teal, Blue, Orange, Magenta, Mono, or Theme.
 - **App history** - CPU time, peak memory, and disk totals per application,
   accumulated across restarts.
 - **Startup** - login agents from launchd or XDG autostart, with their real
