@@ -28,8 +28,8 @@
 
 ## 5. Click to sort
 
-- [ ] 5.1 Record a header hit target per column on every sortable table and route clicks to the existing sort actions, flipping on the sorted column. Verify: `tests/mouse.rs` cases click Memory then Memory again on Processes and Details and assert order and marker.
-- [ ] 5.2 Add a `tests/mouse.rs` case that clicks the first process row under the two row header. Verify: the clicked row is selected.
+- [x] 5.1 Record a header hit target per column on every sortable table and route clicks to the existing sort actions, flipping on the sorted column. Verify: `tests/mouse.rs` cases click Memory then Memory again on Processes and Details and assert order and marker.
+- [x] 5.2 Add a `tests/mouse.rs` case that clicks the first process row under the two row header. Verify: the clicked row is selected.
 
 ## 6. Filter field
 

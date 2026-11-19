@@ -82,6 +82,22 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
 
     let layout = layout_for(table_area.width, app.show_optional());
     draw_header(buf, table_area, &layout, app);
+    hits.header(
+        table_area.x,
+        table_area.y,
+        1,
+        &[
+            (Some(layout.name), SortKey::Name),
+            (Some(layout.pid), SortKey::Pid),
+            (layout.status, SortKey::Status),
+            (layout.user, SortKey::User),
+            (Some(layout.cpu), SortKey::Cpu),
+            (Some(layout.memory), SortKey::Memory),
+            (layout.disk, SortKey::Disk),
+            (layout.network, SortKey::Network),
+            (layout.gpu, SortKey::Gpu),
+        ],
+    );
 
     let rows = app.details_rows();
     if rows.is_empty() {

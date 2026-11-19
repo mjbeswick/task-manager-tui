@@ -32,17 +32,48 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         Rect::new(area.x, area.y, area.width, 1),
         Style::default().bg(theme.surface),
     );
+    use crate::sample::group::{SortDir, SortKey};
+    let sort = app.app_history.sort;
+    let arrow = if sort.dir == SortDir::Asc {
+        theme.glyphs().sort_asc
+    } else {
+        theme.glyphs().sort_desc
+    };
+    let keys = [
+        Some(SortKey::Cpu),
+        Some(SortKey::Memory),
+        Some(SortKey::Disk),
+        None,
+        None,
+    ];
+    let marked = |title: &str, key: Option<SortKey>| match key {
+        Some(key) if key == sort.key => format!("{title} {arrow}"),
+        _ => title.to_string(),
+    };
     let mut x = area.x;
     put(
         buf,
         x,
         area.y,
-        &truncate("Name", name as usize),
+        &truncate(&marked("Name", Some(SortKey::Name)), name as usize),
         header,
         area,
     );
+    hits.header(
+        area.x,
+        area.y,
+        1,
+        &[
+            (Some(name), SortKey::Name),
+            (Some(columns[0].1), SortKey::Cpu),
+            (Some(columns[1].1), SortKey::Memory),
+            (Some(columns[2].1), SortKey::Disk),
+        ],
+    );
     x += name;
-    for (title, width, right) in columns {
+    for ((title, width, right), key) in columns.into_iter().zip(keys) {
+        let title = marked(title, key);
+        let title = title.as_str();
         if right {
             put(
                 buf,

@@ -5,7 +5,7 @@ use crate::app::{App, Dialog, Effect, MENUS, MenuState, PendingAction, Tab};
 use crate::input::Action;
 use crate::model::{Kind, ProcKey, ProcRow, ProcSel, Status};
 use crate::platform::ServiceAction;
-use crate::sample::group::SortKey;
+use crate::sample::group::{SortDir, SortKey};
 
 impl App {
     pub fn dispatch(&mut self, action: Action) -> Vec<Effect> {
@@ -235,7 +235,32 @@ impl App {
                 }
                 Vec::new()
             }
+            Target::Header(key) => {
+                self.sort_by(key);
+                Vec::new()
+            }
         }
+    }
+
+    /// Sort by `key`, or reverse when it is already the sort column. Text
+    /// columns start A to Z, figures start highest first.
+    fn sort_by(&mut self, key: SortKey) {
+        let state = match self.tab {
+            Tab::Processes => &mut self.process.sort,
+            Tab::Details => &mut self.details.sort,
+            Tab::AppHistory => &mut self.app_history.sort,
+            _ => return,
+        };
+        if state.key == key {
+            state.flip();
+        } else {
+            state.key = key;
+            state.dir = match key {
+                SortKey::Name | SortKey::Status | SortKey::User | SortKey::Pid => SortDir::Asc,
+                _ => SortDir::Desc,
+            };
+        }
+        self.refresh_active();
     }
 
     /// Select a row by its visible index on the active tab.

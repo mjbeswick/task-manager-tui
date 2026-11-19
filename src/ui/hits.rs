@@ -4,6 +4,7 @@
 //! frame records its own hit areas instead of a second layout copy drifting.
 
 use crate::app::{ResourceChoice, Tab};
+use crate::sample::group::SortKey;
 use ratatui::layout::Rect;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,6 +23,8 @@ pub enum Target {
     DialogPriority(usize),
     AppearanceRow(usize),
     DialogClose,
+    /// A sortable column header.
+    Header(SortKey),
 }
 
 #[derive(Debug, Default)]
@@ -39,6 +42,18 @@ impl HitMap {
             return;
         }
         self.entries.push((rect, target));
+    }
+
+    /// Record one header target per visible column, laid out left to right
+    /// from `x`. A `None` width is a column the layout dropped.
+    pub fn header(&mut self, x: u16, y: u16, height: u16, columns: &[(Option<u16>, SortKey)]) {
+        let mut x = x;
+        for (width, key) in columns {
+            if let Some(width) = width {
+                self.add(Rect::new(x, y, *width, height), Target::Header(*key));
+                x += width;
+            }
+        }
     }
 
     pub fn hit(&self, column: u16, row: u16) -> Option<Target> {

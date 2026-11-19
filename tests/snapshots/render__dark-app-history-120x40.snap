@@ -4,7 +4,7 @@ expression: "screen(&app(tab, \"dark\"), 120, 40)"
 ---
  File  Options  View  Help                                                                                 Task Manager 
 Processes │ Performance │ App history │ Startup │ Users │ Details │ Services                                            
-Name                                                       CPU time Peak memory                 Disk Last seen  Network 
+Name                                                      CPU time  Peak memory                 Disk Last seen  Network 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Safari                                                     1:00:00      2.0 GB     40.0 MB / 8.0 MB    1h ago        -  
 Ghostty                                                       1:01      380 MB      1.0 MB / 512 KB    1h ago        -  

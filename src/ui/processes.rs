@@ -80,6 +80,23 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     let totals = area.height >= 12;
     let header_rows = if totals { 3 } else { 2 };
     draw_header(buf, area, area.y, &layout, app, totals);
+    {
+        use crate::sample::group::SortKey as K;
+        hits.header(
+            area.x,
+            area.y,
+            header_rows - 1,
+            &[
+                (Some(layout.name), K::Name),
+                (layout.status, K::Status),
+                (Some(layout.cpu), K::Cpu),
+                (Some(layout.memory), K::Memory),
+                (layout.disk, K::Disk),
+                (layout.network, K::Network),
+                (layout.gpu, K::Gpu),
+            ],
+        );
+    }
 
     let rows_area = Rect::new(
         area.x,

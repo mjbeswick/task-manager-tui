@@ -115,3 +115,73 @@ fn priority_dialog_publishes_each_level() {
     }
     assert!(found.contains(&Target::DialogConfirm));
 }
+
+/// Click the header cell whose label is `label` and return the new frame.
+fn click_header(app: &mut App, label: &str) -> String {
+    let (screen, hits) = render_with_hits(app, 120, 40);
+    let (y, line) = screen
+        .lines()
+        .enumerate()
+        .find(|(_, l)| l.starts_with("Name"))
+        .expect("header row");
+    let x = line[..line.find(label).expect(label)].chars().count() as u16;
+    let target = hits.hit(x, y as u16).expect("header target");
+    assert!(matches!(target, Target::Header(_)), "{target:?}");
+    app.click(target);
+    render_with_hits(app, 120, 40).0
+}
+
+fn header_line(screen: &str) -> String {
+    screen
+        .lines()
+        .find(|l| l.starts_with("Name"))
+        .unwrap()
+        .to_string()
+}
+
+#[test]
+fn clicking_a_header_sorts_and_clicking_again_reverses() {
+    use task_manager_tui::sample::group::{SortDir, SortKey};
+    for tab in [Tab::Processes, Tab::Details] {
+        let mut app = app(tab);
+        let screen = click_header(&mut app, "Memory");
+        let sort = if tab == Tab::Processes {
+            app.process.sort
+        } else {
+            app.details.sort
+        };
+        assert_eq!(
+            (sort.key, sort.dir),
+            (SortKey::Memory, SortDir::Desc),
+            "{tab:?}"
+        );
+        assert!(header_line(&screen).contains("Memory ▼"), "{tab:?}");
+        let screen = click_header(&mut app, "Memory");
+        let sort = if tab == Tab::Processes {
+            app.process.sort
+        } else {
+            app.details.sort
+        };
+        assert_eq!(sort.dir, SortDir::Asc, "{tab:?}");
+        assert!(header_line(&screen).contains("Memory ▲"), "{tab:?}");
+        // Lowest memory first: postgres (96 MB) now comes before node (512 MB).
+        let postgres = screen.find("postgres").unwrap();
+        let node = screen.find("node").unwrap();
+        assert!(postgres < node, "{tab:?} order after reversing");
+    }
+}
+
+#[test]
+fn clicking_the_first_row_under_the_two_row_header_selects_it() {
+    let mut app = app(Tab::Processes);
+    let (screen, hits) = render_with_hits(&app, 120, 40);
+    let y = screen.lines().position(|l| l.contains("Apps (")).unwrap() as u16;
+    let target = hits.hit(5, y).expect("row target");
+    assert_eq!(target, Target::Row(0));
+    let y = y + 1;
+    let target = hits.hit(5, y).unwrap();
+    app.click(target);
+    let (screen, _) = render_with_hits(&app, 120, 40);
+    assert!(screen.lines().nth(y as usize).unwrap().contains("Safari"));
+    assert_eq!(app.process.selected, 1);
+}
