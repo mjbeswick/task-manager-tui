@@ -1089,11 +1089,11 @@ mod tests {
         assert_eq!(app.settings.chart_style, "line");
         app.dialog = Some(Dialog::Appearance { selected: 2 });
         app.dispatch(Action::Confirm);
-        assert_eq!(app.chart_color, crate::model::ChartColor::Blue);
-        assert_eq!(app.settings.chart_color, "blue");
+        assert_eq!(app.chart_color, crate::model::ChartColor::Teal);
+        assert_eq!(app.settings.chart_color, "teal");
         app.dialog = Some(Dialog::Appearance { selected: 2 });
         app.dispatch(Action::CycleBack);
-        assert_eq!(app.chart_color, crate::model::ChartColor::Teal);
+        assert_eq!(app.chart_color, crate::model::ChartColor::PerResource);
         app.dialog = Some(Dialog::Appearance { selected: 0 });
         app.dispatch(Action::Confirm);
         assert_eq!(app.theme_name, crate::theme::ThemeName::Dark);

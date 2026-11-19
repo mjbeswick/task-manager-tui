@@ -9,9 +9,9 @@
 
 ## 2. Smooth graphs and per resource colour
 
-- [ ] 2.1 Add the eighths glyph array to `Glyphs` with an ASCII twin, and cover it in `ascii_glyphs_are_all_ascii`. Verify: `cargo test theme` passes.
-- [ ] 2.2 Draw Filled graphs with an eighth-resolution top cell in the edge colour and a mixed fill colour below, keeping half blocks at 16 colours. Verify: graph tests assert a three eighths sample draws `▃` in truecolor and a half block at 16 colours, and existing graph tests pass.
-- [ ] 2.3 Add `ChartColor::PerResource` with the five Windows 10 colours and dark variants, list it first in the Appearance dialog, and make it the default for a missing setting. Verify: settings tests assert the new default, an old `teal` file still loads as Teal, and the chart visibility test covers every resource colour in both themes.
+- [x] 2.1 Add the eighths glyph array to `Glyphs` with an ASCII twin, and cover it in `ascii_glyphs_are_all_ascii`. Verify: `cargo test theme` passes.
+- [x] 2.2 Draw Filled graphs with an eighth-resolution top cell in the edge colour and a mixed fill colour below, keeping half blocks at 16 colours. Verify: graph tests assert a three eighths sample draws `▃` in truecolor and a half block at 16 colours, and existing graph tests pass.
+- [x] 2.3 Add `ChartColor::PerResource` with the five Windows 10 colours and dark variants, list it first in the Appearance dialog, and make it the default for a missing setting. Verify: settings tests assert the new default, an old `teal` file still loads as Teal, and the chart visibility test covers every resource colour in both themes.
 
 ## 3. Performance rail
 

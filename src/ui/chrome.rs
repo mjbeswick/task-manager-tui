@@ -431,7 +431,7 @@ mod tests {
                     let (mut app, _) = App::new(Settings::default(), false);
                     app.apply_snapshot(crate::model::Snapshot::fixture());
                     app.set_theme(theme);
-                    app.depth = depth;
+                    app.set_depth(depth);
                     app.tab = tab;
                     let mut hits = crate::ui::hits::HitMap::default();
                     let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();

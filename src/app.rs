@@ -502,7 +502,8 @@ impl App {
         let ascii = ascii_flag || settings.ascii;
         let theme_name = ThemeName::parse(&settings.theme).unwrap_or(ThemeName::Light);
         let chart_style = ChartStyle::parse(&settings.chart_style).unwrap_or(ChartStyle::Filled);
-        let chart_color = ChartColor::parse(&settings.chart_color).unwrap_or(ChartColor::Teal);
+        let chart_color =
+            ChartColor::parse(&settings.chart_color).unwrap_or(ChartColor::PerResource);
         let mut app = Self {
             tab: Tab::from_index(settings.last_tab),
             theme_name,
@@ -554,10 +555,16 @@ impl App {
     pub fn set_theme(&mut self, name: ThemeName) {
         self.theme_name = name;
         self.theme = Theme::from_name(name, self.ascii);
+        self.theme.coarse = self.depth == crate::theme::ColorDepth::Ansi16;
         self.settings.theme = match name {
             ThemeName::Light => "light".to_string(),
             ThemeName::Dark => "dark".to_string(),
         };
+    }
+
+    pub fn set_depth(&mut self, depth: crate::theme::ColorDepth) {
+        self.depth = depth;
+        self.theme.coarse = depth == crate::theme::ColorDepth::Ansi16;
     }
 
     pub fn toggle_theme(&mut self) {

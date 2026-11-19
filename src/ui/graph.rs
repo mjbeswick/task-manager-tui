@@ -4,6 +4,7 @@ use crate::model::{ChartStyle, Snapshot};
 use crate::theme::Theme;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
+use ratatui::style::Color;
 use std::collections::VecDeque;
 
 pub const HISTORY: usize = 60;
@@ -76,6 +77,56 @@ impl GraphStore {
     }
 }
 
+/// Blend `a` toward `b`. Non-RGB colours are returned unchanged.
+pub fn mix(a: Color, b: Color, toward_b: f32) -> Color {
+    match (a, b) {
+        (Color::Rgb(r1, g1, b1), Color::Rgb(r2, g2, b2)) => {
+            let m = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * toward_b).round() as u8;
+            Color::Rgb(m(r1, r2), m(g1, g2), m(b1, b2))
+        }
+        _ => a,
+    }
+}
+
+/// Paint one filled column, `fraction` of `height` rows tall, bottom-anchored.
+/// The top cell resolves to an eighth in the edge colour; cells under it use a
+/// lighter fill. ASCII and 16 colour modes round to half cells and skip the mix.
+pub fn fill_column(
+    buf: &mut Buffer,
+    x: u16,
+    top: u16,
+    height: u16,
+    fraction: f32,
+    edge: Color,
+    theme: &Theme,
+) {
+    let glyphs = theme.glyphs();
+    let coarse = theme.ascii || theme.coarse;
+    let fill = if coarse {
+        edge
+    } else {
+        mix(edge, theme.surface, 0.55)
+    };
+    let mut total = (fraction.clamp(0.0, 1.0) * height as f32 * 8.0).round() as usize;
+    if coarse {
+        total = (total + 2) / 4 * 4;
+    }
+    for offset in 0..height as usize {
+        let units = total.saturating_sub(offset * 8).min(8);
+        if units == 0 {
+            break;
+        }
+        let is_top = total <= (offset + 1) * 8;
+        let style = ratatui::style::Style::default()
+            .fg(if is_top { edge } else { fill })
+            .bg(theme.surface);
+        let row = top + height - 1 - offset as u16;
+        buf[(x, row)]
+            .set_char(glyphs.eighths[units - 1])
+            .set_style(style);
+    }
+}
+
 /// Draw one graph into `area`. `max` of 0 means autoscale; percentage graphs pass 100.
 pub struct GraphSpec<'a> {
     pub max: f32,
@@ -141,6 +192,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: 
 
     let glyphs = theme.glyphs();
     let fill = ratatui::style::Style::default().fg(color).bg(theme.surface);
+    let column_top = plot.y;
     let count = series.values.len();
     let width = plot.width as usize;
     let height = plot.height as usize;
@@ -161,15 +213,15 @@ pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: 
 
         match style {
             ChartStyle::Filled => {
-                for offset in 0..height {
-                    let units = halves.saturating_sub(offset * 2);
-                    let row = plot.y + plot.height - 1 - offset as u16;
-                    if units >= 2 {
-                        buf[(x, row)].set_char(glyphs.block_full).set_style(fill);
-                    } else if units == 1 {
-                        buf[(x, row)].set_char(glyphs.block_upper).set_style(fill);
-                    }
-                }
+                fill_column(
+                    buf,
+                    x,
+                    column_top,
+                    plot.height,
+                    value / maximum,
+                    color,
+                    theme,
+                );
             }
             ChartStyle::Line | ChartStyle::Dots => {
                 let marker_row = plot.y + plot.height - level.clamp(1, height) as u16;
@@ -384,5 +436,44 @@ mod tests {
             },
         );
         assert_ne!(buffer[(9, 3)].symbol().to_string(), "█");
+    }
+
+    fn one_column(theme: &crate::theme::Theme, fraction: f32) -> Buffer {
+        let area = Rect::new(0, 0, 1, 2);
+        let mut buffer = Buffer::empty(area);
+        fill_column(&mut buffer, 0, 0, 2, fraction, theme.graph_fill, theme);
+        buffer
+    }
+
+    #[test]
+    fn partial_cells_resolve_to_eighths_with_an_edge() {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        // 11/16 of two rows: one full cell, then three eighths on top.
+        let buffer = one_column(&theme, 11.0 / 16.0);
+        assert_eq!(buffer[(0, 1)].symbol(), "█");
+        assert_eq!(buffer[(0, 0)].symbol(), "▃");
+        assert_eq!(buffer[(0, 0)].fg, theme.graph_fill, "top cell is the edge");
+        assert_ne!(
+            buffer[(0, 1)].fg,
+            theme.graph_fill,
+            "cells below are the fill"
+        );
+    }
+
+    #[test]
+    fn coarse_and_ascii_modes_keep_half_steps() {
+        let mut theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Dark, false);
+        theme.coarse = true;
+        let buffer = one_column(&theme, 11.0 / 16.0);
+        assert_eq!(buffer[(0, 0)].symbol(), "▄");
+        assert_eq!(
+            buffer[(0, 1)].fg,
+            theme.graph_fill,
+            "no mixed fill at 16 colours"
+        );
+        let ascii = crate::theme::Theme::from_name(crate::theme::ThemeName::Dark, true);
+        let buffer = one_column(&ascii, 11.0 / 16.0);
+        assert!(buffer.content.iter().all(|c| c.symbol().is_ascii()));
+        assert_eq!(buffer[(0, 0)].symbol(), "_");
     }
 }

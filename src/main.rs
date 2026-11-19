@@ -37,8 +37,10 @@ fn main() -> Result<()> {
     }
 
     let (mut app, notices) = App::new(loaded, cli.ascii);
-    app.depth = task_manager_tui::theme::ColorDepth::parse(&cli.color)
-        .unwrap_or_else(task_manager_tui::theme::ColorDepth::from_env);
+    app.set_depth(
+        task_manager_tui::theme::ColorDepth::parse(&cli.color)
+            .unwrap_or_else(task_manager_tui::theme::ColorDepth::from_env),
+    );
     for notice in notices {
         app.notice(notice);
     }

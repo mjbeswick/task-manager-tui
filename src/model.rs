@@ -114,6 +114,7 @@ impl ChartStyle {
 /// Chart colours, independent of the light or dark window theme.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChartColor {
+    PerResource,
     Teal,
     Blue,
     Orange,
@@ -122,7 +123,8 @@ pub enum ChartColor {
 }
 
 impl ChartColor {
-    pub const ALL: [ChartColor; 5] = [
+    pub const ALL: [ChartColor; 6] = [
+        ChartColor::PerResource,
         ChartColor::Teal,
         ChartColor::Blue,
         ChartColor::Orange,
@@ -132,6 +134,7 @@ impl ChartColor {
 
     pub fn label(self) -> &'static str {
         match self {
+            ChartColor::PerResource => "Per resource",
             ChartColor::Teal => "Teal",
             ChartColor::Blue => "Blue",
             ChartColor::Orange => "Orange",
@@ -147,6 +150,7 @@ impl ChartColor {
 
     pub fn key(self) -> &'static str {
         match self {
+            ChartColor::PerResource => "per-resource",
             ChartColor::Teal => "teal",
             ChartColor::Blue => "blue",
             ChartColor::Orange => "orange",
@@ -157,6 +161,7 @@ impl ChartColor {
 
     pub fn parse(value: &str) -> Option<Self> {
         match value.to_ascii_lowercase().as_str() {
+            "per-resource" => Some(ChartColor::PerResource),
             "teal" => Some(ChartColor::Teal),
             "blue" => Some(ChartColor::Blue),
             "orange" => Some(ChartColor::Orange),
@@ -166,10 +171,29 @@ impl ChartColor {
         }
     }
 
-    /// Resolve against the active theme, so dark mode keeps contrast.
-    pub fn color(self, theme: &crate::theme::Theme) -> ratatui::style::Color {
+    /// Resolve against the active theme and the series being drawn, so dark mode
+    /// keeps contrast and Per resource gives each resource its Windows 10 colour.
+    pub fn color(
+        self,
+        theme: &crate::theme::Theme,
+        resource: crate::app::ResourceChoice,
+    ) -> ratatui::style::Color {
+        use crate::app::ResourceChoice as R;
         use ratatui::style::Color;
+        let dark = theme.name == crate::theme::ThemeName::Dark;
         match self {
+            ChartColor::PerResource => match (resource, dark) {
+                (R::Cpu, false) => Color::Rgb(0x11, 0x7D, 0xBB),
+                (R::Memory, false) => Color::Rgb(0x8B, 0x12, 0xAE),
+                (R::Disk, false) => Color::Rgb(0x3E, 0x87, 0x0A),
+                (R::Network, false) => Color::Rgb(0xA7, 0x4F, 0x01),
+                (R::Gpu, false) => Color::Rgb(0x1E, 0x8A, 0x73),
+                (R::Cpu, true) => Color::Rgb(0x4C, 0xB0, 0xF0),
+                (R::Memory, true) => Color::Rgb(0xC7, 0x74, 0xE8),
+                (R::Disk, true) => Color::Rgb(0x7E, 0xD0, 0x50),
+                (R::Network, true) => Color::Rgb(0xF0, 0x95, 0x4A),
+                (R::Gpu, true) => Color::Rgb(0x4C, 0xC2, 0xA8),
+            },
             ChartColor::Teal => theme.graph_fill,
             ChartColor::Blue => Color::Rgb(0x2B, 0x88, 0xC4),
             ChartColor::Orange => Color::Rgb(0xD1, 0x6B, 0x1F),
@@ -710,7 +734,7 @@ mod tests {
         assert_eq!(ChartStyle::Dots.next(), ChartStyle::Filled);
         assert_eq!(ChartStyle::parse("dots"), Some(ChartStyle::Dots));
         assert_eq!(ChartStyle::parse("nope"), None);
-        assert_eq!(ChartColor::Mono.next(), ChartColor::Teal);
+        assert_eq!(ChartColor::Mono.next(), ChartColor::PerResource);
         assert_eq!(ChartColor::parse("orange"), Some(ChartColor::Orange));
         assert_eq!(ChartColor::parse("nope"), None);
         for colour in ChartColor::ALL {
@@ -718,6 +742,24 @@ mod tests {
         }
         for style in ChartStyle::ALL {
             assert_eq!(ChartStyle::parse(style.key()), Some(style));
+        }
+    }
+
+    #[test]
+    fn chart_colours_stay_visible() {
+        use crate::app::ResourceChoice as R;
+        use crate::theme::{DARK, LIGHT, contrast};
+        for theme in [LIGHT, DARK] {
+            for colour in ChartColor::ALL {
+                for resource in [R::Cpu, R::Memory, R::Disk, R::Network, R::Gpu] {
+                    let ratio = contrast(colour.color(&theme, resource), theme.surface);
+                    assert!(
+                        ratio >= 3.0,
+                        "{:?} {colour:?} {resource:?} is {ratio}",
+                        theme.name
+                    );
+                }
+            }
         }
     }
 

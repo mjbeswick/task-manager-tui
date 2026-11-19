@@ -112,7 +112,7 @@ fn chart(buf: &mut Buffer, area: Rect, app: &App, series: &Series, max: f32, lab
             value_label: label,
             footnote: "60 seconds",
             style: app.chart_style,
-            color: app.chart_color.color(theme),
+            color: app.chart_color.color(theme, app.performance.resource),
         },
     );
 }
@@ -220,25 +220,13 @@ fn draw_cores(buf: &mut Buffer, area: Rect, app: &App) {
 
 fn draw_mini(buf: &mut Buffer, area: Rect, series: &Series, app: &App) {
     let theme = app.theme();
-    let glyphs = theme.glyphs();
-    let style = Style::default()
-        .fg(app.chart_color.color(theme))
-        .bg(theme.surface);
+    let color = app.chart_color.color(theme, ResourceChoice::Cpu);
     let count = series.values.len();
     let width = area.width as usize;
     for column in 0..width.min(count) {
         let value = series.values[count - 1 - column];
         let x = area.x + area.width - 1 - column as u16;
-        let halves = ((value / 100.0).clamp(0.0, 1.0) * (area.height * 2) as f32).round() as usize;
-        for offset in 0..area.height as usize {
-            let units = halves.saturating_sub(offset * 2);
-            let y = area.y + area.height - 1 - offset as u16;
-            if units >= 2 {
-                buf[(x, y)].set_char(glyphs.block_full).set_style(style);
-            } else if units == 1 {
-                buf[(x, y)].set_char(glyphs.block_upper).set_style(style);
-            }
-        }
+        graph::fill_column(buf, x, area.y, area.height, value / 100.0, color, theme);
     }
 }
 

@@ -48,6 +48,8 @@ pub struct Theme {
     pub warn: Color,
     pub bad: Color,
     pub ascii: bool,
+    /// 16 colour mode: graphs keep half cell steps, fills are not mixed.
+    pub coarse: bool,
 }
 
 pub const LIGHT: Theme = Theme {
@@ -59,12 +61,13 @@ pub const LIGHT: Theme = Theme {
     border: Color::Rgb(0xCC, 0xCC, 0xCC),
     accent: Color::Rgb(0x00, 0x78, 0xD7),
     selection: Color::Rgb(0xCC, 0xE8, 0xFF),
-    graph_fill: Color::Rgb(0x2B, 0xA9, 0x8E),
+    graph_fill: Color::Rgb(0x1E, 0x8A, 0x73),
     graph_grid: Color::Rgb(0xE0, 0xE0, 0xE0),
     good: Color::Rgb(0x10, 0x7C, 0x10),
     warn: Color::Rgb(0x9D, 0x5A, 0x00),
     bad: Color::Rgb(0xC4, 0x2B, 0x1C),
     ascii: false,
+    coarse: false,
 };
 
 pub const DARK: Theme = Theme {
@@ -82,6 +85,7 @@ pub const DARK: Theme = Theme {
     warn: Color::Rgb(0xE0, 0xA0, 0x40),
     bad: Color::Rgb(0xF0, 0x70, 0x60),
     ascii: false,
+    coarse: false,
 };
 
 /// Characters that differ between unicode and ASCII modes.
@@ -105,6 +109,8 @@ pub struct Glyphs {
     pub block_upper: char,
     pub block_lower: char,
     pub bullet: char,
+    /// Bottom-anchored blocks, one to eight eighths high.
+    pub eighths: [char; 8],
 }
 
 pub const UNICODE_GLYPHS: Glyphs = Glyphs {
@@ -126,6 +132,7 @@ pub const UNICODE_GLYPHS: Glyphs = Glyphs {
     block_upper: '▀',
     block_lower: '▄',
     bullet: '•',
+    eighths: ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'],
 };
 
 pub const ASCII_GLYPHS: Glyphs = Glyphs {
@@ -147,6 +154,7 @@ pub const ASCII_GLYPHS: Glyphs = Glyphs {
     block_upper: '"',
     block_lower: '_',
     bullet: '*',
+    eighths: ['_', '_', '_', '_', '#', '#', '#', '#'],
 };
 
 impl Theme {
@@ -552,9 +560,13 @@ mod tests {
             glyphs.block_lower,
             glyphs.bullet,
         ];
-        for glyph in all {
+        for glyph in all.iter().chain(glyphs.eighths.iter()) {
             assert!(glyph.is_ascii(), "{glyph:?} is not ascii");
         }
+        assert!(
+            !glyphs.eighths.contains(&' '),
+            "an ascii graph step is blank"
+        );
         assert!(!UNICODE_GLYPHS.expanded.is_ascii());
     }
 

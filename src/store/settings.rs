@@ -23,7 +23,7 @@ impl Default for Settings {
             last_tab: 0,
             ascii: false,
             chart_style: "filled".to_string(),
-            chart_color: "teal".to_string(),
+            chart_color: "per-resource".to_string(),
         }
     }
 }
@@ -153,7 +153,7 @@ mod tests {
     #[test]
     fn chart_settings_default_and_survive_old_files() {
         assert_eq!(Settings::default().chart_style, "filled");
-        assert_eq!(Settings::default().chart_color, "teal");
+        assert_eq!(Settings::default().chart_color, "per-resource");
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("settings.toml");
         // A file written before chart settings existed.
@@ -161,7 +161,10 @@ mod tests {
         let (settings, warning) = load_from(&path);
         assert!(warning.is_none());
         assert_eq!(settings.chart_style, "filled");
-        assert_eq!(settings.chart_color, "teal");
+        assert_eq!(settings.chart_color, "per-resource");
+        // A file that already chose a colour keeps it.
+        std::fs::write(&path, "chart_color = \"teal\"\n").unwrap();
+        assert_eq!(load_from(&path).0.chart_color, "teal");
     }
 
     #[test]
