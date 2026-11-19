@@ -36,7 +36,7 @@
 
 - [x] 6.1 Document wheel routing, drag, page clicks, and the narrow fallback in the README and the help dialog. Verify: every documented gesture has a test named after it.
 - [x] 6.2 Run the release checks. Verify: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, `cargo build --release`, and `openspec validate add-mouse-scrolling --strict` pass.
-- [ ] 6.3 Verify the scrollbar in a PTY with a real drag. Verify: an SGR drag moves the view and release stops it.
+- [x] 6.3 Verify the scrollbar in a PTY with a real drag. Verify: an SGR drag moved the counter from `1/412` to `221/412` and release stopped it.
 
 ## Workflow follow-up
 

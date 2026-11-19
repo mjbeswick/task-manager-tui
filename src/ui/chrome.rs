@@ -464,16 +464,13 @@ fn position_text(selected: usize, len: usize) -> Option<String> {
 }
 
 fn status_position(app: &App) -> Option<String> {
-    let (selected, len) = match app.tab {
-        Tab::Processes => (app.process.selected, app.process.items.len()),
-        Tab::Details => (app.details.selected, app.details_rows().len()),
-        Tab::Services => (app.services.selected, app.service_rows().len()),
-        Tab::Startup => (app.startup.selected, app.startup_rows().len()),
-        Tab::Users => (app.users.selected, app.user_rows().len()),
-        Tab::AppHistory => (app.app_history.selected, app.history_rows().len()),
-        Tab::Performance => return None,
-    };
-    position_text(selected, len)
+    let len = app.list_len(app.tab);
+    if app.tab == Tab::Performance || len == 0 {
+        return None;
+    }
+    // The counter names the first visible row, so it agrees with the scrollbar
+    // when the pointer scrolls the view away from the selection.
+    position_text(app.list_scroll(app.tab), len)
 }
 
 fn draw_menu_dropdown(

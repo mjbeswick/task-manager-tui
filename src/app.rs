@@ -623,8 +623,9 @@ impl App {
         self.sync_startup();
         self.sync_users();
         self.sync_history();
+        // Samples refresh values; they must not pull the viewport back to the
+        // selection, or pointer scrolling would last less than one interval.
         self.clamp_viewports();
-        self.keep_selection_visible();
     }
 
     pub fn filter(&self) -> &str {
@@ -1316,6 +1317,19 @@ mod tests {
         app.process.refresh_with(&snapshot, false);
         let after: Vec<_> = app.process.items.iter().map(|item| item.sel()).collect();
         assert_ne!(during, after, "it re-sorts after the pause");
+    }
+
+    #[test]
+    fn a_sample_does_not_pull_the_viewport_back_to_the_selection() {
+        let mut app = app();
+        app.set_list_scroll(Tab::Processes, 5);
+        assert_eq!(app.list_scroll(Tab::Processes), 5);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        assert_eq!(
+            app.list_scroll(Tab::Processes),
+            5,
+            "pointer scrolling must survive a sample"
+        );
     }
 
     #[test]
