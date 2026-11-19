@@ -31,7 +31,8 @@ pub fn draw(frame: &mut Frame, app: &App, hits: &mut HitMap) {
         return;
     }
 
-    let [menu_row, tab_row, rule_row, content, status_row] = Layout::vertical([
+    let [menu_row, tab_top, tab_row, rule_row, content, status_row] = Layout::vertical([
+        Constraint::Length(1),
         Constraint::Length(1),
         Constraint::Length(1),
         Constraint::Length(1),
@@ -41,7 +42,7 @@ pub fn draw(frame: &mut Frame, app: &App, hits: &mut HitMap) {
     .areas(area);
 
     draw_menu_bar(buf, menu_row, app, hits);
-    draw_tabs(buf, tab_row, rule_row, app, hits);
+    draw_tabs(buf, tab_top, tab_row, rule_row, app, hits);
 
     match app.tab {
         Tab::Processes => crate::ui::processes::draw(buf, content, app, hits),
@@ -250,13 +251,15 @@ fn draw_filter_field(buf: &mut Buffer, bar: Rect, free: u16, app: &App, hits: &m
     }
 }
 
-fn draw_tabs(buf: &mut Buffer, area: Rect, rule: Rect, app: &App, hits: &mut HitMap) {
+fn draw_tabs(buf: &mut Buffer, top: Rect, area: Rect, rule: Rect, app: &App, hits: &mut HitMap) {
     let theme = app.theme();
+    fill_area(buf, top, Style::default().bg(theme.bg));
     fill_area(buf, area, Style::default().bg(theme.bg));
     fill_area(buf, rule, Style::default().bg(theme.bg));
     let glyphs = theme.glyphs();
     let compact = area.width < 90;
-    let mut x = area.x;
+    // One spare cell on the left so the first tab can carry a box side.
+    let mut x = area.x + 1;
     let mut cells: Vec<(Tab, u16, u16)> = Vec::new();
     for (index, tab) in Tab::ALL.iter().copied().enumerate() {
         let active = tab == app.tab;
@@ -279,7 +282,12 @@ fn draw_tabs(buf: &mut Buffer, area: Rect, rule: Rect, app: &App, hits: &mut Hit
         }
         let width = text.chars().count() as u16;
         put(buf, x, area.y, &text, style, area);
-        hits.add(Rect::new(x, area.y, width, 1), Target::Tab(tab));
+        let hit = if active {
+            Rect::new(x.saturating_sub(1), area.y, width + 1, 1)
+        } else {
+            Rect::new(x, area.y, width, 1)
+        };
+        hits.add(hit, Target::Tab(tab));
         cells.push((tab, x, width));
         x += width;
         if tab != Tab::Services {
@@ -301,18 +309,36 @@ fn draw_tabs(buf: &mut Buffer, area: Rect, rule: Rect, app: &App, hits: &mut Hit
             area,
         );
     }
-    // One continuous rule; the active tab's span is the accent.
+    // One continuous rule first, then the active tab's box sits on it.
     let border = Style::default().fg(theme.border).bg(theme.bg);
     for x in area.x..area.x + area.width {
         buf[(x, rule.y)].set_char(glyphs.hline).set_style(border);
     }
     if let Some((_, start, width)) = cells.iter().find(|(tab, _, _)| *tab == app.tab) {
         let accent = Style::default().fg(theme.accent).bg(theme.bg);
-        for dx in 0..*width {
-            buf[(*start + dx, rule.y)]
+        let left = start.saturating_sub(1);
+        let right = start + width - 1;
+        // Top border.
+        buf[(left, top.y)].set_char(glyphs.tl).set_style(accent);
+        for dx in 0..*width - 1 {
+            buf[(start + dx, top.y)]
                 .set_char(glyphs.hline)
                 .set_style(accent);
         }
+        buf[(right, top.y)].set_char(glyphs.tr).set_style(accent);
+        // Sides.
+        buf[(left, area.y)].set_char(glyphs.vline).set_style(accent);
+        buf[(right, area.y)]
+            .set_char(glyphs.vline)
+            .set_style(accent);
+        // Bottom, replacing the rule's span.
+        buf[(left, rule.y)].set_char(glyphs.bl).set_style(accent);
+        for dx in 0..*width - 1 {
+            buf[(start + dx, rule.y)]
+                .set_char(glyphs.hline)
+                .set_style(accent);
+        }
+        buf[(right, rule.y)].set_char(glyphs.br).set_style(accent);
     }
 }
 
@@ -954,57 +980,91 @@ mod tests {
     }
 
     #[test]
-    fn tabs_are_numbered_and_the_active_tab_is_underlined() {
+    fn tabs_are_numbered_and_draw_a_raised_active_tab() {
         let (mut app, _) = App::new(Settings::default(), false);
         app.apply_snapshot(crate::model::Snapshot::fixture());
         let screen = crate::ui::test_util::render(&app, 120, 30);
-        let line = screen.lines().nth(1).unwrap();
-        assert!(line.starts_with("1 Processes"), "{line:?}");
+        let line = screen.lines().nth(2).unwrap();
+        assert!(line.starts_with("│1 Processes│"), "{line:?}");
         assert!(line.trim_end().ends_with("Task Manager"), "{line:?}");
         assert!(line.contains("2 Performance"));
         assert!(line.contains("7 Services"));
-        assert!(!line.contains('│'), "no separators between tabs: {line:?}");
+        assert_eq!(line.matches('│').count(), 2, "only the active sides");
         let mut hits = crate::ui::hits::HitMap::default();
         let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
         terminal.draw(|frame| draw(frame, &app, &mut hits)).unwrap();
         let buffer = terminal.backend().buffer().clone();
         let theme = *app.theme();
-        let x = line[..line.find("Processes").unwrap()].chars().count() as u16;
+        let glyphs = theme.glyphs();
+        assert_eq!(buffer[(1, 2)].fg, theme.accent, "active label");
+        assert_eq!(buffer[(1, 2)].bg, theme.bg);
+        assert_eq!(buffer[(0, 1)].symbol(), glyphs.tl.to_string());
+        assert_eq!(buffer[(12, 1)].symbol(), glyphs.tr.to_string());
+        assert_eq!(buffer[(0, 2)].symbol(), glyphs.vline.to_string());
+        assert_eq!(buffer[(12, 2)].symbol(), glyphs.vline.to_string());
+        assert_eq!(buffer[(0, 3)].symbol(), glyphs.bl.to_string());
+        assert_eq!(buffer[(12, 3)].symbol(), glyphs.br.to_string());
+        assert_eq!(buffer[(0, 3)].fg, theme.accent, "box bottom");
         assert_eq!(
-            buffer[(x, 1)].bg,
+            buffer[(0, 1)].bg,
             theme.bg,
-            "tabs keep the window background"
+            "the top border row keeps the window background"
         );
-        assert_eq!(buffer[(x, 1)].fg, theme.accent, "active label is accented");
-        // The rule row carries one segment per tab; the active one is the accent.
-        let tab_width = "1 Processes ".chars().count() as u16;
-        let segment = tab_width.saturating_sub(2);
-        let active_segment = (tab_width - segment) / 2;
+        let rule: String = (0..120).map(|x| buffer[(x, 3)].symbol()).collect();
         assert_eq!(
-            buffer[(active_segment, 2)].fg,
-            theme.accent,
-            "active underline"
+            rule.chars()
+                .filter(|ch| *ch == glyphs.hline || *ch == glyphs.bl || *ch == glyphs.br)
+                .count(),
+            120,
+            "the rule spans the strip"
         );
         let inactive = line[..line.find("2 Performance").unwrap()].chars().count() as u16;
-        let inactive_segment = inactive + 1;
+        assert_eq!(buffer[(inactive, 3)].fg, theme.border, "inactive rule");
         assert_eq!(
-            buffer[(inactive_segment, 2)].fg,
-            theme.border,
-            "inactive underline"
+            hits.hit(0, 2),
+            Some(Target::Tab(crate::app::Tab::Processes))
         );
+        assert_eq!(
+            hits.hit(12, 2),
+            Some(Target::Tab(crate::app::Tab::Processes))
+        );
+    }
+
+    #[test]
+    fn ascii_tabs_use_ascii_box_characters() {
+        let mut app = App::new(Settings::default(), false).0;
+        app.ascii = true;
+        app.set_theme(app.theme_name);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        let screen = crate::ui::test_util::render(&app, 120, 30);
+        let top = screen.lines().nth(1).unwrap();
+        let labels = screen.lines().nth(2).unwrap();
+        assert!(top.contains('+'), "ascii top corners: {top:?}");
+        assert!(labels.starts_with("|1 Processes|"), "{labels:?}");
+        for ch in top.chars().chain(labels.chars()) {
+            assert!(ch.is_ascii(), "non ascii {ch:?}");
+        }
     }
 
     #[test]
     fn tab_rule_stays_readable_when_narrow() {
         let screen = render(60, 20);
-        let rule = screen.lines().nth(2).unwrap();
-        let glyph = crate::theme::UNICODE_GLYPHS.hline;
-        assert!(!rule.contains('│'), "no separators: {rule:?}");
+        let line = screen.lines().nth(2).unwrap();
+        let rule = screen.lines().nth(3).unwrap();
+        let glyphs = crate::theme::UNICODE_GLYPHS;
         assert_eq!(
-            rule.chars().filter(|ch| *ch == glyph).count(),
+            line.matches(glyphs.vline).count(),
+            2,
+            "the active box sides: {line:?}"
+        );
+        assert_eq!(
+            rule.chars()
+                .filter(|ch| *ch == glyphs.hline || *ch == glyphs.bl || *ch == glyphs.br)
+                .count(),
             60,
             "one continuous rule: {rule:?}"
         );
+        assert!(!rule.contains(glyphs.vline), "no separators: {rule:?}");
     }
 
     #[test]

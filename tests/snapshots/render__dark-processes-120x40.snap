@@ -3,8 +3,9 @@ source: tests/render.rs
 expression: "screen(&app(tab, \"dark\"), 120, 40)"
 ---
  File  Options  View  Help                                                                 / Filter                     
-1 Processes  2 Performance  3 App history  4 Startup  5 Users  6 Details  7 Services                       Task Manager 
-────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+┌───────────┐                                                                                                           
+│1 Processes│ 2 Performance  3 App history  4 Startup  5 Users  6 Details  7 Services                      Task Manager 
+└───────────┘───────────────────────────────────────────────────────────────────────────────────────────────────────────
                                                                                 27%      62%    5.3MB/s  12.0Mbps    -  
 Name                                                                  Status    CPU ▼ Memory       Disk   Network  GPU  
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -17,7 +18,6 @@ Name                                                                  Status    
 ▾ System processes (2)                                                                                                  
   ▸ WindowServer (1)                                                           4.8%   1.2 GB  15.0 KB/s                 
   ▸ launchd (1)                                                                0.2%  12.0 MB  15.0 KB/s                 
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         
