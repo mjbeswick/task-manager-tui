@@ -336,8 +336,9 @@ fn draw_tabs(buf: &mut Buffer, top: Rect, area: Rect, rule: Rect, app: &App, hit
         for x in left..=right {
             buf[(x, rule.y)].set_char(' ').set_style(blank);
         }
-        buf[(left, rule.y)].set_char(glyphs.bl).set_style(accent);
-        buf[(right, rule.y)].set_char(glyphs.br).set_style(accent);
+        // Outward junctions: the rule flows into each side.
+        buf[(left, rule.y)].set_char(glyphs.br).set_style(accent);
+        buf[(right, rule.y)].set_char(glyphs.bl).set_style(accent);
     }
 }
 
@@ -985,8 +986,8 @@ mod tests {
         assert_eq!(buffer[(0, 2)].symbol(), glyphs.vline.to_string());
         assert_eq!(buffer[(12, 2)].symbol(), glyphs.vline.to_string());
         // The bottom is open: sides continue, the rule span is blank.
-        assert_eq!(buffer[(0, 3)].symbol(), glyphs.bl.to_string());
-        assert_eq!(buffer[(12, 3)].symbol(), glyphs.br.to_string());
+        assert_eq!(buffer[(0, 3)].symbol(), glyphs.br.to_string());
+        assert_eq!(buffer[(12, 3)].symbol(), glyphs.bl.to_string());
         assert_eq!(buffer[(0, 3)].fg, theme.accent, "bottom corner");
         assert_eq!(
             buffer[(5, 3)].symbol(),
@@ -996,6 +997,8 @@ mod tests {
         assert_eq!(buffer[(5, 3)].bg, theme.bg);
         let rule: String = (0..120).map(|x| buffer[(x, 3)].symbol()).collect();
         assert!(rule.contains(glyphs.bl) && rule.contains(glyphs.br));
+        assert_eq!(buffer[(0, 3)].symbol(), glyphs.br.to_string());
+        assert_eq!(buffer[(12, 3)].symbol(), glyphs.bl.to_string());
         assert_eq!(
             rule.chars().filter(|ch| *ch == glyphs.hline).count(),
             120 - 13,

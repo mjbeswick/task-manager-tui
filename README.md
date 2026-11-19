@@ -148,8 +148,8 @@ Running is green, and service Stopped is muted. A selected row always uses the
 selection colour, so the stripe and the status tone never compete with it. Every tab
 names its own keys in a line at the bottom of its content. Tab labels
 carry their digits 1 to 7. One continuous line runs beneath the tabs. The active tab
-is drawn as an open box with box characters: a top border, vertical sides, and `└` `┘`
-corners on the line with an empty bottom. Its label and box use the accent colour. The
+is drawn as an open box with box characters: a top border, vertical sides, and outward
+`┘` `└` corners that join the line, with an empty bottom. Its label and box use the accent colour. The
 box costs one extra chrome row.
 
 ## What each platform reports

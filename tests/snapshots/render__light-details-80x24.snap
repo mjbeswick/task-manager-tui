@@ -5,7 +5,7 @@ expression: "screen(&app(Tab::Details, \"light\"), 80, 24)"
  File  Options  View  Help                         / Filter                     
                                    ┌─────┐                                      
  1Proc  2Perf  3Hist  4Star  5User │6Deta│ 7Serv                   Task Manager 
-───────────────────────────────────└     ┘──────────────────────────────────────
+───────────────────────────────────┘     └──────────────────────────────────────
 Name                              PID       Status   User name    CPU ▼ Memory  
 ────────────────────────────────────────────────────────────────────────────────
 node                              900      Running     michael  12.5%   512 MB  
