@@ -81,10 +81,8 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     }
 
     let items = &app.process.items;
-    // Windows 10 puts the system total above each resource label. Short
-    // terminals keep the single row header.
-    let totals = area.height >= 12;
-    let header_rows = if totals { 3 } else { 2 };
+    // One label row plus the rule; totals live on the Apps heading.
+    let header_rows = 2;
     let body_height = area.height.saturating_sub(header_rows);
     let bar =
         crate::ui::chrome::scrollbar_rect(area, area.y + header_rows, body_height, items.len());
@@ -94,13 +92,13 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         area
     };
     let layout = layout_for(area.width, app.process.more_details, app.show_optional());
-    draw_header(buf, area, area.y, &layout, app, totals);
+    draw_header(buf, area, area.y, &layout, app);
     {
         use crate::sample::group::SortKey as K;
         hits.header(
             area.x,
             area.y,
-            header_rows - 1,
+            1,
             &[
                 (Some(layout.name), K::Name),
                 (layout.status, K::Status),
@@ -150,7 +148,11 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
             Rect::new(area.x, y, area.width, 1),
             Target::Row(scroll + offset),
         );
-        let row = (theme.row_style(is_selected, scroll + offset), is_selected);
+        let row = RowCtx {
+            base: theme.row_style(is_selected, scroll + offset),
+            selected: is_selected,
+            index: scroll + offset,
+        };
         draw_item(buf, area, y, item, &layout, app, row);
     }
     if let Some(bar) = bar {
@@ -224,34 +226,15 @@ fn share(value: f64, total: f64) -> Option<f32> {
     (total > 0.0).then(|| (value * 100.0 / total) as f32)
 }
 
-fn draw_header(buf: &mut Buffer, area: Rect, top: u16, layout: &Layout, app: &App, totals: bool) {
+fn draw_header(buf: &mut Buffer, area: Rect, top: u16, layout: &Layout, app: &App) {
     let theme = app.theme();
     let style = theme.header_style();
-    let y = if totals { top + 1 } else { top };
+    let y = top;
     fill_area(
         buf,
-        Rect::new(area.x, top, area.width, y - top + 1),
+        Rect::new(area.x, top, area.width, 1),
         Style::default().bg(theme.surface),
     );
-    if totals {
-        let figures = self::totals(app);
-        let total_style = Style::default()
-            .fg(theme.text)
-            .bg(theme.surface)
-            .add_modifier(Modifier::BOLD);
-        let mut x = area.x + layout.name + layout.status.unwrap_or(0);
-        let mut cell = |x: &mut u16, width: Option<u16>, text: &str| {
-            if let Some(width) = width {
-                put_right(buf, *x + width - 2, top, text, total_style, area);
-                *x += width;
-            }
-        };
-        cell(&mut x, Some(layout.cpu), &figures.cpu);
-        cell(&mut x, Some(layout.memory), &figures.memory);
-        cell(&mut x, layout.disk, &figures.disk);
-        cell(&mut x, layout.network, &figures.network);
-        cell(&mut x, layout.gpu, &figures.gpu);
-    }
     let sort = app.process.sort;
     let arrow = if sort.dir == crate::sample::group::SortDir::Asc {
         theme.glyphs().sort_asc
@@ -335,6 +318,30 @@ fn draw_header(buf: &mut Buffer, area: Rect, top: u16, layout: &Layout, app: &Ap
     }
 }
 
+/// System totals, right-aligned in the numeric columns of a row.
+fn draw_totals(buf: &mut Buffer, area: Rect, y: u16, layout: &Layout, app: &App, base: Style) {
+    let figures = totals(app);
+    let style = base.add_modifier(Modifier::BOLD);
+    let mut x = area.x + layout.name + layout.status.unwrap_or(0);
+    let mut cell = |x: &mut u16, width: Option<u16>, text: &str| {
+        if let Some(width) = width {
+            put_right(buf, *x + width - 2, y, text, style, area);
+            *x += width;
+        }
+    };
+    cell(&mut x, Some(layout.cpu), &figures.cpu);
+    cell(&mut x, Some(layout.memory), &figures.memory);
+    cell(&mut x, layout.disk, &figures.disk);
+    cell(&mut x, layout.network, &figures.network);
+    cell(&mut x, layout.gpu, &figures.gpu);
+}
+
+struct RowCtx {
+    base: Style,
+    selected: bool,
+    index: usize,
+}
+
 fn draw_item(
     buf: &mut Buffer,
     area: Rect,
@@ -342,11 +349,15 @@ fn draw_item(
     item: &ProcItem,
     layout: &Layout,
     app: &App,
-    row: (Style, bool),
+    row: RowCtx,
 ) {
     let theme = app.theme();
     let snapshot = &app.snapshot;
-    let (base, selected) = row;
+    let RowCtx {
+        base,
+        selected,
+        index,
+    } = row;
     fill_area(buf, Rect::new(area.x, y, area.width, 1), base);
 
     let mut x = area.x;
@@ -517,6 +528,9 @@ fn draw_item(
         };
         put_right(buf, x + width - 2, y, &text, base, area);
     }
+    if index == 0 && matches!(item, ProcItem::Header { kind: crate::model::Kind::App, .. }) {
+        draw_totals(buf, area, y, layout, app, base);
+    }
 }
 
 #[cfg(test)]
@@ -627,7 +641,7 @@ mod tests {
         let background = bg_at(&screen, &buffer, "Background", "Background");
         assert!(background == theme.surface || background == theme.surface_alt);
         // No process reports network, so no network cell is shaded.
-        let network_x = screen.lines().nth(5).unwrap().find("Network").unwrap() as u16 + 6;
+        let network_x = screen.lines().nth(4).unwrap().find("Network").unwrap() as u16 + 6;
         for y in 5..20 {
             assert!(!theme.heat.contains(&buffer[(network_x, y)].bg), "row {y}");
         }
@@ -677,23 +691,41 @@ mod tests {
     }
 
     #[test]
-    fn header_shows_totals_when_tall() {
+    fn header_is_one_row_and_totals_sit_on_apps() {
         let app = app();
         let (screen, _) = frame(&app, 120, 36);
         let lines: Vec<&str> = screen.lines().collect();
-        assert!(lines[5].starts_with("Name"), "{:?}", lines[5]);
-        let cpu = lines[5].find("CPU").unwrap();
-        assert!(
-            lines[4][..cpu + 3].trim_end().ends_with("27%"),
-            "{:?}",
-            lines[3]
-        );
-        assert!(lines[4].contains("62%"));
+        assert!(lines[4].starts_with("Name"), "{:?}", lines[4]);
+        assert!(lines[5].trim_start().starts_with('─'), "{:?}", lines[5]);
+        assert!(lines[6].contains("Apps ("), "{:?}", lines[6]);
+        assert!(lines[6].starts_with("▾ Apps ("), "{:?}", lines[6]);
+        assert!(lines[6].contains("27%"), "{:?}", lines[6]);
+        assert!(lines[6].contains("62%"), "{:?}", lines[6]);
         let (short, _) = frame(&app, 80, 14);
         assert!(
             short.lines().nth(4).unwrap().starts_with("Name"),
             "one row header"
         );
+    }
+
+    #[test]
+    fn totals_need_the_apps_row() {
+        let mut snapshot = crate::model::Snapshot::fixture();
+        let template = snapshot.processes[0].clone();
+        for i in 0..30u32 {
+            let mut row = template.clone();
+            row.key = crate::model::ProcKey::new(40_000 + i, 1);
+            row.name = format!("proc{i:02}");
+            row.kind = crate::model::Kind::Background;
+            snapshot.processes.push(row);
+        }
+        let mut app = app();
+        app.apply_snapshot(snapshot);
+        app.process.visible.set(5);
+        app.process.scroll = 1;
+        let (screen, _) = frame(&app, 120, 36);
+        assert!(!screen.contains("Apps ("), "Apps scrolled away");
+        assert!(!screen.contains("12.0Mbps"), "totals hidden with it");
     }
 
     #[test]

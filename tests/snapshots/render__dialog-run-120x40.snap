@@ -6,10 +6,9 @@ expression: "screen(&app, 120, 40)"
 ┌───────────┐                                                                                                           
 │1 Processes│ 2 Performance  3 App history  4 Startup  5 Users  6 Details  7 Services                      Task Manager 
 │           │───────────────────────────────────────────────────────────────────────────────────────────────────────────
-                                                                                27%      62%    5.3MB/s  12.0Mbps    -  
 Name                                                                  Status    CPU ▼ Memory       Disk   Network  GPU  
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-▾ Apps (2)                                                                                                              
+▾ Apps (2)                                                                      27%      62%    5.3MB/s  12.0Mbps    -  
   ▸ Safari (1)                                                                 6.4%   1.2 GB  15.0 KB/s                 
   ▸ Ghostty (1)                                                                2.1%   380 MB  15.0 KB/s                 
 ▾ Background processes (2)                                                                                              
@@ -17,7 +16,8 @@ Name                                                                  Status    
   ▸ postgres (1)                                                               1.1%  96.0 MB  15.0 KB/s                 
 ▾ System processes (2)                                                                                                  
   ▸ WindowServer (1)                                                           4.8%   1.2 GB  15.0 KB/s                 
-  ▸ launchd (1)                   ┌─ Run a new task ─────────────────────────────────┐2.0 MB  15.0 KB/s                 
+  ▸ launchd (1)                                                                0.2%  12.0 MB  15.0 KB/s                 
+                                  ┌─ Run a new task ─────────────────────────────────┐                                  
                                   │                                                  │                                  
                                   │  Type a command. Arguments run without a shell.  │                                  
                                   │                                                  │                                  

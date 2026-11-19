@@ -110,8 +110,9 @@ dropped and the position counter in the status bar takes over.
 ## Tabs
 
 - **Processes** - CPU, Memory, Disk, and Network cells shade from pale yellow
-  to red by their share of the system total, and the header shows each
-  total above its label. Rows group under Apps, Background processes, and
+  to red by their share of the system total. The Apps heading row carries the
+  system totals in the numeric columns, so the header stays one row. Rows group
+  under Apps, Background processes, and
   System processes. App rows collapse by default; expanding one lists its processes. While you move
   the selection the row order holds for two seconds, so the list does not re-sort
   under the cursor; values keep updating. End task asks before touching a system
