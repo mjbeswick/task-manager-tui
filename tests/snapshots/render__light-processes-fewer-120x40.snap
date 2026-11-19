@@ -2,7 +2,7 @@
 source: tests/render.rs
 expression: "screen(&app, 120, 40)"
 ---
- File  Options  View  Help                                                                                 Task Manager 
+ File  Options  View  Help                                                                 / Filter                     
 Processes │ Performance │ App history │ Startup │ Users │ Details │ Services                                            
                                                                                                         27%        62%  
 Name                                                                                                    CPU ▼   Memory  

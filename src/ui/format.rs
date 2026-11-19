@@ -2,6 +2,20 @@
 
 pub const DASH: &str = "-";
 
+/// Character range of the first case-insensitive match of `needle` in `text`.
+/// An empty needle matches everything at an empty range.
+pub fn find_match(text: &str, needle: &str) -> Option<(usize, usize)> {
+    let fold = |c: char| c.to_lowercase().next().unwrap_or(c);
+    let hay: Vec<char> = text.chars().map(fold).collect();
+    let pin: Vec<char> = needle.chars().map(fold).collect();
+    if pin.is_empty() {
+        return Some((0, 0));
+    }
+    hay.windows(pin.len())
+        .position(|w| w == pin.as_slice())
+        .map(|start| (start, start + pin.len()))
+}
+
 pub fn pct(value: f32) -> String {
     format!("{value:.1}%")
 }
@@ -184,6 +198,14 @@ pub fn pad_right(text: &str, width: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn find_match_is_case_insensitive_and_char_based() {
+        assert_eq!(find_match("Google Chrome", "chr"), Some((7, 10)));
+        assert_eq!(find_match("Ünïcode Äpp", "äp"), Some((8, 10)));
+        assert_eq!(find_match("node", ""), Some((0, 0)));
+        assert_eq!(find_match("node", "x"), None);
+    }
 
     #[test]
     fn percentages_use_one_decimal() {

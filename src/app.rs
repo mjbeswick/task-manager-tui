@@ -299,6 +299,7 @@ pub struct AppHistoryTab {
     pub key: Option<String>,
     pub scroll: usize,
     pub sort: SortKeyState,
+    pub filter: String,
 }
 
 #[derive(Debug, Default)]
@@ -315,6 +316,7 @@ pub struct UsersTab {
     pub key: Option<u32>,
     pub scroll: usize,
     pub panel: bool,
+    pub filter: String,
 }
 
 #[derive(Debug, Default)]
@@ -600,7 +602,9 @@ impl App {
             Tab::Details => &self.details.filter,
             Tab::Services => &self.services.filter,
             Tab::Startup => &self.startup.filter,
-            _ => "",
+            Tab::AppHistory => &self.app_history.filter,
+            Tab::Users => &self.users.filter,
+            Tab::Performance => "",
         }
     }
 
@@ -610,7 +614,9 @@ impl App {
             Tab::Details => Some(&mut self.details.filter),
             Tab::Services => Some(&mut self.services.filter),
             Tab::Startup => Some(&mut self.startup.filter),
-            _ => None,
+            Tab::AppHistory => Some(&mut self.app_history.filter),
+            Tab::Users => Some(&mut self.users.filter),
+            Tab::Performance => None,
         }
     }
 
@@ -642,7 +648,9 @@ impl App {
             Tab::Details => self.sync_details(),
             Tab::Services => self.sync_services(),
             Tab::Startup => self.sync_startup(),
-            _ => {}
+            Tab::AppHistory => self.sync_history(),
+            Tab::Users => self.sync_users(),
+            Tab::Performance => {}
         }
     }
 
@@ -764,15 +772,20 @@ impl App {
     }
 
     pub fn user_rows(&self) -> Vec<&SessionRow> {
-        self.snapshot.sessions.iter().collect()
+        let needle = self.users.filter.trim();
+        self.snapshot
+            .sessions
+            .iter()
+            .filter(|row| crate::ui::format::find_match(&row.user, needle).is_some())
+            .collect()
     }
 
     fn sync_users(&mut self) {
         let rows = self.user_rows();
         let len = rows.len();
         if len == 0 {
+            // Keep the key, so clearing a filter restores the selection.
             self.users.selected = 0;
-            self.users.key = None;
             return;
         }
         let found = self
@@ -788,7 +801,13 @@ impl App {
 
     pub fn history_rows(&self) -> Vec<&AppUsage> {
         let (sort, dir) = (self.app_history.sort.key, self.app_history.sort.dir);
-        let mut rows: Vec<&AppUsage> = self.snapshot.app_usage.iter().collect();
+        let needle = self.app_history.filter.trim();
+        let mut rows: Vec<&AppUsage> = self
+            .snapshot
+            .app_usage
+            .iter()
+            .filter(|row| crate::ui::format::find_match(&row.name, needle).is_some())
+            .collect();
         rows.sort_by(|a, b| {
             let ordering = match sort {
                 SortKey::Name => a.name.cmp(&b.name),
@@ -811,8 +830,8 @@ impl App {
         let rows = self.history_rows();
         let len = rows.len();
         if len == 0 {
+            // Keep the key, so clearing a filter restores the selection.
             self.app_history.selected = 0;
-            self.app_history.key = None;
             return;
         }
         let found = self

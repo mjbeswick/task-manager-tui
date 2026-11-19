@@ -33,11 +33,11 @@
 
 ## 6. Filter field
 
-- [ ] 6.1 Draw the filter field at the right of the menu bar on list tabs, with the hint, the clear mark, the shrunk narrow form, and the title kept on Performance. Verify: render tests at 120 and 40 columns, and a check that menus are never truncated.
-- [ ] 6.2 Add filter state and row filtering to App history and Users. Verify: unit tests filter each tab, assert the empty state, and assert stored history is unchanged.
-- [ ] 6.3 Highlight the first case-insensitive match in each visible name cell on every list tab. Verify: a render test asserts the accent style on the matched characters only.
-- [ ] 6.4 Route clicks on the field to focus and on the clear mark to clear, and make Enter leave the field with the filter kept. Verify: `tests/mouse.rs` and input tests cover click focus, clear, Enter, and Esc.
-- [ ] 6.5 Update the README keys and mouse sections for the field and header clicks, and remove the stale mouse line from Known gaps. Verify: README matches the behaviour.
+- [x] 6.1 Draw the filter field at the right of the menu bar on list tabs, with the hint, the clear mark, the shrunk narrow form, and the title kept on Performance. Verify: render tests at 120 and 40 columns, and a check that menus are never truncated.
+- [x] 6.2 Add filter state and row filtering to App history and Users. Verify: unit tests filter each tab, assert the empty state, and assert stored history is unchanged.
+- [x] 6.3 Highlight the first case-insensitive match in each visible name cell on every list tab. Verify: a render test asserts the accent style on the matched characters only.
+- [x] 6.4 Route clicks on the field to focus and on the clear mark to clear, and make Enter leave the field with the filter kept. Verify: `tests/mouse.rs` and input tests cover click focus, clear, Enter, and Esc.
+- [x] 6.5 Update the README keys and mouse sections for the field and header clicks, and remove the stale mouse line from Known gaps. Verify: README matches the behaviour.
 
 ## 7. Golden frames and checks
 

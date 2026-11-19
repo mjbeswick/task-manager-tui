@@ -2,7 +2,7 @@
 source: tests/render.rs
 expression: "screen(&app(Tab::Details, \"light\"), 80, 24)"
 ---
- File  Options  View  Help                                         Task Manager 
+ File  Options  View  Help                         / Filter                     
 Proc  Perf  History  Startup  Users  Details  Services                          
 Name                              PID       Status   User name    CPU ▼ Memory  
 ────────────────────────────────────────────────────────────────────────────────

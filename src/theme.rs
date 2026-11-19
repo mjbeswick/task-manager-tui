@@ -130,6 +130,9 @@ pub struct Glyphs {
     pub bullet: char,
     /// Bottom-anchored blocks, one to eight eighths high.
     pub eighths: [char; 8],
+    /// Filter field: clear mark and text cursor.
+    pub clear: char,
+    pub cursor: char,
 }
 
 pub const UNICODE_GLYPHS: Glyphs = Glyphs {
@@ -152,6 +155,8 @@ pub const UNICODE_GLYPHS: Glyphs = Glyphs {
     block_lower: '▄',
     bullet: '•',
     eighths: ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'],
+    clear: '×',
+    cursor: '▏',
 };
 
 pub const ASCII_GLYPHS: Glyphs = Glyphs {
@@ -174,6 +179,8 @@ pub const ASCII_GLYPHS: Glyphs = Glyphs {
     block_lower: '_',
     bullet: '*',
     eighths: ['_', '_', '_', '_', '#', '#', '#', '#'],
+    clear: 'x',
+    cursor: '|',
 };
 
 impl Theme {
@@ -617,6 +624,8 @@ mod tests {
             glyphs.block_upper,
             glyphs.block_lower,
             glyphs.bullet,
+            glyphs.clear,
+            glyphs.cursor,
         ];
         for glyph in all.iter().chain(glyphs.eighths.iter()) {
             assert!(glyph.is_ascii(), "{glyph:?} is not ascii");

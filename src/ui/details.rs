@@ -3,7 +3,7 @@
 use crate::app::App;
 use crate::model::ProcRow;
 use crate::sample::group::{SortDir, SortKey};
-use crate::ui::chrome::{fill_area, panel, put, put_right};
+use crate::ui::chrome::{fill_area, panel, put, put_match, put_right};
 use crate::ui::format::{DASH, bytes, pad_left, pct, rate, truncate};
 use crate::ui::hits::{HitMap, Target};
 use ratatui::buffer::Buffer;
@@ -338,13 +338,14 @@ fn draw_row(
     fill_area(buf, Rect::new(area.x, y, area.width, 1), base);
 
     let mut x = area.x;
-    put(
+    put_match(
         buf,
         x,
         y,
         &truncate(&row.name, layout.name as usize),
         base,
         area,
+        app,
     );
     x += layout.name;
     put_right(

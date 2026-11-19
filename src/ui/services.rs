@@ -1,7 +1,7 @@
 //! Services tab: the native manager's units or jobs.
 
 use crate::app::App;
-use crate::ui::chrome::{fill_area, put, put_right};
+use crate::ui::chrome::{fill_area, put, put_match, put_right};
 use crate::ui::format::{DASH, pad_left, truncate};
 use crate::ui::hits::{HitMap, Target};
 use ratatui::buffer::Buffer;
@@ -125,13 +125,14 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
             theme.surface_style()
         };
         fill_area(buf, Rect::new(body.x, y, body.width, 1), base);
-        put(
+        put_match(
             buf,
             body.x,
             y,
             &truncate(&row.name, name as usize),
             base,
             body,
+            app,
         );
         let pid = row
             .pid

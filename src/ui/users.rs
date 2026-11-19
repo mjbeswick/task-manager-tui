@@ -1,7 +1,7 @@
 //! Users tab: interactive sessions.
 
 use crate::app::App;
-use crate::ui::chrome::{fill_area, panel, put, put_right};
+use crate::ui::chrome::{fill_area, panel, put, put_match, put_right};
 use crate::ui::format::{DASH, bytes, pad_left, pct, rate, truncate};
 use crate::ui::hits::{HitMap, Target};
 use ratatui::buffer::Buffer;
@@ -98,7 +98,11 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
             buf,
             table.x,
             table.y + 2,
-            "No interactive sessions. Only this application's own session is running.",
+            if app.users.filter.trim().is_empty() {
+                "No interactive sessions. Only this application's own session is running."
+            } else {
+                "No sessions match the filter."
+            },
             theme.muted_style(),
             table,
         );
@@ -125,7 +129,15 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         if row.current {
             user.push_str("  (current)");
         }
-        put(buf, body.x, y, &truncate(&user, name as usize), base, body);
+        put_match(
+            buf,
+            body.x,
+            y,
+            &truncate(&user, name as usize),
+            base,
+            body,
+            app,
+        );
         put(
             buf,
             body.x + name,

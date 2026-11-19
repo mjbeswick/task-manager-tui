@@ -2,7 +2,7 @@
 
 use crate::app::App;
 use crate::sample::group::ProcItem;
-use crate::ui::chrome::{fill_area, put, put_right};
+use crate::ui::chrome::{fill_area, put, put_match, put_right};
 use crate::ui::format::{DASH, bytes, pad_left, pct, rate, truncate};
 use crate::ui::hits::{HitMap, Target};
 use ratatui::buffer::Buffer;
@@ -406,13 +406,14 @@ fn draw_item(
     } else {
         base
     };
-    put(
+    put_match(
         buf,
         x,
         y,
         &truncate(&name_text, name_width as usize),
         style,
         area,
+        app,
     );
     x += name_width;
 

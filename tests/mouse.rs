@@ -185,3 +185,20 @@ fn clicking_the_first_row_under_the_two_row_header_selects_it() {
     assert!(screen.lines().nth(y as usize).unwrap().contains("Safari"));
     assert_eq!(app.process.selected, 1);
 }
+
+#[test]
+fn clicking_the_filter_field_focuses_it_and_the_clear_mark_empties_it() {
+    let mut app = app(Tab::Services);
+    let (screen, hits) = render_with_hits(&app, 120, 40);
+    let x = screen.lines().next().unwrap().find("/ Filter").unwrap() as u16;
+    let target = hits.hit(x + 3, 0).expect("field target");
+    assert_eq!(target, Target::FilterField);
+    app.click(target);
+    assert!(app.filter_editing);
+    app.filter_push('n');
+    app.filter_editing = false;
+    let (_, hits) = render_with_hits(&app, 120, 40);
+    assert_eq!(hits.hit(118, 0), Some(Target::FilterClear));
+    app.click(Target::FilterClear);
+    assert!(app.filter().is_empty());
+}

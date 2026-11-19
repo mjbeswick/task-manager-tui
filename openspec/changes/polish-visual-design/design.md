@@ -113,8 +113,10 @@ starts one row lower. Below twelve content rows the totals row is dropped.
 ### Filter field in the menu bar
 
 The field replaces the `Task Manager` title on list tabs. Performance keeps the
-title. It is drawn as `⌕ Filter (/)` when empty and `⌕ text ×` when set. The `×`
-is a click target that clears. The ASCII twin uses `/` and `x`.
+title. It is drawn as `/ Filter` when empty and `/ text ×` when set. The `/` is
+both the icon and the key hint. A `⌕` icon was dropped because Linux console
+fonts often lack it. The `×` is a click target that clears. The ASCII twin uses
+`x` and a `|` cursor.
 
 The existing per-tab filter state and `filter_editing` flag are reused. App
 history and Users gain a filter string in their tab state, and their row lists
@@ -143,7 +145,7 @@ already sorted.
   the flag in a troubleshooting line.
 - [Eighth blocks missing from a user's font] → `--ascii` already exists. The
   README mentions it next to `--color`.
-- [Filter field crowds the menu bar at 40 columns] → It shrinks to `⌕/` first.
+- [Filter field crowds the menu bar at 40 columns] → It shrinks to `/` first.
   Menus are never truncated.
 
 ## Migration Plan

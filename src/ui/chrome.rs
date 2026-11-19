@@ -125,6 +125,33 @@ pub fn put(buf: &mut Buffer, x: u16, y: u16, text: &str, style: Style, clip: Rec
     buf.set_stringn(x, y, text, max, style);
 }
 
+/// Put text, then draw its first match of the active filter in the accent.
+/// ponytail: one cell per char, so wide CJK names misplace the highlight.
+pub fn put_match(
+    buf: &mut Buffer,
+    x: u16,
+    y: u16,
+    text: &str,
+    style: Style,
+    clip: Rect,
+    app: &App,
+) {
+    put(buf, x, y, text, style, clip);
+    let needle = app.filter().trim();
+    if needle.is_empty() {
+        return;
+    }
+    if let Some((start, end)) = crate::ui::format::find_match(text, needle) {
+        let accent = style.fg(app.theme().accent).add_modifier(Modifier::BOLD);
+        for i in start..end {
+            let cx = x + i as u16;
+            if cx < clip.x + clip.width && y >= clip.y && y < clip.y + clip.height {
+                buf[(cx, y)].set_style(accent);
+            }
+        }
+    }
+}
+
 /// Put right-aligned text inside the clip.
 pub fn put_right(buf: &mut Buffer, right: u16, y: u16, text: &str, style: Style, clip: Rect) {
     let width = text.chars().count() as u16;
@@ -155,18 +182,81 @@ fn draw_menu_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         hits.add(Rect::new(x, area.y, width, 1), Target::Menu(index));
         x += width;
     }
-    let title = "Task Manager";
-    put_right(
-        buf,
-        area.x + area.width - 1,
-        area.y,
-        title,
-        Style::default()
-            .fg(theme.muted)
-            .bg(theme.bg)
-            .add_modifier(Modifier::BOLD),
-        area,
-    );
+    if app.tab == Tab::Performance {
+        let title = "Task Manager";
+        put_right(
+            buf,
+            area.x + area.width - 1,
+            area.y,
+            title,
+            Style::default()
+                .fg(theme.muted)
+                .bg(theme.bg)
+                .add_modifier(Modifier::BOLD),
+            area,
+        );
+        return;
+    }
+    let free = (area.x + area.width).saturating_sub(x + 2);
+    draw_filter_field(buf, area, free, app, hits);
+}
+
+/// The filter field at the right of the menu bar. It shrinks to its key hint
+/// when the menus leave too little room, and menus are never cut short.
+fn draw_filter_field(buf: &mut Buffer, bar: Rect, free: u16, app: &App, hits: &mut HitMap) {
+    let theme = app.theme();
+    let glyphs = theme.glyphs();
+    let text = app.filter();
+    let editing = app.filter_editing;
+    let active = editing || !text.is_empty();
+    let field = Style::default().fg(theme.text).bg(theme.surface);
+    let key = Style::default()
+        .fg(if active { theme.accent } else { theme.muted })
+        .bg(theme.surface)
+        .add_modifier(Modifier::BOLD);
+    let right = bar.x + bar.width;
+    if free < 3 {
+        return;
+    }
+    if free < 16 {
+        let rect = Rect::new(right - 3, bar.y, 3, 1);
+        fill_area(buf, rect, field);
+        put(buf, rect.x + 1, bar.y, "/", key, rect);
+        hits.add(rect, Target::FilterField);
+        return;
+    }
+    let width = free.min(30);
+    let rect = Rect::new(right - width, bar.y, width, 1);
+    fill_area(buf, rect, field);
+    put(buf, rect.x + 1, bar.y, "/", key, rect);
+    hits.add(rect, Target::FilterField);
+    let start = rect.x + 3;
+    // Room for the text, a cursor or clear mark, and a trailing space.
+    let room = (width - 6) as usize;
+    if text.is_empty() && !editing {
+        put(
+            buf,
+            start,
+            bar.y,
+            "Filter",
+            Style::default().fg(theme.muted).bg(theme.surface),
+            rect,
+        );
+        return;
+    }
+    let count = text.chars().count();
+    let shown: String = text.chars().skip(count.saturating_sub(room)).collect();
+    put(buf, start, bar.y, &shown, field, rect);
+    let end = start + shown.chars().count() as u16;
+    if editing {
+        let cursor = Style::default().fg(theme.accent).bg(theme.surface);
+        put(buf, end, bar.y, &glyphs.cursor.to_string(), cursor, rect);
+    }
+    if !text.is_empty() {
+        let x = right - 2;
+        put(buf, x, bar.y, &glyphs.clear.to_string(), key, rect);
+        hits.add(Rect::new(x - 1, bar.y, 3, 1), Target::FilterClear);
+    }
 }
 
 fn draw_tabs(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
@@ -421,6 +511,62 @@ mod tests {
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
 
+    fn screen_for(tab: crate::app::Tab, width: u16, filter: &str, editing: bool) -> String {
+        let (mut app, _) = App::new(Settings::default(), false);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        app.tab = tab;
+        if let Some(f) = app.filter_mut() {
+            f.push_str(filter);
+        }
+        app.filter_editing = editing;
+        crate::ui::test_util::render(&app, width, 30)
+    }
+
+    #[test]
+    fn filter_field_sits_in_the_menu_bar() {
+        use crate::app::Tab;
+        let bar = |s: String| s.lines().next().unwrap().to_string();
+        let wide = bar(screen_for(Tab::Processes, 120, "", false));
+        assert!(wide.trim_end().ends_with("/ Filter"), "{wide:?}");
+        assert!(!wide.contains("Task Manager"));
+        let perf = bar(screen_for(Tab::Performance, 120, "", false));
+        assert!(perf.contains("Task Manager") && !perf.contains("Filter"));
+        let set = bar(screen_for(Tab::Services, 120, "nginx", false));
+        assert!(set.contains("/ nginx") && set.contains('×'), "{set:?}");
+        let editing = bar(screen_for(Tab::Startup, 120, "rect", true));
+        assert!(editing.contains("rect▏"), "{editing:?}");
+        // At 40 columns the menus stay whole and the field shrinks to its key.
+        let narrow = bar(screen_for(Tab::Processes, 40, "", false));
+        assert!(
+            narrow.starts_with(" File  Options  View  Help "),
+            "{narrow:?}"
+        );
+        assert!(narrow.trim_end().ends_with('/'), "{narrow:?}");
+        assert!(!narrow.contains("Filter"));
+    }
+
+    #[test]
+    fn filter_matches_are_drawn_in_the_accent() {
+        let (mut app, _) = App::new(Settings::default(), false);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        app.tab = crate::app::Tab::Details;
+        app.details.filter = "DOW".into();
+        let mut hits = crate::ui::hits::HitMap::default();
+        let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        terminal.draw(|frame| draw(frame, &app, &mut hits)).unwrap();
+        let buffer = terminal.backend().buffer().clone();
+        let screen = crate::ui::test_util::render(&app, 120, 30);
+        let y = screen
+            .lines()
+            .position(|l| l.starts_with("WindowServer"))
+            .unwrap() as u16;
+        let accent = app.theme().accent;
+        let colours: Vec<_> = (0..12).map(|x| buffer[(x, y)].fg == accent).collect();
+        // "Win[dow]Server": only characters 3 to 5 are highlighted.
+        let expected: Vec<bool> = (0..12).map(|x| (3..6).contains(&x)).collect();
+        assert_eq!(colours, expected);
+    }
+
     #[test]
     fn reduced_depth_frames_hold_no_rgb() {
         use crate::app::Tab;
@@ -469,7 +615,7 @@ mod tests {
         assert!(screen.contains("File"));
         assert!(screen.contains("Processes"));
         assert!(screen.contains("App history"));
-        assert!(screen.contains("Task Manager"));
+        assert!(screen.contains("/ Filter"), "list tabs show the filter field");
         assert!(screen.contains("CPU 27.0%"));
         assert!(screen.contains("Fewer details"));
     }

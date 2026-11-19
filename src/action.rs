@@ -239,6 +239,11 @@ impl App {
                 self.sort_by(key);
                 Vec::new()
             }
+            Target::FilterField => self.dispatch(Action::FilterStart),
+            Target::FilterClear => {
+                self.filter_clear();
+                Vec::new()
+            }
         }
     }
 
@@ -1210,5 +1215,61 @@ mod tests {
         assert_eq!(app.settings.update_speed, "paused");
         app.dispatch(Action::SpeedSlower);
         assert_eq!(app.settings.update_speed, "high");
+    }
+
+    fn type_filter(app: &mut App, text: &str) {
+        app.dispatch(Action::FilterStart);
+        for ch in text.chars() {
+            app.dispatch(Action::FilterChar(ch));
+        }
+        app.dispatch(Action::FilterDone);
+    }
+
+    #[test]
+    fn app_history_filters_by_name_without_touching_history() {
+        let mut app = app();
+        app.tab = Tab::AppHistory;
+        let before = app.snapshot.app_usage.len();
+        type_filter(&mut app, "SAF");
+        assert!(!app.filter_editing, "Enter leaves the field");
+        let names: Vec<_> = app.history_rows().iter().map(|r| r.name.clone()).collect();
+        assert_eq!(names, vec!["Safari"]);
+        type_filter(&mut app, "zzz");
+        assert!(app.history_rows().is_empty());
+        let screen = crate::ui::test_util::render(&app, 120, 30);
+        assert!(screen.contains("No applications match the filter."));
+        assert_eq!(app.snapshot.app_usage.len(), before, "history is unchanged");
+        app.dispatch(Action::FilterStart);
+        app.dispatch(Action::FilterClear);
+        assert_eq!(app.history_rows().len(), before);
+    }
+
+    #[test]
+    fn users_filter_by_name_and_restore_the_selection() {
+        let mut snapshot = crate::model::Snapshot::fixture();
+        let mut other = snapshot.sessions[0].clone();
+        other.user = "alice".into();
+        other.uid = 777;
+        snapshot.sessions.push(other);
+        let mut app = app();
+        app.apply_snapshot(snapshot);
+        app.tab = Tab::Users;
+        app.users.selected = 1;
+        app.users.key = Some(777);
+        type_filter(&mut app, "MICH");
+        let users: Vec<_> = app.user_rows().iter().map(|r| r.user.clone()).collect();
+        assert_eq!(users, vec!["michael"]);
+        app.dispatch(Action::FilterStart);
+        app.dispatch(Action::FilterClear);
+        app.users.selected = 1;
+        app.users.key = Some(777);
+        // A filter that hides every row keeps the selected key.
+        type_filter(&mut app, "nobody");
+        let screen = crate::ui::test_util::render(&app, 120, 30);
+        assert!(screen.contains("No sessions match the filter."));
+        app.dispatch(Action::FilterStart);
+        app.dispatch(Action::FilterClear);
+        assert_eq!(app.user_rows().len(), 2);
+        assert_eq!(app.users.key, Some(777), "selection restored");
     }
 }

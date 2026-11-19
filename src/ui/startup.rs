@@ -1,7 +1,7 @@
 //! Startup tab: login entries and their real enabled state.
 
 use crate::app::App;
-use crate::ui::chrome::{fill_area, put, put_right};
+use crate::ui::chrome::{fill_area, put, put_match, put_right};
 use crate::ui::format::{DASH, pad_left, truncate};
 use crate::ui::hits::{HitMap, Target};
 use ratatui::buffer::Buffer;
@@ -112,7 +112,15 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         if row.missing_program {
             label.push_str("  (missing)");
         }
-        put(buf, body.x, y, &truncate(&label, name as usize), base, body);
+        put_match(
+            buf,
+            body.x,
+            y,
+            &truncate(&label, name as usize),
+            base,
+            body,
+            app,
+        );
         let status = if row.enabled { "Enabled" } else { "Disabled" };
         put_right(buf, body.x + name + 10, y, status, base, body);
         put_right(buf, body.x + name + 26, y, row.impact.label(), base, body);

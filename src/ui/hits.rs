@@ -25,6 +25,9 @@ pub enum Target {
     DialogClose,
     /// A sortable column header.
     Header(SortKey),
+    /// The filter field in the menu bar, and its clear mark.
+    FilterField,
+    FilterClear,
 }
 
 #[derive(Debug, Default)]

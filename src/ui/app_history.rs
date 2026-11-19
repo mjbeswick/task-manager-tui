@@ -1,7 +1,7 @@
 //! App history tab: accumulated usage per application.
 
 use crate::app::App;
-use crate::ui::chrome::{fill_area, put, put_right};
+use crate::ui::chrome::{fill_area, put, put_match, put_right};
 use crate::ui::format::{DASH, bytes, cpu_time, pad_left, truncate};
 use crate::ui::hits::{HitMap, Target};
 use ratatui::buffer::Buffer;
@@ -108,7 +108,11 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
             buf,
             area.x,
             area.y + 2,
-            "No usage recorded yet. Totals appear as applications run.",
+            if app.app_history.filter.trim().is_empty() {
+                "No usage recorded yet. Totals appear as applications run."
+            } else {
+                "No applications match the filter."
+            },
             theme.muted_style(),
             area,
         );
@@ -133,7 +137,15 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         };
         fill_area(buf, Rect::new(body.x, y, body.width, 1), base);
         let mut x = body.x;
-        put(buf, x, y, &truncate(&row.name, name as usize), base, body);
+        put_match(
+            buf,
+            x,
+            y,
+            &truncate(&row.name, name as usize),
+            base,
+            body,
+            app,
+        );
         x += name;
         // Figures end where their right-aligned titles end: one cell short of
         // the column edge.
