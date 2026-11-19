@@ -5,6 +5,7 @@ use crate::model::ProcRow;
 use crate::sample::group::{SortDir, SortKey};
 use crate::ui::chrome::{fill_area, panel, put, put_right};
 use crate::ui::format::{DASH, bytes, pad_left, pct, rate, truncate};
+use crate::ui::hits::{HitMap, Target};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -64,7 +65,7 @@ fn layout_for(width: u16, optional: bool) -> Layout2 {
     fixed
 }
 
-pub fn draw(buf: &mut Buffer, area: Rect, app: &App) {
+pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     let theme = app.theme();
     fill_area(buf, area, theme.surface_style());
     if area.height < 3 {
@@ -121,6 +122,10 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App) {
     for (offset, row) in rows.iter().skip(scroll).take(visible).enumerate() {
         let y = body.y + offset as u16;
         let is_selected = scroll + offset == selected;
+        hits.add(
+            Rect::new(body.x, y, body.width, 1),
+            Target::Row(scroll + offset),
+        );
         draw_row(buf, body, y, row, &layout, app, is_selected);
     }
 

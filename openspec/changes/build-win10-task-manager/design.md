@@ -202,8 +202,8 @@ blocks for `-`, `+`, `v`, `>`, and `#`, for terminals with unreliable fonts.
 | `F1` | Help |
 | `F5` | Refresh now |
 | `1`-`7`, `Tab`, `Shift+Tab` | Tabs |
-| `Up`/`Down`, `PgUp`/`PgDn`, `Home`/`End` | Move and scroll |
-| `Enter`, `Left`, `Right` | Expand, collapse, inspect |
+| `Up`/`Down`, `j`/`k`, `PgUp`/`PgDn`, `Ctrl+d`/`Ctrl+u`, `Home`/`End`, `g`/`G` | Move and scroll |
+| `Enter`, `Left`/`Right`, `h`/`l` | Expand, collapse, inspect |
 | `<` / `>` / `r` | Sort column / reverse |
 | `/` | Filter, `Esc` clears |
 | `Delete`, `e` | End task |
@@ -211,8 +211,18 @@ blocks for `-`, `+`, `v`, `>`, and `#`, for terminals with unreliable fonts.
 | `f` | Fewer details |
 | `t` | Theme |
 | `+` / `-` | Update speed |
-| `Space` | Toggle startup entry |
+| `Space` | Toggle startup entry, expand a process group |
+| `?` | Help |
 | `s` / `S` / `R` | Service start / stop / restart |
+
+### The mouse is a shortcut layer over the same actions
+
+Mouse capture stays on for the session. Every frame records where it drew clickable
+regions into a `HitMap`, so there is no second layout to keep in sync. A click maps
+to the action the keyboard would have run: tabs, menu labels and items, table rows, the
+Performance rail, and dialog buttons. A second click on the same row within 400 ms
+runs that row's Enter action. The wheel moves three rows. Because drawing owns the
+geometry, a click can never disagree with what is on screen.
 
 ### Module map
 

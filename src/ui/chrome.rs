@@ -3,6 +3,7 @@
 use crate::app::{App, MENUS, Tab};
 use crate::theme::Theme;
 use crate::ui::format::{DASH, bit_rate, pct, truncate};
+use crate::ui::hits::{HitMap, Target};
 use ratatui::Frame;
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Layout, Rect};
@@ -11,7 +12,8 @@ use ratatui::style::{Modifier, Style};
 pub const MIN_WIDTH: u16 = 40;
 pub const MIN_HEIGHT: u16 = 12;
 
-pub fn draw(frame: &mut Frame, app: &App) {
+pub fn draw(frame: &mut Frame, app: &App, hits: &mut HitMap) {
+    hits.clear();
     let area = frame.area();
     let buf = frame.buffer_mut();
     let theme = app.theme();
@@ -36,26 +38,26 @@ pub fn draw(frame: &mut Frame, app: &App) {
     ])
     .areas(area);
 
-    draw_menu_bar(buf, menu_row, app);
-    draw_tabs(buf, tab_row, app);
+    draw_menu_bar(buf, menu_row, app, hits);
+    draw_tabs(buf, tab_row, app, hits);
 
     match app.tab {
-        Tab::Processes => crate::ui::processes::draw(buf, content, app),
-        Tab::Performance => crate::ui::performance::draw(buf, content, app),
-        Tab::AppHistory => crate::ui::app_history::draw(buf, content, app),
-        Tab::Startup => crate::ui::startup::draw(buf, content, app),
-        Tab::Users => crate::ui::users::draw(buf, content, app),
-        Tab::Details => crate::ui::details::draw(buf, content, app),
-        Tab::Services => crate::ui::services::draw(buf, content, app),
+        Tab::Processes => crate::ui::processes::draw(buf, content, app, hits),
+        Tab::Performance => crate::ui::performance::draw(buf, content, app, hits),
+        Tab::AppHistory => crate::ui::app_history::draw(buf, content, app, hits),
+        Tab::Startup => crate::ui::startup::draw(buf, content, app, hits),
+        Tab::Users => crate::ui::users::draw(buf, content, app, hits),
+        Tab::Details => crate::ui::details::draw(buf, content, app, hits),
+        Tab::Services => crate::ui::services::draw(buf, content, app, hits),
     }
 
-    draw_status_bar(buf, status_row, app);
+    draw_status_bar(buf, status_row, app, hits);
 
     if let Some(menu) = app.menu {
-        draw_menu_dropdown(buf, area, app, menu);
+        draw_menu_dropdown(buf, area, app, menu, hits);
     }
     if let Some(dialog) = &app.dialog {
-        crate::ui::dialog::draw(buf, area, app, dialog);
+        crate::ui::dialog::draw(buf, area, app, dialog, hits);
     }
 }
 
@@ -128,7 +130,7 @@ pub fn put_right(buf: &mut Buffer, right: u16, y: u16, text: &str, style: Style,
     put(buf, x, y, text, style, clip);
 }
 
-fn draw_menu_bar(buf: &mut Buffer, area: Rect, app: &App) {
+fn draw_menu_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     let theme = app.theme();
     fill_area(buf, area, Style::default().bg(theme.bg));
     let mut x = area.x;
@@ -146,8 +148,10 @@ fn draw_menu_bar(buf: &mut Buffer, area: Rect, app: &App) {
                 .add_modifier(Modifier::BOLD)
         };
         let text = format!(" {label} ");
+        let width = text.chars().count() as u16;
         put(buf, x, area.y, &text, style, area);
-        x += text.chars().count() as u16;
+        hits.add(Rect::new(x, area.y, width, 1), Target::Menu(index));
+        x += width;
     }
     let title = "Task Manager";
     put_right(
@@ -163,7 +167,7 @@ fn draw_menu_bar(buf: &mut Buffer, area: Rect, app: &App) {
     );
 }
 
-fn draw_tabs(buf: &mut Buffer, area: Rect, app: &App) {
+fn draw_tabs(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     let theme = app.theme();
     fill_area(buf, area, Style::default().bg(theme.bg));
     let glyphs = theme.glyphs();
@@ -187,8 +191,10 @@ fn draw_tabs(buf: &mut Buffer, area: Rect, app: &App) {
         if x + text.chars().count() as u16 > area.x + area.width {
             break;
         }
+        let width = text.chars().count() as u16;
         put(buf, x, area.y, &text, style, area);
-        x += text.chars().count() as u16;
+        hits.add(Rect::new(x, area.y, width, 1), Target::Tab(tab));
+        x += width;
         if tab != Tab::Services {
             let separator = if compact {
                 " ".to_string()
@@ -210,7 +216,7 @@ fn draw_tabs(buf: &mut Buffer, area: Rect, app: &App) {
     let _ = underline;
 }
 
-fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App) {
+fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     let theme = app.theme();
     let bar = Style::default().bg(theme.surface).fg(theme.muted);
     fill_area(buf, area, bar);
@@ -230,8 +236,10 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App) {
             .fg(theme.accent)
             .bg(theme.surface)
             .add_modifier(Modifier::UNDERLINED);
+        let width = action.chars().count() as u16;
         put(buf, x, area.y, action, style, area);
-        x += action.chars().count() as u16 + 2;
+        hits.add(Rect::new(x, area.y, width, 1), Target::FewerDetails);
+        x += width + 2;
     }
 
     let snapshot = &app.snapshot;
@@ -289,7 +297,13 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App) {
     );
 }
 
-fn draw_menu_dropdown(buf: &mut Buffer, area: Rect, app: &App, menu: crate::app::MenuState) {
+fn draw_menu_dropdown(
+    buf: &mut Buffer,
+    area: Rect,
+    app: &App,
+    menu: crate::app::MenuState,
+    hits: &mut HitMap,
+) {
     let theme = app.theme();
     let items = MENUS[menu.menu].1;
     let width = items
@@ -329,6 +343,10 @@ fn draw_menu_dropdown(buf: &mut Buffer, area: Rect, app: &App, menu: crate::app:
             }
         }
         put(buf, inner.x + 1, row, label, style, inner);
+        hits.add(
+            Rect::new(inner.x, row, inner.width, 1),
+            Target::MenuItem(menu.menu, index),
+        );
     }
 }
 
@@ -350,8 +368,9 @@ mod tests {
     fn render(width: u16, height: u16) -> String {
         let (mut app, _) = App::new(Settings::default(), false);
         app.apply_snapshot(crate::model::Snapshot::fixture());
+        let mut hits = crate::ui::hits::HitMap::default();
         let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
-        terminal.draw(|frame| draw(frame, &app)).unwrap();
+        terminal.draw(|frame| draw(frame, &app, &mut hits)).unwrap();
         let buffer = terminal.backend().buffer().clone();
         let mut out = String::new();
         for y in 0..height {

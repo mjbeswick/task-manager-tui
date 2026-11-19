@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
 use clap::Parser;
-use crossterm::event::{self, Event};
+use crossterm::event::{
+    self, DisableMouseCapture, EnableMouseCapture, Event, MouseButton, MouseEvent, MouseEventKind,
+};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use crossterm::{cursor, execute, terminal};
 use ratatui::Terminal;
@@ -14,6 +16,7 @@ use task_manager_tui::platform::{self, RealRunner};
 use task_manager_tui::sample::Sampler;
 use task_manager_tui::store::settings;
 use task_manager_tui::ui;
+use task_manager_tui::ui::hits::{HitMap, Target};
 
 static RESTORED: AtomicBool = AtomicBool::new(false);
 
@@ -76,16 +79,28 @@ fn run(
     app: &mut App,
     sampler: &mut Sampler,
 ) -> Result<()> {
-    loop {
-        terminal.draw(|frame| ui::draw(frame, app))?;
+    let mut hits = HitMap::default();
+    let mut last_click: Option<(std::time::Instant, Target)> = None;
 
-        if event::poll(Duration::from_millis(250))?
-            && let Event::Key(key) = event::read()?
-            && let Some(action) = task_manager_tui::input::translate(app, key)
-        {
-            let effects = app.dispatch(action);
-            if apply_effects(app, sampler, effects)? {
-                break;
+    loop {
+        terminal.draw(|frame| ui::draw(frame, app, &mut hits))?;
+
+        if event::poll(Duration::from_millis(250))? {
+            match event::read()? {
+                Event::Key(key) => {
+                    if let Some(action) = task_manager_tui::input::translate(app, key) {
+                        let effects = app.dispatch(action);
+                        if apply_effects(app, sampler, effects)? {
+                            break;
+                        }
+                    }
+                }
+                Event::Mouse(mouse)
+                    if handle_mouse(app, sampler, &hits, mouse, &mut last_click)? =>
+                {
+                    break;
+                }
+                _ => {}
             }
         }
 
@@ -98,6 +113,51 @@ fn run(
         }
     }
     Ok(())
+}
+
+/// Handle a mouse event. Returns true when the application should exit.
+fn handle_mouse(
+    app: &mut App,
+    sampler: &mut Sampler,
+    hits: &HitMap,
+    mouse: MouseEvent,
+    last_click: &mut Option<(std::time::Instant, Target)>,
+) -> Result<bool> {
+    use task_manager_tui::input::Action;
+
+    match mouse.kind {
+        MouseEventKind::Down(MouseButton::Left) => {
+            let Some(target) = hits.hit(mouse.column, mouse.row) else {
+                return Ok(false);
+            };
+            let now = std::time::Instant::now();
+            let double = matches!(target, Target::Row(_))
+                && last_click.is_some_and(|(at, previous)| {
+                    previous == target && now.duration_since(at) < Duration::from_millis(400)
+                });
+            *last_click = Some((now, target));
+
+            let mut effects = app.click(target);
+            if double {
+                effects.extend(app.dispatch(Action::Expand));
+                *last_click = None;
+            }
+            apply_effects(app, sampler, effects)
+        }
+        MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => {
+            let action = if matches!(mouse.kind, MouseEventKind::ScrollDown) {
+                Action::MoveDown
+            } else {
+                Action::MoveUp
+            };
+            let mut effects = Vec::new();
+            for _ in 0..3 {
+                effects.extend(app.dispatch(action.clone()));
+            }
+            apply_effects(app, sampler, effects)
+        }
+        _ => Ok(false),
+    }
 }
 
 /// Returns true when the application should exit.
@@ -293,7 +353,8 @@ fn once(app: &mut App) -> Result<()> {
     let width = width.max(80);
     let height = height.max(24);
     let mut terminal = Terminal::new(ratatui::backend::TestBackend::new(width, height))?;
-    terminal.draw(|frame| ui::draw(frame, app))?;
+    let mut hits = HitMap::default();
+    terminal.draw(|frame| ui::draw(frame, app, &mut hits))?;
     let buffer = terminal.backend().buffer();
     let mut stdout = io::stdout();
     for y in 0..height {
@@ -310,7 +371,12 @@ fn once(app: &mut App) -> Result<()> {
 fn init_terminal() -> Result<Terminal<CrosstermBackend<Stdout>>> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, terminal::EnterAlternateScreen, cursor::Hide)?;
+    execute!(
+        stdout,
+        terminal::EnterAlternateScreen,
+        cursor::Hide,
+        EnableMouseCapture
+    )?;
     Terminal::new(CrosstermBackend::new(stdout)).context("cannot create the terminal")
 }
 
@@ -321,7 +387,12 @@ fn restore_terminal() {
     }
     let _ = disable_raw_mode();
     let mut stdout = io::stdout();
-    let _ = execute!(stdout, terminal::LeaveAlternateScreen, cursor::Show);
+    let _ = execute!(
+        stdout,
+        terminal::LeaveAlternateScreen,
+        cursor::Show,
+        DisableMouseCapture
+    );
 }
 
 #[cfg(test)]

@@ -5,11 +5,12 @@ use crate::theme::Theme;
 use crate::ui::chrome::{fill_area, panel, put, put_right};
 use crate::ui::format::{DASH, bit_rate, bytes, bytes_opt, duration, mhz, pct, rate, truncate};
 use crate::ui::graph::{self, Series};
+use crate::ui::hits::{HitMap, Target};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 
-pub fn draw(buf: &mut Buffer, area: Rect, app: &App) {
+pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     let theme = app.theme();
     fill_area(buf, area, theme.surface_style());
     let narrow = area.width < 70;
@@ -24,11 +25,11 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App) {
         (rail, body)
     };
 
-    draw_rail(buf, rail, app, narrow);
+    draw_rail(buf, rail, app, narrow, hits);
     draw_panel(buf, body, app);
 }
 
-fn draw_rail(buf: &mut Buffer, area: Rect, app: &App, narrow: bool) {
+fn draw_rail(buf: &mut Buffer, area: Rect, app: &App, narrow: bool, hits: &mut HitMap) {
     let theme = app.theme();
     fill_area(buf, area, Style::default().bg(theme.bg));
     let resources = [
@@ -51,8 +52,10 @@ fn draw_rail(buf: &mut Buffer, area: Rect, app: &App, narrow: bool) {
             } else {
                 Style::default().fg(theme.muted).bg(theme.bg)
             };
+            let width = text.chars().count() as u16;
             put(buf, x, area.y, &text, style, area);
-            x += text.chars().count() as u16 + 1;
+            hits.add(Rect::new(x, area.y, width, 1), Target::Resource(resource));
+            x += width + 1;
         }
         return;
     }
@@ -75,6 +78,10 @@ fn draw_rail(buf: &mut Buffer, area: Rect, app: &App, narrow: bool) {
                 .set_style(Style::default().fg(theme.accent).bg(theme.selection));
         }
         put(buf, area.x + 2, y, resource.label(), style, area);
+        hits.add(
+            Rect::new(area.x, y, area.width, 1),
+            Target::Resource(*resource),
+        );
     }
 }
 
@@ -94,8 +101,21 @@ fn draw_panel(buf: &mut Buffer, area: Rect, app: &App) {
     }
 }
 
+/// A bordered chart. The graph itself keeps its own grid, scale, and footnote.
+fn chart(
+    buf: &mut Buffer,
+    area: Rect,
+    app: &App,
+    title: &str,
+    series: &Series,
+    max: f32,
+    label: &str,
+) {
+    let inner = panel(buf, area, title, app.theme());
+    graph::draw(buf, inner, series, max, app.theme(), label, "60 seconds");
+}
+
 fn draw_cpu(buf: &mut Buffer, inner: Rect, app: &App) {
-    let theme = app.theme();
     let snapshot = &app.snapshot;
     let show_cores = snapshot.cpu.logical > 1 && inner.height >= 12;
     let (graph_area, boxes_area, cores_area) = if show_cores {
@@ -114,15 +134,7 @@ fn draw_cpu(buf: &mut Buffer, inner: Rect, app: &App) {
     };
 
     let label = pct(app.graphs.cpu.last());
-    graph::draw(
-        buf,
-        graph_area,
-        &app.graphs.cpu,
-        100.0,
-        theme,
-        &label,
-        "60 seconds",
-    );
+    chart(buf, graph_area, app, "CPU", &app.graphs.cpu, 100.0, &label);
 
     let cpu = &snapshot.cpu;
     let boxes = [
@@ -181,20 +193,26 @@ fn draw_cores(buf: &mut Buffer, area: Rect, app: &App) {
         }
         let height = cell_height.min(area.y + area.height - y);
         let cell = Rect::new(x, y, cell_width.saturating_sub(1), height);
-        let mut graph_cell = cell;
-        if cell.height >= 2 {
-            let label = format!("CPU {index}  {}", pct(series.last()));
-            put(
-                buf,
-                cell.x,
-                cell.y,
-                &truncate(&label, cell.width as usize),
-                Style::default().fg(theme.muted).bg(theme.surface),
-                cell,
-            );
-            graph_cell = Rect::new(cell.x, cell.y + 1, cell.width, cell.height - 1);
+        if cell.height >= 3 && cell.width >= 8 {
+            let title = format!("CPU {index}");
+            let graph_cell = panel(buf, cell, &title, theme);
+            draw_mini(buf, graph_cell, series, theme);
+        } else {
+            let mut graph_cell = cell;
+            if cell.height >= 2 {
+                let label = format!("CPU {index}  {}", pct(series.last()));
+                put(
+                    buf,
+                    cell.x,
+                    cell.y,
+                    &truncate(&label, cell.width as usize),
+                    Style::default().fg(theme.muted).bg(theme.surface),
+                    cell,
+                );
+                graph_cell = Rect::new(cell.x, cell.y + 1, cell.width, cell.height - 1);
+            }
+            draw_mini(buf, graph_cell, series, theme);
         }
-        draw_mini(buf, graph_cell, series, theme);
     }
 }
 
@@ -232,14 +250,14 @@ fn draw_memory(buf: &mut Buffer, inner: Rect, app: &App) {
     } else {
         0.0
     };
-    graph::draw(
+    chart(
         buf,
         graph_area,
+        app,
+        "Memory",
         &app.graphs.memory,
         100.0,
-        theme,
         &pct(used_pct),
-        "60 seconds",
     );
     let boxes = [
         ("In use", bytes(memory.used), ""),
@@ -356,14 +374,14 @@ fn draw_network(buf: &mut Buffer, inner: Rect, app: &App) {
     let label = adapter
         .map(|a| bit_rate(a.rx_bps + a.tx_bps))
         .unwrap_or_else(|| DASH.into());
-    graph::draw(
+    chart(
         buf,
         graph_area,
+        app,
+        "Network",
         &app.graphs.network,
         0.0,
-        theme,
         &label,
-        "60 seconds",
     );
 
     let boxes = [
@@ -431,15 +449,7 @@ fn draw_gpu(buf: &mut Buffer, inner: Rect, app: &App) {
         .iter()
         .max_by(|a, b| a.usage.total_cmp(&b.usage));
     let label = gpu.map(|g| pct(g.usage)).unwrap_or_else(|| DASH.into());
-    graph::draw(
-        buf,
-        graph_area,
-        &app.graphs.gpu,
-        100.0,
-        theme,
-        &label,
-        "60 seconds",
-    );
+    chart(buf, graph_area, app, "GPU", &app.graphs.gpu, 100.0, &label);
     let boxes = [
         ("Utilization", label, ""),
         (

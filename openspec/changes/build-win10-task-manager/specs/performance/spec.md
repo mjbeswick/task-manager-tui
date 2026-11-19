@@ -25,6 +25,24 @@ the graph above and stat boxes below.
 - **WHEN** the terminal is too narrow for both columns
 - **THEN** the rail becomes a single line of labels above the panel and the graph keeps at least twenty columns
 
+### Requirement: Charts are framed
+
+Every chart SHALL be drawn inside a single-line bordered frame whose title names the
+series, matching the Windows 10 chart frame. The frame MUST clip the plot instead of
+overflowing its panel.
+
+#### Scenario: Main chart
+- **WHEN** any resource panel is shown
+- **THEN** its graph sits inside a border titled with the resource name and its current value is readable on the plot
+
+#### Scenario: Per-core charts
+- **WHEN** logical processor charts are shown
+- **THEN** each has its own bordered frame titled CPU followed by its index
+
+#### Scenario: Too little room
+- **WHEN** a per-processor cell is shorter than three rows or narrower than eight columns
+- **THEN** the frame is dropped for that cell and the graph is drawn without a border rather than clipped badly
+
 ### Requirement: Graphs share one shape
 
 Every graph SHALL draw a filled area rising from the bottom over the last 60 samples,

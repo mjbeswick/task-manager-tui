@@ -42,6 +42,9 @@ pub enum Action {
     SetAffinity,
     ShowProperties,
     MenuOpen,
+    OpenMenu(usize),
+    MenuFirst,
+    MenuLast,
     MenuClose,
     MenuLeft,
     MenuRight,
@@ -66,6 +69,20 @@ pub fn translate(app: &App, key: KeyEvent) -> Option<Action> {
     if ctrl && matches!(key.code, KeyCode::Char('c')) {
         return Some(Action::Quit);
     }
+    if key.modifiers.contains(KeyModifiers::ALT)
+        && let KeyCode::Char(letter) = key.code
+    {
+        let index = match letter.to_ascii_lowercase() {
+            'f' => Some(0),
+            'o' => Some(1),
+            'v' => Some(2),
+            'h' => Some(3),
+            _ => None,
+        };
+        if let Some(index) = index {
+            return Some(Action::OpenMenu(index));
+        }
+    }
 
     if let Some(dialog) = &app.dialog {
         return translate_dialog(dialog, key);
@@ -78,6 +95,8 @@ pub fn translate(app: &App, key: KeyEvent) -> Option<Action> {
             KeyCode::Right => Action::MenuRight,
             KeyCode::Up => Action::MenuUp,
             KeyCode::Down => Action::MenuDown,
+            KeyCode::Home => Action::MenuFirst,
+            KeyCode::End => Action::MenuLast,
             KeyCode::Enter => Action::MenuActivate,
             _ => {
                 let _ = menu;
@@ -104,8 +123,12 @@ pub fn translate(app: &App, key: KeyEvent) -> Option<Action> {
         KeyCode::Tab => Action::NextTab,
         KeyCode::BackTab => Action::PreviousTab,
         KeyCode::Char(ch @ '1'..='7') => Action::GoTab(ch as usize - '1' as usize),
-        KeyCode::Up => Action::MoveUp,
-        KeyCode::Down => Action::MoveDown,
+        KeyCode::Up | KeyCode::Char('k') => Action::MoveUp,
+        KeyCode::Down | KeyCode::Char('j') => Action::MoveDown,
+        KeyCode::Char('d') if ctrl => Action::PageDown,
+        KeyCode::Char('u') if ctrl => Action::PageUp,
+        KeyCode::Char('g') => Action::Top,
+        KeyCode::Char('G') => Action::Bottom,
         KeyCode::PageUp => Action::PageUp,
         KeyCode::PageDown => Action::PageDown,
         KeyCode::Home => Action::Top,
@@ -117,8 +140,8 @@ pub fn translate(app: &App, key: KeyEvent) -> Option<Action> {
             Tab::Services => Action::ShowProperties,
             _ => Action::Inspect,
         },
-        KeyCode::Left => Action::Collapse,
-        KeyCode::Right => Action::Expand,
+        KeyCode::Left | KeyCode::Char('h') => Action::Collapse,
+        KeyCode::Right | KeyCode::Char('l') => Action::Expand,
         KeyCode::Delete | KeyCode::Char('e') => Action::EndTask,
         KeyCode::Char('E') => Action::EndTree,
         KeyCode::Char('/') => Action::FilterStart,
@@ -129,7 +152,12 @@ pub fn translate(app: &App, key: KeyEvent) -> Option<Action> {
         KeyCode::Char('t') => Action::ToggleTheme,
         KeyCode::Char('+') | KeyCode::Char('=') => Action::SpeedFaster,
         KeyCode::Char('-') => Action::SpeedSlower,
-        KeyCode::Char(' ') => Action::ToggleStartup,
+        KeyCode::Char(' ') => match app.tab {
+            Tab::Startup => Action::ToggleStartup,
+            Tab::Processes => Action::Expand,
+            _ => return None,
+        },
+        KeyCode::Char('?') => Action::Help,
         KeyCode::Char('s') => Action::ServiceStart,
         KeyCode::Char('S') => Action::ServiceStop,
         KeyCode::Char('R') => Action::ServiceRestart,
@@ -307,6 +335,56 @@ mod tests {
         assert_eq!(
             translate(&app, key(KeyCode::Enter)),
             Some(Action::RunSubmit)
+        );
+    }
+
+    #[test]
+    fn vim_keys_and_alt_menus() {
+        let app = app();
+        assert_eq!(
+            translate(&app, key(KeyCode::Char('j'))),
+            Some(Action::MoveDown)
+        );
+        assert_eq!(
+            translate(&app, key(KeyCode::Char('k'))),
+            Some(Action::MoveUp)
+        );
+        assert_eq!(translate(&app, key(KeyCode::Char('g'))), Some(Action::Top));
+        assert_eq!(
+            translate(&app, key(KeyCode::Char('G'))),
+            Some(Action::Bottom)
+        );
+        assert_eq!(
+            translate(&app, key(KeyCode::Char('l'))),
+            Some(Action::Expand)
+        );
+        assert_eq!(
+            translate(&app, key(KeyCode::Char('h'))),
+            Some(Action::Collapse)
+        );
+        assert_eq!(translate(&app, key(KeyCode::Char('?'))), Some(Action::Help));
+        assert_eq!(
+            translate(&app, KeyEvent::new(KeyCode::Char('v'), KeyModifiers::ALT)),
+            Some(Action::OpenMenu(2))
+        );
+    }
+
+    #[test]
+    fn control_keys_page() {
+        let app = app();
+        assert_eq!(
+            translate(
+                &app,
+                KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL)
+            ),
+            Some(Action::PageDown)
+        );
+        assert_eq!(
+            translate(
+                &app,
+                KeyEvent::new(KeyCode::Char('u'), KeyModifiers::CONTROL)
+            ),
+            Some(Action::PageUp)
         );
     }
 

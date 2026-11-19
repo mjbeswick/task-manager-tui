@@ -3,18 +3,21 @@
 use crate::app::{App, Dialog};
 use crate::ui::chrome::{fill_area, panel, put};
 use crate::ui::format::wrap;
+use crate::ui::hits::{HitMap, Target};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 
 const HELP: &[(&str, &str)] = &[
     ("q, Ctrl+C", "Quit"),
-    ("F10", "Menu bar"),
+    ("F10, Alt+F/O/V/H", "Menu bar"),
     ("F1", "This help"),
     ("F5", "Refresh now"),
     ("1-7, Tab", "Switch tabs"),
-    ("Up/Down, PgUp/PgDn", "Move and scroll"),
-    ("Enter, Left, Right", "Expand, collapse, inspect"),
+    ("Up/Down, j/k, PgUp/PgDn", "Move and scroll"),
+    ("g / G, Ctrl+d / Ctrl+u", "Top, bottom, half page"),
+    ("Enter, Left/Right, h/l", "Expand, collapse, inspect"),
+    ("Mouse", "Click tabs, rows, menus; wheel scrolls"),
     ("<, >, r", "Sort column, reverse"),
     ("/", "Filter"),
     ("Delete, e, E", "End task, end tree"),
@@ -27,7 +30,7 @@ const HELP: &[(&str, &str)] = &[
     ("s, S, R", "Start, stop, restart a service"),
 ];
 
-pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog) {
+pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut HitMap) {
     let theme = app.theme();
     dim(buf, area, theme);
 
@@ -90,6 +93,18 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog) {
                     .add_modifier(Modifier::BOLD),
                 inner,
             );
+            let confirm = format!("[Enter] {confirm_label}");
+            let confirm_width = confirm.chars().count() as u16;
+            hits.add(
+                Rect::new(inner.x + 2, buttons_y, confirm_width, 1),
+                Target::DialogConfirm,
+            );
+            let cancel = "[Esc] Cancel";
+            let cancel_x = inner.x + 2 + confirm_width + 6;
+            hits.add(
+                Rect::new(cancel_x, buttons_y, cancel.chars().count() as u16, 1),
+                Target::DialogCancel,
+            );
         }
         Dialog::Error { message, .. } => {
             let lines = wrap(message, inner.width.saturating_sub(2) as usize);
@@ -107,14 +122,16 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog) {
                     inner,
                 );
             }
+            let y = inner.y + inner.height.saturating_sub(2);
             put(
                 buf,
                 inner.x + 2,
-                inner.y + inner.height.saturating_sub(2),
+                y,
                 "[Esc] Close",
                 Style::default().fg(theme.accent).bg(theme.surface),
                 inner,
             );
+            hits.add(Rect::new(inner.x + 2, y, 11, 1), Target::DialogClose);
         }
         Dialog::Help => {
             let [list, footer] =
@@ -149,6 +166,10 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog) {
                 Style::default().fg(theme.accent).bg(theme.surface),
                 footer,
             );
+            hits.add(
+                Rect::new(footer.x + 2, footer.y, 11, 1),
+                Target::DialogClose,
+            );
         }
         Dialog::Run { input } => {
             put(
@@ -176,14 +197,17 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog) {
                     .set_char(' ')
                     .set_style(Style::default().bg(theme.accent));
             }
+            let y = inner.y + inner.height.saturating_sub(2);
             put(
                 buf,
                 inner.x + 2,
-                inner.y + inner.height.saturating_sub(2),
+                y,
                 "[Enter] Run      [Esc] Cancel",
                 Style::default().fg(theme.accent).bg(theme.surface),
                 inner,
             );
+            hits.add(Rect::new(inner.x + 2, y, 11, 1), Target::DialogConfirm);
+            hits.add(Rect::new(inner.x + 19, y, 12, 1), Target::DialogCancel);
         }
         Dialog::Priority { name, selected, .. } => {
             put(
@@ -224,15 +248,22 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog) {
                     style,
                     inner,
                 );
+                hits.add(
+                    Rect::new(inner.x + 1, row, inner.width.saturating_sub(2), 1),
+                    Target::DialogPriority(index),
+                );
             }
+            let y = inner.y + inner.height.saturating_sub(1);
             put(
                 buf,
                 inner.x + 2,
-                inner.y + inner.height.saturating_sub(1),
+                y,
                 "[Enter] Set      [Esc] Cancel",
                 Style::default().fg(theme.accent).bg(theme.surface),
                 inner,
             );
+            hits.add(Rect::new(inner.x + 2, y, 11, 1), Target::DialogConfirm);
+            hits.add(Rect::new(inner.x + 19, y, 12, 1), Target::DialogCancel);
         }
         Dialog::Properties { lines, .. } => {
             for (index, line) in lines.iter().enumerate() {
@@ -249,14 +280,16 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog) {
                     inner,
                 );
             }
+            let y = inner.y + inner.height.saturating_sub(2);
             put(
                 buf,
                 inner.x + 2,
-                inner.y + inner.height.saturating_sub(2),
+                y,
                 "[Esc] Close",
                 Style::default().fg(theme.accent).bg(theme.surface),
                 inner,
             );
+            hits.add(Rect::new(inner.x + 2, y, 11, 1), Target::DialogClose);
         }
     }
 }

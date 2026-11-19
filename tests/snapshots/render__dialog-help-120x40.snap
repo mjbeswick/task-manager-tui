@@ -10,15 +10,16 @@ Name                                                                   Status   
   ▸ Safari (1)                                                                  6.4%   1.2 GB  15.0 KB/s                
   ▸ Ghostty (1)                                                                 2.1%   380 MB  15.0 KB/s                
 ▾ Background processes (2)                                                                                              
-  ▸ node (1)                                                                   12.5%   512 MB  15.0 KB/s                
-  ▸ postgres (1)                ┌─ Keyboard shortcuts ─────────────────────────────────┐.0 MB  15.0 KB/s                
-▾ System processes (2)          │  q, Ctrl+C           Quit                            │                                
-  ▸ WindowServer (1)            │  F10                 Menu bar                        │.2 GB  15.0 KB/s                
-  ▸ launchd (1)                 │  F1                  This help                       │.0 MB  15.0 KB/s                
-                                │  F5                  Refresh now                     │                                
+  ▸ node (1)                    ┌─ Keyboard shortcuts ─────────────────────────────────┐12 MB  15.0 KB/s                
+  ▸ postgres (1)                │  q, Ctrl+C           Quit                            │.0 MB  15.0 KB/s                
+▾ System processes (2)          │  F10, Alt+F/O/V/H    Menu bar                        │                                
+  ▸ WindowServer (1)            │  F1                  This help                       │.2 GB  15.0 KB/s                
+  ▸ launchd (1)                 │  F5                  Refresh now                     │.0 MB  15.0 KB/s                
                                 │  1-7, Tab            Switch tabs                     │                                
-                                │  Up/Down, PgUp/PgDn  Move and scroll                 │                                
-                                │  Enter, Left, Right  Expand, collapse, inspect       │                                
+                                │  Up/Down, j/k, PgUp/PMove and scroll                 │                                
+                                │  g / G, Ctrl+d / CtrlTop, bottom, half page          │                                
+                                │  Enter, Left/Right, hExpand, collapse, inspect       │                                
+                                │  Mouse               Click tabs, rows, menus; wheel  │                                
                                 │  <, >, r             Sort column, reverse            │                                
                                 │  /                   Filter                          │                                
                                 │  Delete, e, E        End task, end tree              │                                
@@ -32,7 +33,6 @@ Name                                                                   Status   
                                 │  [Esc] Close                                         │                                
                                 │                                                      │                                
                                 └──────────────────────────────────────────────────────┘                                
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

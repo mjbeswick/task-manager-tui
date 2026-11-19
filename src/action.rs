@@ -162,7 +162,15 @@ impl App {
                 });
             }
             Action::MenuOpen => self.menu = Some(MenuState::default()),
+            Action::OpenMenu(index) => {
+                self.menu = Some(MenuState {
+                    menu: index.min(MENUS.len() - 1),
+                    item: 0,
+                })
+            }
             Action::MenuClose
+            | Action::MenuFirst
+            | Action::MenuLast
             | Action::MenuLeft
             | Action::MenuRight
             | Action::MenuUp
@@ -176,6 +184,93 @@ impl App {
             Action::Confirm | Action::RunSubmit | Action::RunChar(_) | Action::RunBackspace => {}
         }
         effects
+    }
+
+    /// Handle a click or tap on a region recorded during the last frame.
+    pub fn click(&mut self, target: crate::ui::hits::Target) -> Vec<Effect> {
+        use crate::ui::hits::Target;
+        match target {
+            Target::Tab(tab) => {
+                self.switch_tab(tab);
+                Vec::new()
+            }
+            Target::Menu(index) => {
+                self.menu = Some(MenuState {
+                    menu: index.min(MENUS.len() - 1),
+                    item: 0,
+                });
+                Vec::new()
+            }
+            Target::MenuItem(menu, item) => {
+                self.menu = Some(MenuState { menu, item });
+                self.dispatch(Action::MenuActivate)
+            }
+            Target::Row(index) => {
+                self.select_row(index);
+                Vec::new()
+            }
+            Target::Resource(resource) => {
+                self.performance.resource = resource;
+                Vec::new()
+            }
+            Target::FewerDetails => self.dispatch(Action::ToggleDetails),
+            Target::DialogConfirm => self.dispatch(Action::Confirm),
+            Target::DialogCancel | Target::DialogClose => self.dispatch(Action::Cancel),
+            Target::DialogPriority(index) => {
+                if let Some(Dialog::Priority { selected, .. }) = &mut self.dialog {
+                    *selected = index;
+                }
+                Vec::new()
+            }
+        }
+    }
+
+    /// Select a row by its visible index on the active tab.
+    pub fn select_row(&mut self, index: usize) {
+        match self.tab {
+            Tab::Processes => {
+                if let Some(item) = self.process.items.get(index) {
+                    self.process.selected = index;
+                    self.process.key = Some(item.sel());
+                }
+            }
+            Tab::Details => {
+                let key = self.details_rows().get(index).map(|row| row.key);
+                if let Some(key) = key {
+                    self.details.selected = index;
+                    self.details.key = Some(key);
+                }
+            }
+            Tab::Services => {
+                let key = self.service_rows().get(index).map(|row| row.name.clone());
+                if let Some(key) = key {
+                    self.services.selected = index;
+                    self.services.key = Some(key);
+                }
+            }
+            Tab::Startup => {
+                let key = self.startup_rows().get(index).map(|row| row.name.clone());
+                if let Some(key) = key {
+                    self.startup.selected = index;
+                    self.startup.key = Some(key);
+                }
+            }
+            Tab::Users => {
+                let key = self.user_rows().get(index).map(|row| row.uid);
+                if let Some(key) = key {
+                    self.users.selected = index;
+                    self.users.key = Some(key);
+                }
+            }
+            Tab::AppHistory => {
+                let key = self.history_rows().get(index).map(|row| row.name.clone());
+                if let Some(key) = key {
+                    self.app_history.selected = index;
+                    self.app_history.key = Some(key);
+                }
+            }
+            Tab::Performance => {}
+        }
     }
 
     fn switch_tab(&mut self, tab: Tab) {
@@ -452,6 +547,14 @@ impl App {
             Action::MenuUp => {
                 let count = MENUS[state.menu].1.len();
                 state.item = (state.item + count - 1) % count;
+                self.menu = Some(state);
+            }
+            Action::MenuFirst => {
+                state.item = 0;
+                self.menu = Some(state);
+            }
+            Action::MenuLast => {
+                state.item = MENUS[state.menu].1.len() - 1;
                 self.menu = Some(state);
             }
             Action::MenuDown => {
@@ -847,6 +950,59 @@ mod tests {
             }
             other => panic!("unexpected effects: {other:?}"),
         }
+        assert!(app.dialog.is_none());
+    }
+
+    #[test]
+    fn clicking_a_tab_switches_to_it() {
+        let mut app = app();
+        let effects = app.click(crate::ui::hits::Target::Tab(Tab::Performance));
+        assert!(effects.is_empty());
+        assert_eq!(app.tab, Tab::Performance);
+    }
+
+    #[test]
+    fn clicking_a_row_selects_it() {
+        let mut app = app();
+        app.dispatch(Action::GoTab(5));
+        let effects = app.click(crate::ui::hits::Target::Row(2));
+        assert!(effects.is_empty());
+        assert_eq!(app.details.selected, 2);
+        app.dispatch(Action::GoTab(0));
+        app.click(crate::ui::hits::Target::Row(1));
+        assert_eq!(app.process.selected, 1);
+    }
+
+    #[test]
+    fn clicking_a_menu_label_opens_it() {
+        let mut app = app();
+        app.click(crate::ui::hits::Target::Menu(2));
+        assert_eq!(app.menu.unwrap().menu, 2);
+    }
+
+    #[test]
+    fn clicking_a_resource_selects_it() {
+        let mut app = app();
+        app.click(crate::ui::hits::Target::Resource(
+            crate::app::ResourceChoice::Disk,
+        ));
+        assert_eq!(app.performance.resource, crate::app::ResourceChoice::Disk);
+    }
+
+    #[test]
+    fn clicking_dialog_buttons_confirms_or_cancels() {
+        let mut app = app();
+        app.dialog = Some(Dialog::Confirm {
+            title: "Delete history".into(),
+            message: "Sure?".into(),
+            confirm_label: "Delete".into(),
+            action: PendingAction::ClearHistory,
+        });
+        let effects = app.click(crate::ui::hits::Target::DialogConfirm);
+        assert_eq!(effects, vec![Effect::ClearHistory]);
+        app.dialog = Some(Dialog::Help);
+        let effects = app.click(crate::ui::hits::Target::DialogClose);
+        assert!(effects.is_empty());
         assert!(app.dialog.is_none());
     }
 

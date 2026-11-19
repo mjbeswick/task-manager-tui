@@ -103,6 +103,13 @@
 - [x] 11.4 Write the platform notes: what each target reports, what shows a dash, and why. Verify: each claim matches a capability declaration and a test.
 - [x] 11.5 Run the release checks. Verify: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`, `cargo build --release`, and `openspec validate build-win10-task-manager --strict` all pass.
 
+## 12. Chart frames, mouse, and navigation polish
+
+- [x] 12.1 Frame every Performance chart and per-core mini chart in a titled border. Verify: regenerated goldens show the frame and the small-cell fallback without a border.
+- [x] 12.2 Publish clickable regions from the frame itself. Verify: `tests/mouse.rs` finds menus, tabs, rows, resources, and dialog buttons.
+- [x] 12.3 Handle clicks and wheel scrolls, including double-click to expand. Verify: a PTY run with an SGR click on the Performance tab switched panels and left mouse mode on exit.
+- [x] 12.4 Add vim movement, g/G, Ctrl+d/Ctrl+u, `?` help, and Alt+F/O/V/H menu access. Verify: unit tests cover every new key and the help table lists them.
+
 ## Workflow follow-up
 
 - Archive the change after the release checks pass and the goldens are reviewed.

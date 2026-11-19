@@ -98,14 +98,57 @@ closes.
 - **WHEN** the user presses Esc in any dialog
 - **THEN** the dialog closes and no action is taken
 
-### Requirement: Keyboard only
+### Requirement: Every action is reachable from the keyboard
 
-Every action the application offers SHALL be reachable from the keyboard. No feature
-MUST require a pointer.
+Every action the application offers SHALL be reachable from the keyboard, including
+arrow and vim-style movement, half-page jumps, first and last row, and menu access
+with Alt plus the menu's first letter. No feature MUST require a pointer.
 
 #### Scenario: No pointer
 - **WHEN** the user completes all seven tabs, every menu item, and every dialog using only the keyboard
 - **THEN** no control is left unreachable
+
+#### Scenario: Movement styles
+- **WHEN** the content area is focused
+- **THEN** Up/Down and k/j move one row, PgUp/PgDn and Ctrl+u/Ctrl+d move ten, g and G jump to the first and last row, and h/l collapse and expand
+
+#### Scenario: Direct menu access
+- **WHEN** the user presses Alt+F, Alt+O, Alt+V, or Alt+H
+- **THEN** the File, Options, View, or Help menu opens with its first item selected
+
+### Requirement: Mouse support
+
+The application SHALL capture mouse input and SHALL treat clicks as shortcuts for
+actions that also exist on the keyboard. A click MUST NOT be the only way to do
+anything, and the terminal's mouse mode MUST be released on exit.
+
+#### Scenario: Click a tab
+- **WHEN** the user clicks a tab label
+- **THEN** that tab becomes active and its previous state is restored
+
+#### Scenario: Click a row
+- **WHEN** the user clicks a table row
+- **THEN** that row becomes selected, and a second click on the same row within 400 milliseconds performs the row's Enter action
+
+#### Scenario: Click the menus
+- **WHEN** the user clicks a menu label and then an item
+- **THEN** the menu opens on that label and the item's action runs
+
+#### Scenario: Click a resource
+- **WHEN** the user clicks CPU, Memory, Disk, Network, or GPU in the Performance rail
+- **THEN** that resource's panel is shown
+
+#### Scenario: Wheel
+- **WHEN** the user scrolls the wheel over the content area
+- **THEN** the selection moves three rows in the wheel's direction
+
+#### Scenario: Click dialog buttons
+- **WHEN** the user clicks a confirm, cancel, or close button in a dialog
+- **THEN** the same action runs as its key would run
+
+#### Scenario: Mouse mode restored
+- **WHEN** the application exits, including through a panic
+- **THEN** mouse reporting is disabled along with the alternate screen and raw mode
 
 ### Requirement: Terminal state restored
 

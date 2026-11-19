@@ -4,6 +4,7 @@ use crate::app::App;
 use crate::sample::group::ProcItem;
 use crate::ui::chrome::{fill_area, put, put_right};
 use crate::ui::format::{DASH, bytes, pad_left, pct, rate, truncate};
+use crate::ui::hits::{HitMap, Target};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
@@ -65,7 +66,7 @@ fn layout_for(width: u16, more_details: bool, optional: bool) -> Layout {
     layout
 }
 
-pub fn draw(buf: &mut Buffer, area: Rect, app: &App) {
+pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     let theme = app.theme();
     let surface = theme.surface_style();
     fill_area(buf, area, surface);
@@ -116,6 +117,10 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App) {
     for (offset, item) in items.iter().skip(scroll).take(visible).enumerate() {
         let y = rows_area.y + offset as u16;
         let is_selected = scroll + offset == selected;
+        hits.add(
+            Rect::new(area.x, y, area.width, 1),
+            Target::Row(scroll + offset),
+        );
         draw_item(buf, area, y, item, &layout, app, is_selected);
     }
 

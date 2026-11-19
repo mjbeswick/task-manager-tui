@@ -48,12 +48,13 @@ taskmgr
 | Key | Action |
 |---|---|
 | `q`, `Ctrl+C` | Quit |
-| `F10` | Menu bar, arrows navigate, Enter activates |
+| `F10`, `Alt+F`/`Alt+O`/`Alt+V`/`Alt+H` | Menu bar, arrows navigate, Enter activates |
 | `F1` | Keyboard help |
 | `F5` | Refresh now |
 | `1`-`7`, `Tab`, `Shift+Tab` | Switch tabs |
-| `Up`/`Down`, `PgUp`/`PgDn`, `Home`/`End` | Move and scroll |
-| `Enter`, `Left`, `Right` | Expand, collapse, inspect |
+| `Up`/`Down` or `j`/`k`, `PgUp`/`PgDn`, `Ctrl+d`/`Ctrl+u` | Move and scroll |
+| `g` / `G`, `Home` / `End` | Top and bottom |
+| `Enter`, `Left`/`Right`, `h`/`l` | Expand, collapse, inspect |
 | `<` `>` `r` | Sort column, reverse |
 | `/` | Filter, `Esc` clears |
 | `Delete`, `e` | End task |
@@ -63,18 +64,27 @@ taskmgr
 | `+` `-` | Update speed |
 | `p` | Set process priority |
 | `a` | Set affinity, unavailable on both platforms |
-| `Space` | Enable or disable a startup entry |
+| `?` | Keyboard help |
+| `Space` | Enable or disable a startup entry, expand a process group |
 | `s` `S` `R` | Start, stop, restart a service |
+
+## Mouse
+
+Mouse capture is on. Click a tab to switch, a menu label to open it, a menu item to
+activate it, a table row to select it, or a resource in the Performance rail to show
+it. Click a row twice to expand or inspect it. The wheel moves the selection three
+rows. Dialog buttons respond to clicks. Every action still has a key.
 
 ## Tabs
 
 - **Processes** - groups under Apps, Background processes, and System processes.
   App rows collapse by default; expanding one lists its processes. End task asks
   before touching a system process or another user's process.
-- **Performance** - CPU, Memory, Disk, Network, and GPU panels with a 60 second
-  graph, stat boxes, and one small graph per logical processor. Percentage graphs
-  keep a fixed 0-100 scale, so a quiet graph looks quiet. Disk and network graphs
-  scale to the largest value in the window and label that maximum.
+- **Performance** - CPU, Memory, Disk, Network, and GPU panels with a bordered
+  60 second graph, stat boxes, and one bordered graph per logical processor.
+  Percentage graphs keep a fixed 0-100 scale, so a quiet graph looks quiet. Disk
+  and network graphs scale to the largest value in the window and label that
+  maximum.
 - **App history** - CPU time, peak memory, and disk totals per application,
   accumulated across restarts.
 - **Startup** - login agents from launchd or XDG autostart, with their real
