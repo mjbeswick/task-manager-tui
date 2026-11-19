@@ -77,7 +77,7 @@ cadence, and MUST reflect changes made outside the application after a refresh.
 
 #### Scenario: Filter
 - **WHEN** the user types a filter
-- **THEN** only matching services remain and the status line shows the filter
+- **THEN** only matching services remain and the filter field shows the text
 
 #### Scenario: External change
 - **WHEN** a service is started outside the application

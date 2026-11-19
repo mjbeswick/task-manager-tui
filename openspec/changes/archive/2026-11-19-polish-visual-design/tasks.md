@@ -43,4 +43,4 @@
 
 - [x] 7.1 Regenerate insta snapshots with `INSTA_UPDATE=always cargo test --test render` and review every changed frame tab by tab. Verify: the diff only shows the intended visual changes.
 - [x] 7.2 Run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and `cargo test`. Verify: all three pass.
-- [ ] 7.3 Run the release binary in a truecolor terminal, in macOS Terminal.app, and with `TERM=linux --color 16`, both themes. Verify: all three look correct with no broken glyphs.
+- [x] 7.3 Run the release binary in a truecolor terminal, in macOS Terminal.app, and with `TERM=linux --color 16`, both themes. Verify: all three look correct with no broken glyphs.

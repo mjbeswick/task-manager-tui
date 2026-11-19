@@ -97,6 +97,14 @@ anything, and the terminal's mouse mode MUST be released on exit.
 - **WHEN** the user clicks a menu label and then an item
 - **THEN** the menu opens on that label and the item's action runs
 
+#### Scenario: Click away closes a menu
+- **WHEN** a menu is open and the user clicks outside its label and dropdown
+- **THEN** the menu closes and the click does not select a row, switch a tab, sort a column, or start a filter
+
+#### Scenario: Click inside the dropdown
+- **WHEN** a menu is open and the user clicks its border or empty space
+- **THEN** the menu stays open and nothing underneath is activated
+
 #### Scenario: Click a resource
 - **WHEN** the user clicks CPU, Memory, Disk, Network, or GPU in the Performance rail
 - **THEN** that resource's panel is shown
@@ -111,7 +119,7 @@ anything, and the terminal's mouse mode MUST be released on exit.
 
 #### Scenario: Wheel
 - **WHEN** the user scrolls the wheel over the content area
-- **THEN** the selection moves three rows in the wheel's direction
+- **THEN** the viewport under the pointer moves three rows in the wheel's direction and the selection does not change
 
 #### Scenario: Click dialog buttons
 - **WHEN** the user clicks a confirm, cancel, or close button in a dialog

@@ -53,14 +53,14 @@ recent history and its current value.
 
 ### Requirement: Chart appearance is adjustable
 
-The user SHALL choose between Filled, Line, and Dots rendering and between Per
-resource, Teal, Blue, Orange, Magenta, and Mono colours at View > Appearance or F2.
-Per resource MUST be the default with no saved setting. The chosen style and colour
+The user SHALL choose between Filled, Line, Dots, and Blocks rendering and between Per
+resource, Teal, Blue, Orange, Magenta, Mono, and Theme colours at View > Appearance or
+F2. Per resource MUST be the default with no saved setting. The chosen style and colour
 MUST persist across restarts.
 
 #### Scenario: Change the style
 - **WHEN** the user selects Line in the Appearance dialog
-- **THEN** every chart draws points joined by vertical segments instead of a filled area, and the choice is saved
+- **THEN** every chart draws a joined braille line instead of a filled area, and the choice is saved
 
 #### Scenario: Change the colour
 - **WHEN** the user selects Orange
@@ -68,7 +68,7 @@ MUST persist across restarts.
 
 #### Scenario: Per resource colours
 - **WHEN** Per resource is selected
-- **THEN** CPU charts are blue, Memory purple, Disk green, Network orange, and GPU teal, in both the panel and the rail
+- **THEN** each resource draws with its own colour from the active theme, in both the panel and the rail
 
 #### Scenario: Default colour
 - **WHEN** the application starts with no saved chart colour
@@ -81,3 +81,11 @@ MUST persist across restarts.
 #### Scenario: Readable on both themes
 - **WHEN** the window theme is light or dark
 - **THEN** the chosen chart colour stays visible against the chart background
+
+#### Scenario: Follow the theme
+- **WHEN** the user selects the Theme chart colour and changes the window theme
+- **THEN** charts use the new theme's chart fill immediately
+
+#### Scenario: Blocks style
+- **WHEN** the user selects Blocks
+- **THEN** filled charts use quadrant templates, eighth blocks, and half-cell triangles to draw the area edge
