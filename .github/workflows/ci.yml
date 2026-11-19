@@ -48,3 +48,20 @@ jobs:
             grep -q "Services" "/tmp/$tab.txt"
           done
           echo "all tabs rendered"
+
+  linux-container:
+    name: Linux container render (no systemd)
+    runs-on: ubuntu-latest
+    container: rust:1-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: cargo build --release
+      - name: Render one frame of every tab
+        run: |
+          for tab in processes performance app-history startup users details services; do
+            ./target/release/taskmgr --once --tab "$tab" > "/tmp/$tab.txt"
+            grep -q "Services" "/tmp/$tab.txt"
+          done
+          grep -q "Services are unavailable" /tmp/services.txt
+          echo "all tabs rendered without systemd"

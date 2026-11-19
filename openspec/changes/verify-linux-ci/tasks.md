@@ -2,8 +2,8 @@
 
 ## 1. Container smoke job
 
-- [ ] 1.1 Add a `linux-container` job to `.github/workflows/ci.yml` that builds and renders every tab with `--once` inside a `rust` slim container, asserting each frame contains the tab strip. Verify: the job is listed in the workflow and runs the same render loop as the runner smoke job.
-- [ ] 1.2 Check that the Services tab shows an unavailable message without systemd. Verify: the container job greps for `Services are unavailable`.
+- [x] 1.1 Add a `linux-container` job to `.github/workflows/ci.yml` that builds and renders every tab with `--once` inside a `rust` slim container, asserting each frame contains the tab strip. Verify: the job is listed in the workflow and runs the same render loop as the runner smoke job.
+- [x] 1.2 Check that the Services tab shows an unavailable message without systemd. Verify: the container job greps for `Services are unavailable`.
 
 ## 2. Real Linux host
 
