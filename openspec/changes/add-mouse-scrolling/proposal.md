@@ -30,8 +30,8 @@ holding a key.
 
 ### Modified Capabilities
 
-None. Existing wheel behavior is restated under the new capability; the old requirement
-will be removed when the first change is archived, before this one.
+- `tui-shell`: the Mouse support scenario for the wheel now scrolls the viewport under
+  the pointer instead of moving the selection.
 
 ## Impact
 
@@ -39,4 +39,8 @@ will be removed when the first change is archived, before this one.
 - `src/app.rs`: a viewport offset per list tab and clamping on every sample.
 - `src/ui/*.rs`: scrollbar drawing and viewport-based row windows.
 - `src/main.rs`: wheel dispatch by target instead of always moving the selection.
-- `openspec/specs/`: a new `list-scrolling` capability after archive.
+- `openspec/specs/`: a new `list-scrolling` capability, and the updated `tui-shell`
+  mouse scenario after archive.
+- Coordination: `polish-visual-design` also edits `tui-shell` and the list headers.
+  That change archives first; this one follows, and the scrollbar uses whatever rows
+  area the new two-row header leaves.

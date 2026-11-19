@@ -2,6 +2,8 @@
 
 ## 1. Viewport state and clamping
 
+- [ ] 1.0 Rebase the scrollbar geometry on the two-row headers and per-tab filters that `polish-visual-design` introduces. Verify: the rows area height matches the drawn table body on every tab.
+
 - [ ] 1.1 Add `viewport: usize` to the Processes, Details, Services, Startup, Users, and App history states. Verify: unit tests read the viewport after a sample and after a tab switch.
 - [ ] 1.2 Add `clamp_viewport(len, visible)` and call it on sample, filter, sort, expand, and tab switch. Verify: tests shrink a 300 row list to 5 while the viewport is at 200 and assert the viewport lands at 0.
 - [ ] 1.3 Draw rows from the viewport instead of the selected index in every list tab. Verify: existing goldens are unchanged with the selection in view.
@@ -38,6 +40,6 @@
 
 ## Workflow follow-up
 
-- Archive `build-win10-task-manager` first, then this change, so the `list-scrolling`
-  capability lands on a clean spec tree.
-- Remove the old wheel scenario from `tui-shell` when the first change is archived.
+- Archive `polish-visual-design` first: it edits the same `tui-shell` requirement and
+  changes the list headers. Then archive this change so `list-scrolling` lands on the
+  updated tree.

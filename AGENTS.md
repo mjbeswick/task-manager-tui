@@ -19,6 +19,11 @@ follow the same path. If it changes the repository, it gets a change.
 The only exception is OpenSpec's own bootstrap: the commit that introduced this
 rule. Nothing after it is exempt.
 
+## Planning
+
+The OpenSpec change is the plan. Do not also create a `PLAN.md`; `tasks.md` inside the
+change is the checklist that gets ticked.
+
 ## Where artifacts live
 
 Change artifacts live in `openspec/changes/<change>/`. Do not edit
