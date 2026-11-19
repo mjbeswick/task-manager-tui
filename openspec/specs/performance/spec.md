@@ -68,9 +68,8 @@ history MUST fill the width at any terminal size.
 ### Requirement: Chart appearance is adjustable
 
 The user SHALL choose between Filled, Line, Dots, and Blocks rendering and between Per
-resource, Teal, Blue, Orange, Magenta, Mono, and Theme colours at View > Appearance or
-F2. Per resource MUST be the default with no saved setting. The chosen style and colour
-MUST persist across restarts.
+resource, Teal, Blue, Orange, Magenta, Mono, and Theme colours at View > Appearance, F2,
+or the `--chart-style` flag. The chosen style and colour MUST persist across restarts.
 
 #### Scenario: Change the style
 - **WHEN** the user selects Line in the Appearance dialog
@@ -78,7 +77,7 @@ MUST persist across restarts.
 
 #### Scenario: Change the colour
 - **WHEN** the user selects Orange
-- **THEN** chart fills, points, rail sparklines, and per-core graphs use the orange colour immediately
+- **THEN** chart fills, points, and per-core graphs use the orange colour immediately
 
 #### Scenario: Per resource colours
 - **WHEN** Per resource is selected
@@ -103,6 +102,14 @@ MUST persist across restarts.
 #### Scenario: Blocks style
 - **WHEN** the user selects Blocks
 - **THEN** filled charts use quadrant templates, eighth blocks, and half-cell triangles to draw the area edge
+
+#### Scenario: Command line style
+- **WHEN** the application starts with `--chart-style blocks`
+- **THEN** every chart uses the Blocks renderer for that run, whatever the saved style says
+
+#### Scenario: Unknown style
+- **WHEN** the flag names a style that does not exist
+- **THEN** startup fails and the message lists filled, line, dots, and blocks
 
 ### Requirement: One chart label
 
