@@ -41,7 +41,16 @@ taskmgr
 | `--theme <name>` | `light` or `dark` for this run |
 | `--interval <speed>` | `high` (0.5 s), `normal` (1 s), `low` (2 s), `paused` |
 | `--ascii` | ASCII glyphs instead of box drawing and blocks |
+| `--color <depth>` | `auto`, `truecolor`, `256`, or `16`. Auto reads `COLORTERM` and `TERM` |
 | `--once` | Render one frame, print it, exit. Useful without a terminal |
+
+### Colours look wrong
+
+Auto detection picks truecolor when `COLORTERM` says so, 16 colours on the
+Linux console, and 256 colours everywhere else. Over SSH `COLORTERM` is often
+dropped, so force it with `--color truecolor` if your terminal supports it.
+If graph blocks show as boxes or question marks, your font lacks them. Use
+`--ascii`.
 
 ## Keys
 

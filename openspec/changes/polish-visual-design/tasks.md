@@ -2,10 +2,10 @@
 
 ## 1. Colour depth
 
-- [ ] 1.1 Add a `ColorDepth` value with detection from `COLORTERM` and `TERM`, and a `--color auto|truecolor|256|16` flag in `src/cli.rs`. Verify: unit tests cover `COLORTERM=truecolor`, `TERM=linux`, `TERM=vt100`, `TERM=xterm-kitty` without `COLORTERM` giving 256, and the flag override.
-- [ ] 1.2 Add the post-draw pass that maps every buffer cell to the active depth, with a cached nearest xterm 256 lookup and a per-theme 16 colour role table. Verify: a test renders a frame at each depth and asserts no `Color::Rgb` remains at 256 or 16.
-- [ ] 1.3 Extend `text_is_readable_in_both_themes` to check text, muted, and selection contrast after mapping at all three depths. Verify: `cargo test theme` passes.
-- [ ] 1.4 Document `--color` and the `--ascii` font fallback in the README flags table and a short troubleshooting line. Verify: README lists both.
+- [x] 1.1 Add a `ColorDepth` value with detection from `COLORTERM` and `TERM`, and a `--color auto|truecolor|256|16` flag in `src/cli.rs`. Verify: unit tests cover `COLORTERM=truecolor`, `TERM=linux`, `TERM=vt100`, `TERM=xterm-kitty` without `COLORTERM` giving 256, and the flag override.
+- [x] 1.2 Add the post-draw pass that maps every buffer cell to the active depth, with a cached nearest xterm 256 lookup and a per-theme 16 colour role table. Verify: a test renders a frame at each depth and asserts no `Color::Rgb` remains at 256 or 16.
+- [x] 1.3 Extend `text_is_readable_in_both_themes` to check text, muted, and selection contrast after mapping at all three depths. Verify: `cargo test theme` passes.
+- [x] 1.4 Document `--color` and the `--ascii` font fallback in the README flags table and a short troubleshooting line. Verify: README lists both.
 
 ## 2. Smooth graphs and per resource colour
 

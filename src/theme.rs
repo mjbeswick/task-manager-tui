@@ -202,6 +202,184 @@ impl Theme {
     }
 }
 
+/// How many colours the terminal can show.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ColorDepth {
+    #[default]
+    TrueColor,
+    Ansi256,
+    Ansi16,
+}
+
+impl ColorDepth {
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.to_ascii_lowercase().as_str() {
+            "truecolor" | "24bit" => Some(ColorDepth::TrueColor),
+            "256" => Some(ColorDepth::Ansi256),
+            "16" => Some(ColorDepth::Ansi16),
+            _ => None,
+        }
+    }
+
+    /// `COLORTERM` wins, then `TERM`. Unknown terminals get 256 colours, because
+    /// SSH drops `COLORTERM` and nearly every modern emulator handles 256.
+    pub fn detect(colorterm: Option<&str>, term: Option<&str>) -> Self {
+        if colorterm
+            .is_some_and(|v| matches!(v.to_ascii_lowercase().as_str(), "truecolor" | "24bit"))
+        {
+            return ColorDepth::TrueColor;
+        }
+        match term.unwrap_or("") {
+            "linux" | "dumb" => ColorDepth::Ansi16,
+            t if t.starts_with("vt") => ColorDepth::Ansi16,
+            _ => ColorDepth::Ansi256,
+        }
+    }
+
+    pub fn from_env() -> Self {
+        let colorterm = std::env::var("COLORTERM").ok();
+        let term = std::env::var("TERM").ok();
+        Self::detect(colorterm.as_deref(), term.as_deref())
+    }
+
+    /// Map one colour to this depth.
+    pub fn map(self, color: Color, theme: &Theme) -> Color {
+        match (self, color) {
+            (ColorDepth::TrueColor, _) | (_, Color::Reset) => color,
+            (ColorDepth::Ansi256, Color::Rgb(r, g, b)) => Color::Indexed(xterm256(r, g, b)),
+            (ColorDepth::Ansi16, Color::Rgb(..)) => ansi16(color, theme),
+            _ => color,
+        }
+    }
+
+    /// Map every cell of a drawn buffer to this depth, once per frame.
+    pub fn apply(self, buf: &mut ratatui::buffer::Buffer, theme: &Theme) {
+        if self == ColorDepth::TrueColor {
+            return;
+        }
+        for cell in buf.content.iter_mut() {
+            cell.fg = self.map(cell.fg, theme);
+            cell.bg = self.map(cell.bg, theme);
+        }
+    }
+}
+
+const CUBE: [u8; 6] = [0, 95, 135, 175, 215, 255];
+
+fn dist(a: (u8, u8, u8), b: (u8, u8, u8)) -> u32 {
+    let d = |x: u8, y: u8| (x as i32 - y as i32).pow(2) as u32;
+    d(a.0, b.0) + d(a.1, b.1) + d(a.2, b.2)
+}
+
+fn nearest_level(v: u8) -> usize {
+    (0..6)
+        .min_by_key(|&i| (CUBE[i] as i32 - v as i32).abs())
+        .unwrap()
+}
+
+/// Nearest xterm 256 palette index, from the colour cube or the grey ramp.
+pub fn xterm256(r: u8, g: u8, b: u8) -> u8 {
+    let (ri, gi, bi) = (nearest_level(r), nearest_level(g), nearest_level(b));
+    let cube = (CUBE[ri], CUBE[gi], CUBE[bi]);
+    let cube_index = 16 + 36 * ri + 6 * gi + bi;
+    let mean = (r as u32 + g as u32 + b as u32) / 3;
+    let grey_step = (mean.saturating_sub(3) / 10).min(23) as u8;
+    let grey = 8 + 10 * grey_step;
+    if dist((r, g, b), (grey, grey, grey)) < dist((r, g, b), cube) {
+        232 + grey_step
+    } else {
+        cube_index as u8
+    }
+}
+
+/// RGB of an indexed or named colour as xterm draws it by default.
+pub fn indexed_rgb(color: Color) -> (u8, u8, u8) {
+    let base: [(u8, u8, u8); 16] = [
+        (0, 0, 0),
+        (205, 0, 0),
+        (0, 205, 0),
+        (205, 205, 0),
+        (0, 0, 238),
+        (205, 0, 205),
+        (0, 205, 205),
+        (229, 229, 229),
+        (127, 127, 127),
+        (255, 0, 0),
+        (0, 255, 0),
+        (255, 255, 0),
+        (92, 92, 255),
+        (255, 0, 255),
+        (0, 255, 255),
+        (255, 255, 255),
+    ];
+    let named = [
+        Color::Black,
+        Color::Red,
+        Color::Green,
+        Color::Yellow,
+        Color::Blue,
+        Color::Magenta,
+        Color::Cyan,
+        Color::Gray,
+        Color::DarkGray,
+        Color::LightRed,
+        Color::LightGreen,
+        Color::LightYellow,
+        Color::LightBlue,
+        Color::LightMagenta,
+        Color::LightCyan,
+        Color::White,
+    ];
+    match color {
+        Color::Rgb(r, g, b) => (r, g, b),
+        Color::Indexed(i) if i < 16 => base[i as usize],
+        Color::Indexed(i) if i >= 232 => {
+            let v = 8 + 10 * (i - 232);
+            (v, v, v)
+        }
+        Color::Indexed(i) => {
+            let i = i - 16;
+            (
+                CUBE[(i / 36) as usize],
+                CUBE[(i / 6 % 6) as usize],
+                CUBE[(i % 6) as usize],
+            )
+        }
+        other => named
+            .iter()
+            .position(|c| *c == other)
+            .map_or((0, 0, 0), |i| base[i]),
+    }
+}
+
+/// 16 colour mapping. Theme roles map by hand so greys stay apart; anything
+/// else takes the nearest named colour.
+fn ansi16(color: Color, theme: &Theme) -> Color {
+    let light = theme.name == ThemeName::Light;
+    let roles: [(Color, Color, Color); 12] = [
+        (theme.selection, Color::Cyan, Color::Blue),
+        (theme.text, Color::Black, Color::White),
+        (theme.bg, Color::White, Color::Black),
+        (theme.surface, Color::White, Color::Black),
+        (theme.muted, Color::Black, Color::Gray),
+        (theme.accent, Color::Blue, Color::LightBlue),
+        (theme.border, Color::Gray, Color::DarkGray),
+        (theme.graph_grid, Color::Gray, Color::DarkGray),
+        (theme.graph_fill, Color::Green, Color::LightGreen),
+        (theme.good, Color::Green, Color::LightGreen),
+        (theme.warn, Color::Yellow, Color::LightYellow),
+        (theme.bad, Color::Red, Color::LightRed),
+    ];
+    if let Some((_, l, d)) = roles.iter().find(|(c, _, _)| *c == color) {
+        return if light { *l } else { *d };
+    }
+    let target = rgb(color);
+    (0..16u8)
+        .map(Color::Indexed)
+        .min_by_key(|c| dist(indexed_rgb(*c), target))
+        .unwrap_or(color)
+}
+
 fn rgb(color: Color) -> (u8, u8, u8) {
     match color {
         Color::Rgb(r, g, b) => (r, g, b),
@@ -220,7 +398,7 @@ fn channel(value: u8) -> f32 {
 
 /// WCAG relative luminance.
 fn luminance(color: Color) -> f32 {
-    let (r, g, b) = rgb(color);
+    let (r, g, b) = indexed_rgb(color);
     0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
 }
 
@@ -265,6 +443,91 @@ mod tests {
                 "{:?} accent",
                 theme.name
             );
+        }
+    }
+
+    #[test]
+    fn depth_detection() {
+        use ColorDepth::*;
+        assert_eq!(
+            ColorDepth::detect(Some("truecolor"), Some("xterm")),
+            TrueColor
+        );
+        assert_eq!(ColorDepth::detect(Some("24bit"), None), TrueColor);
+        assert_eq!(ColorDepth::detect(None, Some("linux")), Ansi16);
+        assert_eq!(ColorDepth::detect(None, Some("vt100")), Ansi16);
+        assert_eq!(ColorDepth::detect(None, Some("dumb")), Ansi16);
+        assert_eq!(ColorDepth::detect(None, Some("xterm-kitty")), Ansi256);
+        assert_eq!(ColorDepth::detect(None, Some("xterm-256color")), Ansi256);
+        assert_eq!(ColorDepth::detect(None, None), Ansi256);
+        assert_eq!(ColorDepth::parse("256"), Some(Ansi256));
+        assert_eq!(ColorDepth::parse("auto"), None);
+    }
+
+    #[test]
+    fn xterm256_hits_exact_entries() {
+        assert_eq!(xterm256(0, 0, 0), 16);
+        assert_eq!(xterm256(255, 255, 255), 231);
+        assert_eq!(xterm256(0x80, 0x80, 0x80), 244);
+        assert_eq!(xterm256(0, 95, 215), 26);
+        for i in 16..=255u8 {
+            let (r, g, b) = indexed_rgb(Color::Indexed(i));
+            assert_eq!(indexed_rgb(Color::Indexed(xterm256(r, g, b))), (r, g, b));
+        }
+    }
+
+    #[test]
+    fn no_rgb_survives_a_reduced_depth() {
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        for theme in [LIGHT, DARK] {
+            for depth in [ColorDepth::Ansi256, ColorDepth::Ansi16] {
+                let mut buf = Buffer::empty(Rect::new(0, 0, 4, 1));
+                buf[(0, 0)].set_fg(theme.text).set_bg(theme.bg);
+                buf[(1, 0)].set_fg(theme.muted).set_bg(theme.selection);
+                buf[(2, 0)].set_fg(Color::Rgb(0x12, 0x34, 0x56));
+                depth.apply(&mut buf, &theme);
+                for cell in buf.content.iter() {
+                    assert!(
+                        !matches!(cell.fg, Color::Rgb(..)),
+                        "{depth:?} {:?}",
+                        cell.fg
+                    );
+                    assert!(
+                        !matches!(cell.bg, Color::Rgb(..)),
+                        "{depth:?} {:?}",
+                        cell.bg
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn text_is_readable_at_every_depth() {
+        for theme in [LIGHT, DARK] {
+            for depth in [
+                ColorDepth::TrueColor,
+                ColorDepth::Ansi256,
+                ColorDepth::Ansi16,
+            ] {
+                let m = |c| depth.map(c, &theme);
+                for (name, fg, bg) in [
+                    ("text/bg", theme.text, theme.bg),
+                    ("text/surface", theme.text, theme.surface),
+                    ("muted/bg", theme.muted, theme.bg),
+                    ("text/selection", theme.text, theme.selection),
+                ] {
+                    let ratio = contrast(m(fg), m(bg));
+                    assert!(ratio >= 4.5, "{:?} {depth:?} {name} is {ratio}", theme.name);
+                }
+                assert_ne!(
+                    m(theme.selection),
+                    m(theme.bg),
+                    "{:?} {depth:?}",
+                    theme.name
+                );
+            }
         }
     }
 

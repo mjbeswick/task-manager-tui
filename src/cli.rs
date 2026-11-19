@@ -26,6 +26,10 @@ pub struct Cli {
     #[arg(long, value_parser = parse_tab)]
     pub tab: Option<Tab>,
 
+    /// Colour depth: auto, truecolor, 256, or 16. Auto reads COLORTERM and TERM.
+    #[arg(long = "color", value_parser = parse_color, default_value = "auto")]
+    pub color: String,
+
     /// Render one frame, print it, and exit. Used by smoke tests.
     #[arg(long)]
     pub once: bool,
@@ -53,6 +57,17 @@ fn parse_interval(value: &str) -> Result<String, String> {
         other => Err(format!(
             "unknown interval '{other}'; try high, normal, low, or paused"
         )),
+    }
+}
+
+fn parse_color(value: &str) -> Result<String, String> {
+    let value = value.to_ascii_lowercase();
+    if value == "auto" || crate::theme::ColorDepth::parse(&value).is_some() {
+        Ok(value)
+    } else {
+        Err(format!(
+            "unknown colour depth '{value}'; try auto, truecolor, 256, or 16"
+        ))
     }
 }
 
@@ -101,5 +116,8 @@ mod tests {
         assert!(Cli::try_parse_from(["taskmgr", "--tab", "nope"]).is_err());
         assert!(Cli::try_parse_from(["taskmgr", "--interval", "fast"]).is_err());
         assert!(Cli::try_parse_from(["taskmgr", "--theme", "purple"]).is_err());
+        assert!(Cli::try_parse_from(["taskmgr", "--color", "8"]).is_err());
+        let cli = Cli::try_parse_from(["taskmgr", "--color", "256"]).unwrap();
+        assert_eq!(cli.color, "256");
     }
 }

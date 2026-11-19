@@ -27,6 +27,7 @@ pub fn draw(frame: &mut Frame, app: &App, hits: &mut HitMap) {
         let y = area.y + area.height / 2;
         let x = area.x + area.width.saturating_sub(message.chars().count() as u16) / 2;
         put(buf, x, y, &message, theme.base(), area);
+        app.depth.apply(buf, theme);
         return;
     }
 
@@ -59,6 +60,7 @@ pub fn draw(frame: &mut Frame, app: &App, hits: &mut HitMap) {
     if let Some(dialog) = &app.dialog {
         crate::ui::dialog::draw(buf, area, app, dialog, hits);
     }
+    app.depth.apply(buf, theme);
 }
 
 pub fn fill_area(buf: &mut Buffer, area: Rect, style: Style) {
@@ -418,6 +420,31 @@ mod tests {
     use crate::store::settings::Settings;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
+
+    #[test]
+    fn reduced_depth_frames_hold_no_rgb() {
+        use crate::app::Tab;
+        use crate::theme::{ColorDepth, ThemeName};
+        for depth in [ColorDepth::Ansi256, ColorDepth::Ansi16] {
+            for theme in [ThemeName::Light, ThemeName::Dark] {
+                for tab in [Tab::Processes, Tab::Performance] {
+                    let (mut app, _) = App::new(Settings::default(), false);
+                    app.apply_snapshot(crate::model::Snapshot::fixture());
+                    app.set_theme(theme);
+                    app.depth = depth;
+                    app.tab = tab;
+                    let mut hits = crate::ui::hits::HitMap::default();
+                    let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();
+                    terminal.draw(|frame| draw(frame, &app, &mut hits)).unwrap();
+                    let rgb = terminal.backend().buffer().content.iter().any(|c| {
+                        matches!(c.fg, ratatui::style::Color::Rgb(..))
+                            || matches!(c.bg, ratatui::style::Color::Rgb(..))
+                    });
+                    assert!(!rgb, "{depth:?} {theme:?} {tab:?} left an RGB colour");
+                }
+            }
+        }
+    }
 
     fn render(width: u16, height: u16) -> String {
         let (mut app, _) = App::new(Settings::default(), false);
