@@ -498,6 +498,11 @@ pub struct Glyphs {
     pub bullet: char,
     /// Bottom-anchored blocks, one to eight eighths high.
     pub eighths: [char; 8],
+    /// Optional angular fill glyphs: `▟`, `▙`, `◢`, `◣`. None in ASCII.
+    pub block_rise: Option<char>,
+    pub block_fall: Option<char>,
+    pub slope_rise: Option<char>,
+    pub slope_fall: Option<char>,
     /// Filter field: clear mark and text cursor.
     pub clear: char,
     pub cursor: char,
@@ -523,6 +528,10 @@ pub const UNICODE_GLYPHS: Glyphs = Glyphs {
     block_lower: '▄',
     bullet: '•',
     eighths: ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'],
+    block_rise: Some('▟'),
+    block_fall: Some('▙'),
+    slope_rise: Some('◢'),
+    slope_fall: Some('◣'),
     clear: '×',
     cursor: '▏',
 };
@@ -547,6 +556,10 @@ pub const ASCII_GLYPHS: Glyphs = Glyphs {
     block_lower: '_',
     bullet: '*',
     eighths: ['_', '_', '_', '_', '#', '#', '#', '#'],
+    block_rise: None,
+    block_fall: None,
+    slope_rise: None,
+    slope_fall: None,
     clear: 'x',
     cursor: '|',
 };
@@ -1156,6 +1169,13 @@ mod tests {
         assert!(
             !glyphs.eighths.contains(&' '),
             "an ascii graph step is blank"
+        );
+        assert!(
+            glyphs.block_rise.is_none()
+                && glyphs.block_fall.is_none()
+                && glyphs.slope_rise.is_none()
+                && glyphs.slope_fall.is_none(),
+            "no angular glyphs in ascii mode"
         );
         assert!(!UNICODE_GLYPHS.expanded.is_ascii());
     }

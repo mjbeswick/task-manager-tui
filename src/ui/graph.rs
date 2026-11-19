@@ -1,7 +1,7 @@
 //! The 60 second area graphs. Half blocks give two levels per cell.
 
 use crate::model::{ChartStyle, Snapshot};
-use crate::theme::Theme;
+use crate::theme::{Glyphs, Theme};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Color;
@@ -114,7 +114,7 @@ pub fn sample_column(values: &[f32], column: usize, width: usize) -> Option<f32>
         return None;
     }
     let span = end - start;
-    if span <= 1.0 {
+    if span < 1.0 {
         let centre = (start + end) / 2.0;
         let index = centre.floor() as usize;
         if index >= len {
@@ -206,7 +206,7 @@ pub fn fill_column(
         let colour = if is_top || coarse {
             edge
         } else {
-            ramp(edge, bg, 0.2 + rise * 0.65)
+            ramp(edge, bg, 0.2 + rise * 0.5)
         };
         let style = ratatui::style::Style::default().fg(colour).bg(bg);
         let row = top + height - 1 - offset as u16;
@@ -214,6 +214,44 @@ pub fn fill_column(
             .set_char(glyphs.eighths[units - 1])
             .set_style(style);
     }
+}
+
+/// Pick the top-cell glyph for a Blocks column. `own` and `other` are eighths
+/// of fill in this row, newest and older. The fill is bottom-anchored, so a
+/// slope flips left to right, never top to bottom.
+fn slope_glyph(own: u8, other: u8, glyphs: &Glyphs) -> char {
+    let eighth = |units: u8| glyphs.eighths[units.clamp(1, 8) as usize - 1];
+    if own >= 8 {
+        return glyphs.block_full;
+    }
+    let diff = own as i16 - other as i16;
+    if other == 0 || diff.abs() <= 2 {
+        return eighth(own);
+    }
+    if diff >= 6
+        && let Some(ch) = glyphs.slope_rise
+    {
+        return ch;
+    }
+    if diff <= -6
+        && let Some(ch) = glyphs.slope_fall
+    {
+        return ch;
+    }
+    if diff > 0
+        && own >= 5
+        && let Some(ch) = glyphs.block_rise
+    {
+        return ch;
+    }
+    if diff < 0
+        && other >= 5
+        && own <= 5
+        && let Some(ch) = glyphs.block_fall
+    {
+        return ch;
+    }
+    eighth(own)
 }
 
 /// A Blocks column: eighths for the tip, triangles for a one-step slope, and
@@ -244,22 +282,16 @@ fn blocks_column(
         let colour = if is_top || coarse {
             edge
         } else {
-            ramp(edge, bg, 0.2 + rise * 0.65)
+            ramp(edge, bg, 0.2 + rise * 0.5)
         };
         let glyph = if units == 8 {
             glyphs.block_full
-        } else if is_top && !theme.ascii {
-            let own = units as isize;
+        } else if is_top {
+            let own = units as u8;
             let other = older
-                .map(|total| total.saturating_sub(offset * 8).min(8) as isize)
+                .map(|total| total.saturating_sub(offset * 8).min(8) as u8)
                 .unwrap_or(own);
-            match own - other {
-                diff if diff >= 2 => '▟',
-                diff if diff <= -2 => '▛',
-                1 => '◢',
-                -1 => '◣',
-                _ => glyphs.eighths[units - 1],
-            }
+            slope_glyph(own, other, glyphs)
         } else {
             glyphs.eighths[units - 1]
         };
@@ -950,8 +982,8 @@ mod tests {
         assert!(!symbols.contains(&theme.glyphs().bullet));
     }
 
-    fn blocks_cell(total: usize, older: usize, ascii: bool) -> Buffer {
-        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, ascii);
+    fn blocks_cell(total: usize, older: usize) -> Buffer {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
         let area = Rect::new(0, 0, 1, 8);
         let mut buffer = Buffer::empty(area);
         blocks_column(
@@ -975,33 +1007,133 @@ mod tests {
     }
 
     #[test]
-    fn blocks_style_joins_a_steep_slope_with_quadrants() {
-        // Own tip is 6/8, the older column is full: a two-eighth join.
-        let chars = symbols(&blocks_cell(22, 58, false));
-        assert!(chars.contains(&'▛'), "left-higher quadrant: {chars:?}");
+    fn blocks_slope_glyph_matrix() {
+        let g = crate::theme::UNICODE_GLYPHS;
+        let rows = [
+            "▁▁▁▁▁▙▙◣◣",
+            "▂▂▂▂▂▙▙▙◣",
+            "▃▃▃▃▃▃▙▙▙",
+            "▄▄▄▄▄▄▄▙▙",
+            "▅▟▟▅▅▅▅▅▙",
+            "▆▟▟▟▆▆▆▆▆",
+            "▇◢▟▟▟▇▇▇▇",
+            "█████████",
+        ];
+        for (index, row) in rows.iter().enumerate() {
+            let own = index as u8 + 1;
+            for (other, expected) in row.chars().enumerate() {
+                assert_eq!(
+                    slope_glyph(own, other as u8, &g),
+                    expected,
+                    "own {own} other {other}"
+                );
+            }
+        }
     }
 
     #[test]
-    fn blocks_style_joins_a_one_step_slope_with_a_triangle() {
-        // Own tip 2/8 against the older 3/8.
-        let chars = symbols(&blocks_cell(34, 35, false));
-        assert!(chars.contains(&'◣'), "one-step triangle: {chars:?}");
+    fn blocks_glyphs_stay_bottom_anchored_and_mirror() {
+        let g = crate::theme::UNICODE_GLYPHS;
+        let forbidden = ['▛', '▜', '▘', '▝', '▚', '▞', '◤', '◥', '▖', '▗'];
+        let mirror = |ch: char| match ch {
+            '▟' => Some('▙'),
+            '▙' => Some('▟'),
+            '◢' => Some('◣'),
+            '◣' => Some('◢'),
+            _ => None,
+        };
+        // The ceiling arm deliberately wins over symmetry, so skip 8 here.
+        for own in 1..=7u8 {
+            for other in 1..=7u8 {
+                let glyph = slope_glyph(own, other, &g);
+                assert!(!forbidden.contains(&glyph), "{own}/{other} -> {glyph}");
+                if let Some(mirrored) = mirror(glyph) {
+                    assert_eq!(
+                        slope_glyph(other, own, &g),
+                        mirrored,
+                        "mirror for {own}/{other}"
+                    );
+                }
+            }
+        }
     }
 
     #[test]
-    fn blocks_style_keeps_eighths_on_a_flat_tip() {
-        let chars = symbols(&blocks_cell(29, 29, false));
-        assert!(chars.contains(&'▅'), "eighth block: {chars:?}");
+    fn blocks_falling_quadrant_keeps_the_floor() {
+        // Own 4/8 at the tip against a full older column.
+        let chars = symbols(&blocks_cell(20, 40));
+        assert!(chars.contains(&'▙'), "falling quadrant: {chars:?}");
+    }
+
+    #[test]
+    fn blocks_rising_quadrant_points_up_right() {
+        // Own 6/8 against 1/8.
+        let chars = symbols(&blocks_cell(14, 9));
+        assert!(chars.contains(&'▟'), "rising quadrant: {chars:?}");
+    }
+
+    #[test]
+    fn blocks_triangles_are_only_for_steep_steps() {
+        let fall = symbols(&blocks_cell(34, 40));
+        assert!(fall.contains(&'◣'), "steep fall: {fall:?}");
+        let rise = symbols(&blocks_cell(39, 33));
+        assert!(rise.contains(&'◢'), "steep rise: {rise:?}");
+        let small = symbols(&blocks_cell(34, 35));
         assert!(
-            !chars.iter().any(|ch| "▙▛▜▟◢◣◤◥".contains(*ch)),
-            "no slope glyph on a level fill"
+            small.contains(&'▂'),
+            "small step stays an eighth: {small:?}"
         );
+        assert!(!small.iter().any(|ch| "◢◣".contains(*ch)));
     }
 
     #[test]
-    fn blocks_style_is_ascii_in_ascii_mode() {
-        let buffer = blocks_cell(22, 58, true);
-        assert!(buffer.content.iter().all(|cell| cell.symbol().is_ascii()));
+    fn blocks_do_not_flare_above_an_empty_neighbour() {
+        // Own tip 5/8; the older column is three whole cells.
+        let chars = symbols(&blocks_cell(37, 24));
+        assert!(chars.contains(&'▅'), "eighth block: {chars:?}");
+        assert!(!chars.iter().any(|ch| "▙▛▜▟◢◣◤◥".contains(*ch)));
+    }
+
+    #[test]
+    fn blocks_ceiling_stays_full() {
+        let chars = symbols(&blocks_cell(64, 22));
+        assert!(chars.contains(&'█'), "full ceiling: {chars:?}");
+    }
+
+    #[test]
+    fn native_width_keeps_a_spike_exact() {
+        let mut values = vec![10.0; HISTORY];
+        values[HISTORY - 1] = 100.0;
+        assert_eq!(sample_column(&values, 0, HISTORY), Some(100.0));
+        assert_eq!(sample_column(&values, 1, HISTORY), Some(10.0));
+    }
+
+    #[test]
+    fn blocks_draw_joins_the_newest_column() {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        let area = Rect::new(0, 0, HISTORY as u16, 8);
+        let mut buffer = Buffer::empty(area);
+        let mut series = Series::default();
+        for _ in 0..30 {
+            series.push(100.0);
+        }
+        for _ in 0..30 {
+            series.push(20.0);
+        }
+        draw(
+            &mut buffer,
+            area,
+            &series,
+            &theme,
+            GraphSpec {
+                max: 100.0,
+                value_label: "",
+                footnote: "",
+                style: ChartStyle::Blocks,
+                color: theme.graph_fill,
+            },
+        );
+        assert!(symbols(&buffer).contains(&'▙'), "falling join at the right");
     }
 
     #[test]
