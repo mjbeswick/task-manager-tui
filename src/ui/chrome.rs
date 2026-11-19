@@ -331,14 +331,15 @@ fn draw_tabs(buf: &mut Buffer, top: Rect, area: Rect, rule: Rect, app: &App, hit
         buf[(right, area.y)]
             .set_char(glyphs.vline)
             .set_style(accent);
-        // Bottom, replacing the rule's span.
-        buf[(left, rule.y)].set_char(glyphs.bl).set_style(accent);
-        for dx in 0..*width - 1 {
-            buf[(start + dx, rule.y)]
-                .set_char(glyphs.hline)
-                .set_style(accent);
+        // Open bottom: clear the rule under the tab and keep the sides going.
+        let blank = Style::default().fg(theme.text).bg(theme.bg);
+        for x in left..=right {
+            buf[(x, rule.y)].set_char(' ').set_style(blank);
         }
-        buf[(right, rule.y)].set_char(glyphs.br).set_style(accent);
+        buf[(left, rule.y)].set_char(glyphs.vline).set_style(accent);
+        buf[(right, rule.y)]
+            .set_char(glyphs.vline)
+            .set_style(accent);
     }
 }
 
@@ -963,7 +964,7 @@ mod tests {
     }
 
     #[test]
-    fn tabs_are_numbered_and_draw_a_raised_active_tab() {
+    fn tabs_are_numbered_and_draw_an_open_active_tab() {
         let (mut app, _) = App::new(Settings::default(), false);
         app.apply_snapshot(crate::model::Snapshot::fixture());
         let screen = crate::ui::test_util::render(&app, 120, 30);
@@ -985,21 +986,22 @@ mod tests {
         assert_eq!(buffer[(12, 1)].symbol(), glyphs.tr.to_string());
         assert_eq!(buffer[(0, 2)].symbol(), glyphs.vline.to_string());
         assert_eq!(buffer[(12, 2)].symbol(), glyphs.vline.to_string());
-        assert_eq!(buffer[(0, 3)].symbol(), glyphs.bl.to_string());
-        assert_eq!(buffer[(12, 3)].symbol(), glyphs.br.to_string());
-        assert_eq!(buffer[(0, 3)].fg, theme.accent, "box bottom");
+        // The bottom is open: sides continue, the rule span is blank.
+        assert_eq!(buffer[(0, 3)].symbol(), glyphs.vline.to_string());
+        assert_eq!(buffer[(12, 3)].symbol(), glyphs.vline.to_string());
+        assert_eq!(buffer[(0, 3)].fg, theme.accent, "side at the rule row");
         assert_eq!(
-            buffer[(0, 1)].bg,
-            theme.bg,
-            "the top border row keeps the window background"
+            buffer[(5, 3)].symbol(),
+            " ",
+            "the tab opens into the content"
         );
+        assert_eq!(buffer[(5, 3)].bg, theme.bg);
         let rule: String = (0..120).map(|x| buffer[(x, 3)].symbol()).collect();
+        assert!(!rule.contains(glyphs.bl), "no bottom corner");
         assert_eq!(
-            rule.chars()
-                .filter(|ch| *ch == glyphs.hline || *ch == glyphs.bl || *ch == glyphs.br)
-                .count(),
-            120,
-            "the rule spans the strip"
+            rule.chars().filter(|ch| *ch == glyphs.hline).count(),
+            120 - 13,
+            "the rule stops at the tab and resumes after it"
         );
         let inactive = line[..line.find("2 Performance").unwrap()].chars().count() as u16;
         assert_eq!(buffer[(inactive, 3)].fg, theme.border, "inactive rule");
@@ -1041,13 +1043,16 @@ mod tests {
             "the active box sides: {line:?}"
         );
         assert_eq!(
-            rule.chars()
-                .filter(|ch| *ch == glyphs.hline || *ch == glyphs.bl || *ch == glyphs.br)
-                .count(),
-            60,
-            "one continuous rule: {rule:?}"
+            rule.matches(glyphs.vline).count(),
+            2,
+            "the sides reach the rule row: {rule:?}"
         );
-        assert!(!rule.contains(glyphs.vline), "no separators: {rule:?}");
+        assert_eq!(
+            rule.chars().filter(|ch| *ch == glyphs.hline).count(),
+            60 - 7,
+            "the rule stops under the active tab: {rule:?}"
+        );
+        assert!(!rule.contains(glyphs.bl), "no bottom corner: {rule:?}");
     }
 
     #[test]
