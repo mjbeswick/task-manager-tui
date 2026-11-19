@@ -3,9 +3,9 @@ source: tests/render.rs
 expression: "screen(&app(tab, \"light\"), 120, 40)"
 ---
  File  Options  View  Help                                                                 / Filter                     
-                            ┌─────────────┐                                                                             
- 1 Processes  2 Performance │3 App history│ 4 Startup  5 Users  6 Details  7 Services                      Task Manager 
-────────────────────────────┘             └─────────────────────────────────────────────────────────────────────────────
+                        ┌───────────┐                                                                                   
+ Processes  Performance │App history│ Startup  Users  Details  Services                                    Task Manager 
+────────────────────────┘           └───────────────────────────────────────────────────────────────────────────────────
 Name                                                   ▼ CPU time   Peak memory                 Disk Last seen  Network 
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Safari                                                    1:00:00        2.0 GB     40.0 MB / 8.0 MB    1h ago        - 

@@ -261,7 +261,7 @@ fn draw_tabs(buf: &mut Buffer, top: Rect, area: Rect, rule: Rect, app: &App, hit
     // One spare cell on the left so the first tab can carry a box side.
     let mut x = area.x + 1;
     let mut cells: Vec<(Tab, u16, u16)> = Vec::new();
-    for (index, tab) in Tab::ALL.iter().copied().enumerate() {
+    for tab in Tab::ALL {
         let active = tab == app.tab;
         let style = if active {
             Style::default()
@@ -273,9 +273,9 @@ fn draw_tabs(buf: &mut Buffer, top: Rect, area: Rect, rule: Rect, app: &App, hit
         };
         let text = if compact {
             let short: String = tab.short_label().chars().take(4).collect();
-            format!("{}{} ", index + 1, short)
+            format!("{short} ")
         } else {
-            format!("{} {} ", index + 1, tab.label())
+            format!("{} ", tab.label())
         };
         if x + text.chars().count() as u16 > area.x + area.width {
             break;
@@ -887,8 +887,8 @@ mod tests {
     #[test]
     fn narrow_terminal_keeps_the_tab_strip() {
         let screen = render(60, 20);
-        assert!(screen.contains("1Proc"));
-        assert!(screen.contains("7Serv"));
+        assert!(screen.contains("Proc"));
+        assert!(screen.contains("Serv"));
         let wide = render(120, 20);
         assert!(wide.contains("Performance"));
         assert!(wide.contains("App history"));
@@ -961,15 +961,15 @@ mod tests {
     }
 
     #[test]
-    fn tabs_are_numbered_and_draw_an_open_active_tab() {
+    fn tabs_draw_an_open_active_tab() {
         let (mut app, _) = App::new(Settings::default(), false);
         app.apply_snapshot(crate::model::Snapshot::fixture());
         let screen = crate::ui::test_util::render(&app, 120, 30);
         let line = screen.lines().nth(2).unwrap();
-        assert!(line.starts_with("│1 Processes│"), "{line:?}");
+        assert!(line.starts_with("│Processes│"), "{line:?}");
         assert!(line.trim_end().ends_with("Task Manager"), "{line:?}");
-        assert!(line.contains("2 Performance"));
-        assert!(line.contains("7 Services"));
+        assert!(line.contains("Performance"));
+        assert!(line.contains("Services"));
         assert_eq!(line.matches('│').count(), 2, "only the active sides");
         let mut hits = crate::ui::hits::HitMap::default();
         let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
@@ -980,12 +980,12 @@ mod tests {
         assert_eq!(buffer[(1, 2)].fg, theme.accent, "active label");
         assert_eq!(buffer[(1, 2)].bg, theme.bg);
         assert_eq!(buffer[(0, 1)].symbol(), glyphs.tl.to_string());
-        assert_eq!(buffer[(12, 1)].symbol(), glyphs.tr.to_string());
+        assert_eq!(buffer[(10, 1)].symbol(), glyphs.tr.to_string());
         assert_eq!(buffer[(0, 2)].symbol(), glyphs.vline.to_string());
-        assert_eq!(buffer[(12, 2)].symbol(), glyphs.vline.to_string());
+        assert_eq!(buffer[(10, 2)].symbol(), glyphs.vline.to_string());
         // The bottom is open: sides continue, the rule span is blank.
         assert_eq!(buffer[(0, 3)].symbol(), glyphs.br.to_string());
-        assert_eq!(buffer[(12, 3)].symbol(), glyphs.bl.to_string());
+        assert_eq!(buffer[(10, 3)].symbol(), glyphs.bl.to_string());
         assert_eq!(buffer[(0, 3)].fg, theme.border, "outline matches the rule");
         assert_eq!(
             buffer[(5, 3)].symbol(),
@@ -996,20 +996,20 @@ mod tests {
         let rule: String = (0..120).map(|x| buffer[(x, 3)].symbol()).collect();
         assert!(rule.contains(glyphs.bl) && rule.contains(glyphs.br));
         assert_eq!(buffer[(0, 3)].symbol(), glyphs.br.to_string());
-        assert_eq!(buffer[(12, 3)].symbol(), glyphs.bl.to_string());
+        assert_eq!(buffer[(10, 3)].symbol(), glyphs.bl.to_string());
         assert_eq!(
             rule.chars().filter(|ch| *ch == glyphs.hline).count(),
-            120 - 13,
+            120 - 11,
             "the rule stops at the tab and resumes after it"
         );
-        let inactive = line[..line.find("2 Performance").unwrap()].chars().count() as u16;
+        let inactive = line[..line.find("Performance").unwrap()].chars().count() as u16;
         assert_eq!(buffer[(inactive, 3)].fg, theme.border, "inactive rule");
         assert_eq!(
             hits.hit(0, 2),
             Some(Target::Tab(crate::app::Tab::Processes))
         );
         assert_eq!(
-            hits.hit(12, 2),
+            hits.hit(10, 2),
             Some(Target::Tab(crate::app::Tab::Processes))
         );
     }
@@ -1025,11 +1025,9 @@ mod tests {
         let labels = screen.lines().nth(2).unwrap();
         let rule = screen.lines().nth(3).unwrap();
         assert!(top.contains('+'), "ascii top corners: {top:?}");
-        assert!(
-            rule.starts_with("+           +"),
-            "ascii bottom corners: {rule:?}"
-        );
-        assert!(labels.starts_with("|1 Processes|"), "{labels:?}");
+        assert_eq!(rule.chars().next(), Some('+'), "ascii left corner");
+        assert_eq!(rule.chars().nth(10), Some('+'), "ascii right corner");
+        assert!(labels.starts_with("|Processes|"), "{labels:?}");
         for ch in top.chars().chain(labels.chars()) {
             assert!(ch.is_ascii(), "non ascii {ch:?}");
         }
@@ -1053,7 +1051,7 @@ mod tests {
         );
         assert_eq!(
             rule.chars().filter(|ch| *ch == glyphs.hline).count(),
-            60 - 7,
+            60 - 6,
             "the rule stops under the active tab: {rule:?}"
         );
         assert!(rule.contains(glyphs.bl) && rule.contains(glyphs.br));

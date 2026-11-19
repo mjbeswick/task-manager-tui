@@ -4,7 +4,7 @@ expression: "screen(&app, 120, 40)"
 ---
  File  Options  View  Help                                                                 / Filter                     
 ┌─────┌──────────────────────┐                                                                                          
-│1 Pro│ Next theme           │ App history  4 Startup  5 Users  6 Details  7 Services                      Task Manager 
+│Proce│ Next theme           │istory  Startup  Users  Details  Services                                    Task Manager 
 ┘     │ Update speed: High   │──────────────────────────────────────────────────────────────────────────────────────────
 Name  │ Update speed: Normal │                                        Status    CPU ▼ Memory       Disk   Network  GPU  
 ──────│ Update speed: Low    │──────────────────────────────────────────────────────────────────────────────────────────

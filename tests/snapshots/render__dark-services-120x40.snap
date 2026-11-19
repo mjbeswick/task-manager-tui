@@ -3,9 +3,9 @@ source: tests/render.rs
 expression: "screen(&app(tab, \"dark\"), 120, 40)"
 ---
  File  Options  View  Help                                                                 / Filter                     
-                                                                          ┌──────────┐                                  
- 1 Processes  2 Performance  3 App history  4 Startup  5 Users  6 Details │7 Services│                     Task Manager 
-──────────────────────────────────────────────────────────────────────────┘          └──────────────────────────────────
+                                                              ┌────────┐                                                
+ Processes  Performance  App history  Startup  Users  Details │Services│                                   Task Manager 
+──────────────────────────────────────────────────────────────┘        └────────────────────────────────────────────────
 Name                                                             PID  Description                         Status   Group
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 com.apple.metadata.mds                                            312 -                                  Running  system

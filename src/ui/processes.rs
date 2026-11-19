@@ -528,7 +528,15 @@ fn draw_item(
         };
         put_right(buf, x + width - 2, y, &text, base, area);
     }
-    if index == 0 && matches!(item, ProcItem::Header { kind: crate::model::Kind::App, .. }) {
+    if index == 0
+        && matches!(
+            item,
+            ProcItem::Header {
+                kind: crate::model::Kind::App,
+                ..
+            }
+        )
+    {
         draw_totals(buf, area, y, layout, app, base);
     }
 }
