@@ -63,16 +63,32 @@ process the user does not own, and MUST report the operating system's refusal.
 
 ### Requirement: Priority
 
-The tab SHALL show and change process priority mapped to the Windows 10 levels Low,
-Below normal, Normal, Above normal, and High, and MUST translate them to the platform's
-scheduling value on each target.
+The tab SHALL show and change process priority as a nice value from -20 to 19, seeded
+with the current value, and MUST show the matching Windows 10 label for that value while
+translating it to the platform's scheduling value.
 
 #### Scenario: Change priority
-- **WHEN** the user sets High priority on a process they own
-- **THEN** the scheduling value changes, the row shows the new priority, and the change survives the next sample
+- **WHEN** the user sets -10 on a process they own
+- **THEN** the dialog shows High, the scheduling value changes, the row shows the new priority, and the change survives the next sample
+
+#### Scenario: Precise value
+- **WHEN** the user enters 7
+- **THEN** the process receives a nice value of 7 and the dialog labels it Below normal
+
+#### Scenario: Step the value
+- **WHEN** the user presses Up or PgUp
+- **THEN** the value rises by one or five respectively and stops at 19
+
+#### Scenario: Out of range
+- **WHEN** the user enters a value above 19 or below -20
+- **THEN** the dialog clamps it to the nearest end of the range before applying
+
+#### Scenario: Empty value
+- **WHEN** the field is empty and the user confirms
+- **THEN** nothing is sent and the dialog reports that a value is required
 
 #### Scenario: Reset
-- **WHEN** the user sets Normal priority
+- **WHEN** the user sets 0
 - **THEN** the process returns to the default scheduling value
 
 #### Scenario: Not permitted

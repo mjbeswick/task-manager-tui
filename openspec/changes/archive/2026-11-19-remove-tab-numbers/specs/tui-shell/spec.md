@@ -14,11 +14,27 @@ an open box whose outline uses the rule colour, with an accent label.
 
 #### Scenario: Jump to a tab
 - **WHEN** the user presses a digit from 1 to 7
-- **THEN** the matching tab becomes active even though the digits are not printed
+- **THEN** the matching tab becomes active
 
 #### Scenario: Tab state is kept
 - **WHEN** the user leaves a tab and returns to it
 - **THEN** its selection, scroll position, and sort order are as they were left
+
+#### Scenario: Tab numbers
+- **WHEN** the tab strip is drawn
+- **THEN** no digits are printed, and the 1-7 keys still jump to their tabs
+
+#### Scenario: Active tab
+- **WHEN** a tab is active
+- **THEN** its label uses the accent colour, its outline uses the rule colour, and every other tab keeps the window background
+
+#### Scenario: Centred underlines
+- **WHEN** the tab strip is drawn
+- **THEN** each label sits over the continuous rule and the active tab opens through it
+
+#### Scenario: Narrow strip
+- **WHEN** the terminal is narrower than 90 columns
+- **THEN** labels shorten and the open box is still drawn around the active label if it is visible
 
 #### Scenario: Labels only
 - **WHEN** the tab strip is drawn
@@ -36,9 +52,9 @@ an open box whose outline uses the rule colour, with an accent label.
 - **WHEN** a tab is active and visible
 - **THEN** only its label uses the accent colour
 
-#### Scenario: Narrow strip
-- **WHEN** the terminal is narrower than 90 columns
-- **THEN** labels shorten but keep no digit, and the outline is still drawn around the active label if it is visible
+#### Scenario: Bottom corners
+- **WHEN** the rule row is drawn under the active tab
+- **THEN** a `┘` closes the left side, a `└` closes the right side, and the space between them is empty
 
 #### Scenario: Active tab hidden
 - **WHEN** the strip is too narrow for the active tab

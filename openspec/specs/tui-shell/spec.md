@@ -8,28 +8,36 @@ area, and status bar - inside a terminal, driven entirely by the keyboard.
 
 ### Requirement: Window layout matches Windows 10
 
-The application SHALL draw a menu bar at the top, a tab strip directly beneath it,
-the active tab's content in the middle, and a status bar at the bottom, filling the
-whole terminal. It MUST use the flat Windows 10 borders rather than a double-line
-box.
+The application SHALL draw a menu bar on its own background at the top, a tab strip
+directly beneath it, a rule of centred tab underlines beneath the strip, the active
+tab's content in the middle, and a status bar at the bottom, filling the whole
+terminal. It MUST use the flat Windows 10 borders rather than a double-line box.
 
 #### Scenario: Standard terminal
 - **WHEN** the application starts in a terminal of at least 100 columns by 30 rows
-- **THEN** the menu bar, all seven tab labels, the content area, and the status bar are visible without scrolling
+- **THEN** the menu bar, all seven tab labels, the tab rule, the content area, and the status bar are visible without scrolling
 
 #### Scenario: Narrow terminal
 - **WHEN** the terminal is narrower than 100 columns
-- **THEN** optional columns are dropped first, the process name stays visible, and the tab strip remains readable
+- **THEN** optional columns are dropped first, the process name stays visible, and the tab strip and its rule remain readable
 
 #### Scenario: Terminal below the minimum
 - **WHEN** the terminal is smaller than 40 columns by 12 rows
 - **THEN** the application shows a single message naming the required minimum size and draws no partial layout
 
+#### Scenario: Menu strip background
+- **WHEN** the menu bar is drawn
+- **THEN** it fills its row with the chrome background, and the filter field keeps a surface-coloured inset
+
+#### Scenario: Tab rule row
+- **WHEN** the tab strip is drawn
+- **THEN** one row beneath it is reserved for the tab underlines and is not used for tab labels
+
 ### Requirement: Seven tabs in the Windows 10 order
 
 The system SHALL present Processes, Performance, App history, Startup, Users,
-Details, and Services, in that order. The active tab MUST be visually distinct using
-the Windows 10 accent underline.
+Details, and Services, in that order, with labels only. The active tab MUST be drawn as
+an open box whose outline uses the rule colour, with an accent label.
 
 #### Scenario: Cycle tabs
 - **WHEN** the user presses Tab or Shift+Tab
@@ -42,6 +50,46 @@ the Windows 10 accent underline.
 #### Scenario: Tab state is kept
 - **WHEN** the user leaves a tab and returns to it
 - **THEN** its selection, scroll position, and sort order are as they were left
+
+#### Scenario: Tab numbers
+- **WHEN** the tab strip is drawn
+- **THEN** no digits are printed, and the 1-7 keys still jump to their tabs
+
+#### Scenario: Active tab
+- **WHEN** a tab is active
+- **THEN** its label uses the accent colour, its outline uses the rule colour, and every other tab keeps the window background
+
+#### Scenario: Centred underlines
+- **WHEN** the tab strip is drawn
+- **THEN** each label sits over the continuous rule and the active tab opens through it
+
+#### Scenario: Narrow strip
+- **WHEN** the terminal is narrower than 90 columns
+- **THEN** labels shorten and the open box is still drawn around the active label if it is visible
+
+#### Scenario: Labels only
+- **WHEN** the tab strip is drawn
+- **THEN** each tab shows its label with no digit prefix
+
+#### Scenario: No separators
+- **WHEN** the tab strip is drawn
+- **THEN** labels are separated by empty space and no vertical bar appears between them
+
+#### Scenario: Matching outline
+- **WHEN** a tab is active and visible
+- **THEN** its top border, sides, and outward bottom corners use the same colour as the rule
+
+#### Scenario: Accent label
+- **WHEN** a tab is active and visible
+- **THEN** only its label uses the accent colour
+
+#### Scenario: Bottom corners
+- **WHEN** the rule row is drawn under the active tab
+- **THEN** a `┘` closes the left side, a `└` closes the right side, and the space between them is empty
+
+#### Scenario: Active tab hidden
+- **WHEN** the strip is too narrow for the active tab
+- **THEN** no box is drawn and the remaining labels keep the continuous rule
 
 ### Requirement: Menu bar is keyboard operable
 
@@ -63,21 +111,39 @@ and Esc SHALL close the menu without acting.
 
 ### Requirement: Light and dark themes
 
-The application SHALL offer the Windows 10 light theme and the Windows 10 dark theme,
-SHALL start in light unless settings say otherwise, and SHALL keep the chosen theme
-across restarts.
+The application SHALL offer ten themes - Windows Light, Windows Dark, Nord, Gruvbox Dark,
+Phosphor, Amber, Tokyo Night, Catppuccin Mocha, Solarized Light, and Rosé Pine - SHALL
+start in Windows Light unless settings say otherwise, and MUST keep the chosen theme
+across restarts. Theme switching MUST be available from the `t` key and the Appearance
+dialog.
 
 #### Scenario: Default appearance
 - **WHEN** the application starts with no saved settings
-- **THEN** the light theme is used, with a near-white background, dark text, and the Windows 10 blue accent
+- **THEN** Windows Light is used, with a near-white background, dark text, and the Windows 10 blue accent
 
 #### Scenario: Switch theme
-- **WHEN** the user selects Dark mode from the Options menu
-- **THEN** every visible element switches to the dark palette immediately and the choice is saved
+- **WHEN** the user presses `t` or changes the theme row in the Appearance dialog
+- **THEN** every visible element switches to the next palette immediately and the choice is saved
 
 #### Scenario: Readable contrast
 - **WHEN** any theme is active
 - **THEN** text and its background differ enough to read, and colour is never the only signal for selection
+
+#### Scenario: Cycle themes
+- **WHEN** the user presses `t` or picks the next theme in the Appearance dialog
+- **THEN** the next theme in the fixed order becomes active and is saved
+
+#### Scenario: Theme set
+- **WHEN** the theme picker is opened
+- **THEN** it lists Windows Light, Windows Dark, Nord, Gruvbox Dark, Phosphor, Amber, Tokyo Night, Catppuccin Mocha, Solarized Light, and Rosé Pine in that order
+
+#### Scenario: Unknown saved theme
+- **WHEN** the settings file names a theme that no longer exists
+- **THEN** Windows Light is used and a notice explains the fallback
+
+#### Scenario: No menu duplicate
+- **WHEN** the Options menu is opened
+- **THEN** it offers update speeds only and no theme entry
 
 ### Requirement: Dialog model
 
@@ -134,13 +200,21 @@ anything, and the terminal's mouse mode MUST be released on exit.
 - **WHEN** the user clicks a menu label and then an item
 - **THEN** the menu opens on that label and the item's action runs
 
+#### Scenario: Click away closes a menu
+- **WHEN** a menu is open and the user clicks outside its label and dropdown
+- **THEN** the menu closes and the click does not select a row, switch a tab, sort a column, or start a filter
+
+#### Scenario: Click inside the dropdown
+- **WHEN** a menu is open and the user clicks its border or empty space
+- **THEN** the menu stays open and nothing underneath is activated
+
 #### Scenario: Click a resource
 - **WHEN** the user clicks CPU, Memory, Disk, Network, or GPU in the Performance rail
 - **THEN** that resource's panel is shown
 
 #### Scenario: Wheel
 - **WHEN** the user scrolls the wheel over the content area
-- **THEN** the selection moves three rows in the wheel's direction
+- **THEN** the viewport under the pointer moves three rows in the wheel's direction and the selection does not change
 
 #### Scenario: Click dialog buttons
 - **WHEN** the user clicks a confirm, cancel, or close button in a dialog
@@ -166,9 +240,10 @@ behind.
 
 ### Requirement: Status bar summary
 
-The status bar SHALL show the current CPU, memory, disk, and network totals, the
-active update speed, and a hint for the Fewer details toggle, matching the Windows 10
-bottom bar.
+The status bar SHALL show the current CPU, memory, disk, and network totals and the
+active update speed, matching the Windows 10 bottom bar, and MUST NOT carry the Fewer
+details toggle. Labels MUST use the muted colour while values use the text colour, and
+the speed value MUST use the accent.
 
 #### Scenario: Live totals
 - **WHEN** a new sample arrives
@@ -177,3 +252,109 @@ bottom bar.
 #### Scenario: Unavailable metric
 - **WHEN** a metric has no value on this platform
 - **THEN** the status bar shows a dash for it and keeps the remaining totals in place
+
+#### Scenario: Details toggle stays elsewhere
+- **WHEN** the Processes tab is shown
+- **THEN** the Fewer details action appears in the tab's hint line and on the `f` key, not in the status bar
+
+#### Scenario: Label contrast
+- **WHEN** the status bar is drawn
+- **THEN** each metric label is muted and its value is brighter, without moving the fixed fields
+
+#### Scenario: Speed accent
+- **WHEN** the update speed is shown
+- **THEN** its value uses the accent colour and the fixed field width is unchanged
+
+### Requirement: Stable status bar layout
+
+The status bar SHALL give each metric a fixed-width field and keep the metric block
+anchored at the right edge, so changing values MUST NOT move any other part of the bar.
+
+#### Scenario: Value grows a digit
+- **WHEN** a metric crosses from 9.9% to 10.0% or from 999 to 1.0 of a larger unit
+- **THEN** the metric block keeps the same width and every other element stays in place
+
+#### Scenario: Position counter
+- **WHEN** the selected row changes or the list length gains a digit
+- **THEN** the counter keeps a fixed field width and the action label does not move
+
+#### Scenario: Notice
+- **WHEN** a notice is shown
+- **THEN** it is truncated inside the middle zone and neither the action nor the metrics move
+
+#### Scenario: Narrow terminal
+- **WHEN** the terminal is too narrow for every metric
+- **THEN** metrics are dropped in a fixed order using their widest possible widths, so the set does not change between samples
+
+### Requirement: Chrome and status bands
+
+The menu row and tab strip SHALL share a chrome background distinct from the content
+surface, the status bar SHALL use its own background, and the window title MUST name the
+application and the active tab.
+
+#### Scenario: Chrome band
+- **WHEN** any theme is active
+- **THEN** the menu row and tab strip share one background, and the content sits on the lighter surface
+
+#### Scenario: Filter inset
+- **WHEN** the filter field is drawn in the menu bar
+- **THEN** it keeps a surface-coloured inset so it reads as an input inside the chrome band
+
+#### Scenario: Status bar
+- **WHEN** the status bar is drawn
+- **THEN** its background differs from both the chrome band and the content surface, and its metrics stay readable
+
+#### Scenario: Window title
+- **WHEN** the application starts or the active tab changes
+- **THEN** the terminal title reads Task Manager followed by the active tab's name
+
+### Requirement: Contextual shortcut hints
+
+Each tab SHALL reserve its last content row for one hint line listing that tab's own
+shortcuts as `[key] action`, SHALL draw keys in the accent colour and bold against muted
+actions, SHALL order the most used actions first, and MUST clip the line at the right edge
+instead of wrapping or covering a data row.
+
+#### Scenario: Processes hints
+- **WHEN** the Processes tab is shown
+- **THEN** the line reads `[e] End task`, `[K] Signal`, `[p] Priority`, and the current details toggle
+
+#### Scenario: Details hints
+- **WHEN** the Details tab is shown
+- **THEN** the line names the panel toggle, end task, signal, and priority
+
+#### Scenario: Services hints
+- **WHEN** the Services tab is shown
+- **THEN** the line names start, stop, and restart and keeps the scope note
+
+#### Scenario: Startup hints
+- **WHEN** a startup entry is selected
+- **THEN** the line names enable or disable according to its state and shows the command after the key
+
+#### Scenario: Users hints
+- **WHEN** the Users tab is shown
+- **THEN** the line names show or hide details according to the panel state
+
+#### Scenario: App history hints
+- **WHEN** the App history tab is shown
+- **THEN** the line names the properties action
+
+#### Scenario: Performance hints
+- **WHEN** the Performance tab is shown
+- **THEN** the line names resource selection and Appearance
+
+#### Scenario: State follows the row
+- **WHEN** the selected row or a toggle changes
+- **THEN** the hint line updates on the next frame without leaving the previous wording
+
+#### Scenario: Narrow terminal
+- **WHEN** the hints are wider than the terminal
+- **THEN** the line is cut at the right edge and the table keeps its full width
+
+#### Scenario: No room
+- **WHEN** the content area is shorter than four rows
+- **THEN** the hint line is not drawn and no row is reserved
+
+#### Scenario: Key emphasis
+- **WHEN** the hint line is drawn
+- **THEN** every `[key]` including its brackets uses the accent colour and bold, and the action text stays muted
