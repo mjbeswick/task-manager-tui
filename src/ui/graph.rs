@@ -88,6 +88,59 @@ pub fn mix(a: Color, b: Color, toward_b: f32) -> Color {
     }
 }
 
+/// A three-stop ramp: chart colour at the base, a dim tint in the middle,
+/// and the surface at the top. `rise` is 0 at the base and 1 at the top.
+pub fn ramp(edge: Color, bg: Color, rise: f32) -> Color {
+    let mid = crate::theme::mix_linear(edge, bg, 0.55);
+    let rise = rise.clamp(0.0, 1.0);
+    if rise < 0.5 {
+        crate::theme::mix_linear(edge, mid, rise * 2.0)
+    } else {
+        crate::theme::mix_linear(mid, bg, (rise - 0.5) * 2.0)
+    }
+}
+
+/// One column's value on the 60 sample time axis. Wider plots interpolate
+/// between samples; narrower plots keep the peak of the samples they cover.
+pub fn sample_column(values: &[f32], column: usize, width: usize) -> Option<f32> {
+    if values.is_empty() || width == 0 || column >= width {
+        return None;
+    }
+    let len = values.len();
+    let value_at = |slot: usize| values[len - 1 - slot];
+    let start = column as f64 * HISTORY as f64 / width as f64;
+    let end = (column as f64 + 1.0) * HISTORY as f64 / width as f64;
+    if start >= len as f64 {
+        return None;
+    }
+    let span = end - start;
+    if span <= 1.0 {
+        let centre = (start + end) / 2.0;
+        let index = centre.floor() as usize;
+        if index >= len {
+            return None;
+        }
+        let fraction = (centre - index as f64) as f32;
+        let a = value_at(index);
+        let b = if index + 1 < len {
+            value_at(index + 1)
+        } else {
+            a
+        };
+        Some(a + (b - a) * fraction)
+    } else {
+        let first = start.floor() as usize;
+        let last = (end.ceil() as usize).min(len);
+        let mut peak = f32::MIN;
+        for slot in first..last.max(first + 1) {
+            if slot < len {
+                peak = peak.max(value_at(slot));
+            }
+        }
+        (peak != f32::MIN).then_some(peak)
+    }
+}
+
 /// Draw the newest samples of `series` as a sparkline across `area`.
 /// `max` of 0 autoscales like the main graph, with 10% headroom.
 pub fn sparkline(
@@ -104,9 +157,11 @@ pub fn sparkline(
     } else {
         (series.max() * 1.1).max(f32::EPSILON)
     };
-    let count = series.values.len();
-    for column in 0..(area.width as usize).min(count) {
-        let value = series.values[count - 1 - column];
+    let values: Vec<f32> = series.values.iter().copied().collect();
+    for column in 0..area.width as usize {
+        let Some(value) = sample_column(&values, column, area.width as usize) else {
+            continue;
+        };
         let x = area.x + area.width - 1 - column as u16;
         fill_column(
             buf,
@@ -151,7 +206,7 @@ pub fn fill_column(
         let colour = if is_top || coarse {
             edge
         } else {
-            mix(edge, bg, 0.15 + 0.6 * rise)
+            ramp(edge, bg, 0.2 + rise * 0.65)
         };
         let style = ratatui::style::Style::default().fg(colour).bg(bg);
         let row = top + height - 1 - offset as u16;
@@ -166,6 +221,7 @@ struct Dots {
     width: usize,
     height: usize,
     mask: Vec<u8>,
+    peaks: Vec<f32>,
 }
 
 impl Dots {
@@ -176,10 +232,11 @@ impl Dots {
             width,
             height,
             mask: vec![0; width.div_ceil(2) * height.div_ceil(4)],
+            peaks: vec![0.0; width.div_ceil(2) * height.div_ceil(4)],
         }
     }
 
-    fn set(&mut self, x: usize, y: usize) {
+    fn set(&mut self, x: usize, y: usize, peak: f32) {
         if x >= self.width || y >= self.height {
             return;
         }
@@ -198,11 +255,13 @@ impl Dots {
             _ => 0,
         };
         let columns = self.width.div_ceil(2);
-        self.mask[cy * columns + cx] |= bit;
+        let cell = cy * columns + cx;
+        self.mask[cell] |= bit;
+        self.peaks[cell] = self.peaks[cell].max(peak);
     }
 
     /// Bresenham between two dots, so a line is continuous at dot resolution.
-    fn line(&mut self, x0: usize, y0: usize, x1: usize, y1: usize) {
+    fn line(&mut self, x0: usize, y0: usize, x1: usize, y1: usize, peak: f32) {
         let (mut x0, mut y0) = (x0 as isize, y0 as isize);
         let (x1, y1) = (x1 as isize, y1 as isize);
         let dx = (x1 - x0).abs();
@@ -212,7 +271,7 @@ impl Dots {
         let mut error = dx + dy;
         loop {
             if x0 >= 0 && y0 >= 0 {
-                self.set(x0 as usize, y0 as usize);
+                self.set(x0 as usize, y0 as usize, peak);
             }
             if x0 == x1 && y0 == y1 {
                 break;
@@ -229,14 +288,21 @@ impl Dots {
         }
     }
 
-    fn flush(&self, buf: &mut Buffer, area: Rect, style: ratatui::style::Style) {
+    fn flush(&self, buf: &mut Buffer, area: Rect, theme: &Theme, edge: Color, bg: Color) {
         let columns = self.width.div_ceil(2);
         for cy in 0..self.height.div_ceil(4) {
             for cx in 0..columns {
-                let mask = self.mask[cy * columns + cx];
+                let cell = cy * columns + cx;
+                let mask = self.mask[cell];
                 if mask == 0 {
                     continue;
                 }
+                let colour = if theme.coarse {
+                    edge
+                } else {
+                    ramp(edge, bg, (1.0 - self.peaks[cell]) * 0.85)
+                };
+                let style = ratatui::style::Style::default().fg(colour).bg(bg);
                 if let Some(ch) = char::from_u32(0x2800 + mask as u32) {
                     buf[(area.x + cx as u16, area.y + cy as u16)]
                         .set_char(ch)
@@ -313,7 +379,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: 
     let glyphs = theme.glyphs();
     let fill = ratatui::style::Style::default().fg(color).bg(theme.surface);
     let column_top = plot.y;
-    let count = series.values.len();
+    let values: Vec<f32> = series.values.iter().copied().collect();
     let width = plot.width as usize;
     let height = plot.height as usize;
     let mut previous: Option<usize> = None;
@@ -327,12 +393,11 @@ pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: 
     // The time axis is always the last 60 samples spread over the plot width, so
     // a full history fills the chart on any terminal size.
     for column in 0..width {
-        let slot = (column as u64 * HISTORY as u64) / width as u64;
-        if slot as usize >= count {
+        let Some(value) = sample_column(&values, column, width) else {
             previous = None;
             continue;
-        }
-        let value = series.values[count - 1 - slot as usize];
+        };
+        let fraction = (value / maximum).clamp(0.0, 1.0);
         let x = plot.x + plot.width - 1 - column as u16;
         let halves = ((value / maximum).clamp(0.0, 1.0) * (height * 2) as f32).round() as usize;
         let level = halves.div_ceil(2).clamp(0, height);
@@ -342,7 +407,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: 
                 fill_column(
                     buf,
                     Rect::new(x, column_top, 1, plot.height),
-                    value / maximum,
+                    fraction,
                     color,
                     theme.surface,
                     theme,
@@ -352,15 +417,13 @@ pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: 
                 let grid = dots.as_mut().unwrap();
                 let dx = (width - 1 - column) * 2 + 1;
                 let rows = height * 4;
-                let dy = rows
-                    - 1
-                    - ((value / maximum).clamp(0.0, 1.0) * (rows - 1) as f32).round() as usize;
+                let dy = rows - 1 - (fraction * (rows - 1) as f32).round() as usize;
                 if style == ChartStyle::Line
                     && let Some((px, py)) = previous_dot
                 {
-                    grid.line(px, py, dx, dy);
+                    grid.line(px, py, dx, dy, fraction);
                 } else {
-                    grid.set(dx, dy);
+                    grid.set(dx, dy, fraction);
                 }
                 previous_dot = Some((dx, dy));
             }
@@ -385,7 +448,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: 
         previous = Some(level);
     }
     if let Some(dots) = &dots {
-        dots.flush(buf, plot, fill);
+        dots.flush(buf, plot, theme, color, theme.surface);
     }
 
     let label_style = ratatui::style::Style::default()
@@ -585,27 +648,188 @@ mod tests {
     #[test]
     fn braille_dots_land_in_the_right_cells() {
         let mut dots = Dots::new(2, 1);
-        dots.set(0, 0);
-        dots.set(1, 0);
-        dots.set(3, 3);
+        dots.set(0, 0, 0.5);
+        dots.set(1, 0, 0.5);
+        dots.set(3, 3, 0.5);
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
         let mut buffer = Buffer::empty(Rect::new(0, 0, 2, 1));
         dots.flush(
             &mut buffer,
             Rect::new(0, 0, 2, 1),
-            ratatui::style::Style::default(),
+            &theme,
+            theme.graph_fill,
+            theme.surface,
         );
         assert_eq!(buffer[(0, 0)].symbol(), "⠉");
         assert_eq!(buffer[(1, 0)].symbol(), "⢀");
     }
 
     #[test]
+    fn braille_cells_take_the_colour_of_their_peak() {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        let mut dots = Dots::new(2, 1);
+        dots.set(0, 3, 0.0);
+        dots.set(2, 0, 1.0);
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 2, 1));
+        dots.flush(
+            &mut buffer,
+            Rect::new(0, 0, 2, 1),
+            &theme,
+            theme.graph_fill,
+            theme.surface,
+        );
+        assert_eq!(
+            buffer[(1, 0)].fg,
+            theme.graph_fill,
+            "peak cell is brightest"
+        );
+        assert_ne!(buffer[(0, 0)].fg, buffer[(1, 0)].fg);
+        assert_eq!(
+            buffer[(1, 0)].fg,
+            ramp(theme.graph_fill, theme.surface, 0.085),
+            "a high peak takes the bright end of the ramp"
+        );
+    }
+
+    #[test]
+    fn coarse_mode_uses_one_braille_colour() {
+        let mut theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        theme.coarse = true;
+        let mut dots = Dots::new(2, 1);
+        dots.set(0, 3, 0.1);
+        dots.set(3, 0, 0.9);
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 2, 1));
+        dots.flush(
+            &mut buffer,
+            Rect::new(0, 0, 2, 1),
+            &theme,
+            theme.graph_fill,
+            theme.surface,
+        );
+        assert_eq!(buffer[(0, 0)].fg, theme.graph_fill);
+        assert_eq!(buffer[(1, 0)].fg, theme.graph_fill);
+    }
+
+    #[test]
     fn braille_line_is_continuous() {
         let mut dots = Dots::new(2, 1);
-        dots.line(0, 3, 3, 0);
+        dots.line(0, 3, 3, 0, 0.5);
         let columns = dots.width.div_ceil(2);
         assert!(dots.mask[0] & 0x40 != 0, "start dot is set");
         assert!(dots.mask[columns - 1] & 0x08 != 0, "end dot is set");
         assert_eq!(dots.mask.iter().filter(|m| **m != 0).count(), 2);
+    }
+
+    #[test]
+    fn ramp_runs_from_edge_to_surface_through_a_dim_midpoint() {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        let edge = theme.graph_fill;
+        let bg = theme.surface;
+        assert_eq!(ramp(edge, bg, 0.0), edge);
+        assert_eq!(ramp(edge, bg, 1.0), bg);
+        let middle = ramp(edge, bg, 0.5);
+        let Color::Rgb(r, g, b) = middle else {
+            panic!("expected rgb");
+        };
+        assert!(
+            g > r && g > b,
+            "the midpoint keeps the teal hue: {r},{g},{b}"
+        );
+        assert_ne!(middle, edge);
+    }
+
+    #[test]
+    fn an_eight_row_fill_uses_eight_colours() {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        let area = Rect::new(0, 0, 1, 8);
+        let mut buffer = Buffer::empty(area);
+        fill_column(
+            &mut buffer,
+            area,
+            1.0,
+            theme.graph_fill,
+            theme.surface,
+            &theme,
+        );
+        let colours: std::collections::HashSet<_> = buffer
+            .content
+            .iter()
+            .filter(|cell| cell.symbol() != " ")
+            .map(|cell| cell.fg)
+            .collect();
+        assert!(colours.len() >= 8, "only {} colours", colours.len());
+    }
+
+    #[test]
+    fn braille_cells_are_coloured_by_their_peak() {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        let mut dots = Dots::new(2, 1);
+        dots.set(0, 3, 0.1);
+        dots.set(3, 0, 0.9);
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 2, 1));
+        dots.flush(
+            &mut buffer,
+            Rect::new(0, 0, 2, 1),
+            &theme,
+            theme.graph_fill,
+            theme.surface,
+        );
+        assert_ne!(buffer[(0, 0)].fg, buffer[(1, 0)].fg);
+        assert_eq!(
+            buffer[(1, 0)].fg,
+            ramp(theme.graph_fill, theme.surface, 0.085),
+            "a high peak takes the bright end of the ramp"
+        );
+    }
+
+    #[test]
+    fn coarse_mode_uses_one_braille_colour() {
+        let mut theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        theme.coarse = true;
+        let mut dots = Dots::new(2, 1);
+        dots.set(0, 3, 0.1);
+        dots.set(3, 0, 0.9);
+        let mut buffer = Buffer::empty(Rect::new(0, 0, 2, 1));
+        dots.flush(
+            &mut buffer,
+            Rect::new(0, 0, 2, 1),
+            &theme,
+            theme.graph_fill,
+            theme.surface,
+        );
+        assert_eq!(buffer[(0, 0)].fg, theme.graph_fill);
+        assert_eq!(buffer[(1, 0)].fg, theme.graph_fill);
+    }
+
+    fn sixty() -> Vec<f32> {
+        (0..HISTORY).map(|i| i as f32).collect()
+    }
+
+    #[test]
+    fn downscaling_keeps_the_peak_in_a_narrow_plot() {
+        let mut values = sixty();
+        values[HISTORY - 1 - 33] = 100.0;
+        // Ten columns cover six slots each; the spike sits in column 5.
+        let peak = sample_column(&values, 5, 10).unwrap();
+        assert_eq!(peak, 100.0);
+        let ordinary = sample_column(&values, 0, 10).unwrap();
+        assert!(ordinary < 100.0);
+    }
+
+    #[test]
+    fn upscaling_interpolates_between_samples() {
+        let values = sixty();
+        let a = sample_column(&values, 100, 120).unwrap();
+        let b = sample_column(&values, 101, 120).unwrap();
+        assert!(a > b, "older columns hold smaller samples: {a} vs {b}");
+        assert!(a > 8.0 && a < 10.0, "interpolated between 9 and 8: {a}");
+    }
+
+    #[test]
+    fn columns_older_than_the_history_are_empty() {
+        assert_eq!(sample_column(&[1.0], 0, 60), Some(1.0));
+        assert_eq!(sample_column(&[1.0], 1, 60), None);
+        assert_eq!(sample_column(&[], 0, 60), None);
     }
 
     fn one_column(theme: &crate::theme::Theme, fraction: f32) -> Buffer {

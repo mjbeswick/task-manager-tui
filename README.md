@@ -121,8 +121,11 @@ dropped and the position counter in the status bar takes over.
   A full history always spans the whole plot, whatever the terminal width.
   Percentage graphs keep a fixed 0-100 scale, so a quiet graph looks quiet. Disk
   and network graphs scale to the largest value in the window and label that
-  maximum. View > Appearance, or F2, switches between Filled, Line, and Dots
-  rendering and chart colours: Teal, Blue, Orange, Magenta, Mono, or Theme.
+  maximum. Filled charts use a gamma-correct colour ramp, line and dot charts take
+  the colour of the highest sample in each braille cell, and resampling interpolates
+  when the plot is wide and keeps peaks when it is narrow. View > Appearance, or F2,
+  switches between Filled, Line, and Dots rendering and chart colours: Teal, Blue,
+  Orange, Magenta, Mono, or Theme.
 - **App history** - CPU time, peak memory, and disk totals per application,
   accumulated across restarts.
 - **Startup** - login agents from launchd or XDG autostart, with their real

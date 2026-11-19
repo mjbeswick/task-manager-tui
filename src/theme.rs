@@ -639,6 +639,34 @@ fn channel(value: u8) -> f32 {
     }
 }
 
+/// Convert a linear-light channel back to sRGB.
+fn encode(linear: f32) -> u8 {
+    let l = linear.clamp(0.0, 1.0);
+    let c = if l <= 0.003_130_8 {
+        l * 12.92
+    } else {
+        1.055 * l.powf(1.0 / 2.4) - 0.055
+    };
+    (c * 255.0).round().clamp(0.0, 255.0) as u8
+}
+
+/// Blend in linear light. A half-way mix of black and white is mid-grey by
+/// luminance rather than the darker sRGB average. Non-RGB colours return `a`.
+pub fn mix_linear(a: Color, b: Color, toward_b: f32) -> Color {
+    match (a, b) {
+        (Color::Rgb(r1, g1, b1), Color::Rgb(r2, g2, b2)) => {
+            let t = toward_b.clamp(0.0, 1.0);
+            let blend = |x: u8, y: u8| {
+                let xl = channel(x);
+                let yl = channel(y);
+                encode(xl + (yl - xl) * t)
+            };
+            Color::Rgb(blend(r1, r2), blend(g1, g2), blend(b1, b2))
+        }
+        _ => a,
+    }
+}
+
 /// True when a background is closer to black than to white.
 pub fn is_dark(color: Color) -> bool {
     luminance(color) < 0.5
@@ -666,6 +694,16 @@ mod tests {
             .into_iter()
             .map(|name| Theme::from_name(name, false))
             .collect()
+    }
+
+    #[test]
+    fn linear_mix_keeps_the_midpoint_light() {
+        let mid = mix_linear(Color::Rgb(0, 0, 0), Color::Rgb(255, 255, 255), 0.5);
+        let Color::Rgb(r, _, _) = mid else {
+            panic!("expected rgb");
+        };
+        assert!(r > 160, "linear mid is lighter than the sRGB average: {r}");
+        assert_eq!(mix_linear(Color::Red, Color::Blue, 0.5), Color::Red);
     }
 
     #[test]
