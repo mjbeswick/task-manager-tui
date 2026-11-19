@@ -142,7 +142,8 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
             Rect::new(body.x, y, body.width, 1),
             Target::Row(scroll + offset),
         );
-        draw_row(buf, body, y, row, &layout, app, is_selected);
+        let base = app.theme().row_style(is_selected, scroll + offset);
+        draw_row(buf, body, y, row, &layout, app, base);
     }
 
     if let Some(panel_area) = panel_area
@@ -327,14 +328,8 @@ fn draw_row(
     row: &ProcRow,
     layout: &Layout2,
     app: &App,
-    selected: bool,
+    base: Style,
 ) {
-    let theme = app.theme();
-    let base = if selected {
-        theme.selected_style()
-    } else {
-        theme.surface_style()
-    };
     fill_area(buf, Rect::new(area.x, y, area.width, 1), base);
 
     let mut x = area.x;

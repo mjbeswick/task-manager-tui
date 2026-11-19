@@ -141,7 +141,8 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
             Rect::new(area.x, y, area.width, 1),
             Target::Row(scroll + offset),
         );
-        draw_item(buf, area, y, item, &layout, app, is_selected);
+        let row = (theme.row_style(is_selected, scroll + offset), is_selected);
+        draw_item(buf, area, y, item, &layout, app, row);
     }
 }
 
@@ -318,15 +319,11 @@ fn draw_item(
     item: &ProcItem,
     layout: &Layout,
     app: &App,
-    selected: bool,
+    row: (Style, bool),
 ) {
     let theme = app.theme();
     let snapshot = &app.snapshot;
-    let base = if selected {
-        theme.selected_style()
-    } else {
-        theme.surface_style()
-    };
+    let (base, selected) = row;
     fill_area(buf, Rect::new(area.x, y, area.width, 1), base);
 
     let mut x = area.x;
@@ -418,14 +415,20 @@ fn draw_item(
     x += name_width;
 
     if let Some(width) = layout.status {
-        let status = match item {
+        let (status, tone) = match item {
             ProcItem::Child { key, .. } => snapshot
                 .process(*key)
-                .map(|r| r.status.label().to_string())
-                .unwrap_or_else(|| DASH.to_string()),
-            _ => String::new(),
+                .map(|r| (r.status.label().to_string(), Some(r.status.tone())))
+                .unwrap_or_else(|| (DASH.to_string(), None)),
+            _ => (String::new(), None),
         };
-        put_right(buf, x + width - 2, y, &status, base, area);
+        let status_style = if selected {
+            base
+        } else {
+            tone.map(|tone| base.fg(theme.tone_color(tone)))
+                .unwrap_or(base)
+        };
+        put_right(buf, x + width - 2, y, &status, status_style, area);
         x += width;
     }
 
@@ -589,23 +592,50 @@ mod tests {
         app.process.selected = 0;
         let theme = *app.theme();
         let (screen, buffer) = frame(&app, 120, 36);
-        // node uses 12.5% of the CPU: the 5 to 15 percent step.
-        assert_eq!(bg_at(&screen, &buffer, "node", "12.5%"), theme.heat[1]);
-        // launchd's 0.2% is below the first step.
-        assert_eq!(bg_at(&screen, &buffer, "launchd", "0.2%"), theme.surface);
+        // node uses 12.5% of the CPU: the 8 to 20 percent step.
+        assert_eq!(bg_at(&screen, &buffer, "node", "12.5%"), theme.heat[2]);
+        // launchd's 0.2% is below the first step, so it keeps the row stripe.
+        let launchd = bg_at(&screen, &buffer, "launchd", "0.2%");
+        assert!(!theme.heat.contains(&launchd));
         // 1.2 GB of 16 GB memory is about 7.5%: the second step.
         assert_eq!(bg_at(&screen, &buffer, "Safari", "1.2 GB"), theme.heat[1]);
         // Kind headings are never shaded.
         assert_eq!(bg_at(&screen, &buffer, "Apps (", "Apps"), theme.selection);
-        assert_eq!(
-            bg_at(&screen, &buffer, "Background", "Background"),
-            theme.surface
-        );
+        let background = bg_at(&screen, &buffer, "Background", "Background");
+        assert!(background == theme.surface || background == theme.surface_alt);
         // No process reports network, so no network cell is shaded.
         let network_x = screen.lines().nth(3).unwrap().find("Network").unwrap() as u16 + 6;
         for y in 5..20 {
             assert!(!theme.heat.contains(&buffer[(network_x, y)].bg), "row {y}");
         }
+    }
+
+    #[test]
+    fn status_words_use_their_tone() {
+        let mut snapshot = crate::model::Snapshot::fixture();
+        let row = snapshot
+            .processes
+            .iter_mut()
+            .find(|p| p.kind == crate::model::Kind::Background)
+            .unwrap();
+        row.status = crate::model::Status::NotResponding;
+        let mut app = app();
+        app.apply_snapshot(snapshot);
+        for process in &app.snapshot.processes {
+            app.process
+                .expanded_groups
+                .insert((process.kind, process.name.clone()));
+        }
+        app.process.refresh(&app.snapshot);
+        let theme = *app.theme();
+        let (screen, buffer) = frame(&app, 120, 40);
+        let y = screen
+            .lines()
+            .position(|line| line.contains("Not responding"))
+            .unwrap() as u16;
+        let line = screen.lines().nth(y as usize).unwrap();
+        let x = line[..line.find("Not responding").unwrap()].chars().count() as u16;
+        assert_eq!(buffer[(x, y)].fg, theme.bad);
     }
 
     #[test]

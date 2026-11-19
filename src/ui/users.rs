@@ -119,11 +119,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         let y = body.y + index as u16;
         let selected = index == app.users.selected;
         hits.add(Rect::new(body.x, y, body.width, 1), Target::Row(index));
-        let base = if selected {
-            theme.selected_style()
-        } else {
-            theme.surface_style()
-        };
+        let base = theme.row_style(selected, index);
         fill_area(buf, Rect::new(body.x, y, body.width, 1), base);
         let mut user = row.user.clone();
         if row.current {

@@ -100,7 +100,7 @@ clear it. Every action still has a key.
 ## Tabs
 
 - **Processes** - CPU, Memory, Disk, and Network cells shade from pale yellow
-  to orange by their share of the system total, and the header shows each
+  to red by their share of the system total, and the header shows each
   total above its label. Rows group under Apps, Background processes, and
   System processes. App rows collapse by default; expanding one lists its processes. While you move
   the selection the row order holds for two seconds, so the list does not re-sort
@@ -120,6 +120,16 @@ clear it. Every action still has a key.
 - **Users** - sessions from `who`, with each user's CPU, memory, and disk totals.
 - **Details** - every process with PID, status, owner, and priority.
 - **Services** - launchd jobs or systemd units, start, stop, and restart.
+
+## Table readability
+
+List tables alternate a slightly lighter or darker row background so a wide row is
+easier to follow across its columns. Processes escalate cell shading through 1, 3, 8,
+20, and 40 percent of the system total, ending in red. Status words carry meaning
+beyond their text: Not responding is red, Suspended and Stopped are amber, service
+Running is green, and service Stopped is muted. A selected row always uses the
+selection colour, so the stripe and the status tone never compete with it. Tab labels
+carry their digits 1 to 7, and the active tab is a filled accent block.
 
 ## What each platform reports
 

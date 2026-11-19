@@ -267,20 +267,21 @@ fn draw_tabs(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     let glyphs = theme.glyphs();
     let compact = area.width < 90;
     let mut x = area.x;
-    for tab in Tab::ALL {
+    for (index, tab) in Tab::ALL.iter().copied().enumerate() {
         let active = tab == app.tab;
         let style = if active {
             Style::default()
-                .fg(theme.accent)
-                .bg(theme.bg)
-                .add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
+                .fg(ratatui::style::Color::White)
+                .bg(theme.accent)
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(theme.muted).bg(theme.bg)
         };
         let text = if compact {
-            format!("{} ", tab.short_label())
+            let short: String = tab.short_label().chars().take(4).collect();
+            format!("{}{} ", index + 1, short)
         } else {
-            format!("{} ", tab.label())
+            format!("{} {} ", index + 1, tab.label())
         };
         if x + text.chars().count() as u16 > area.x + area.width {
             break;
@@ -635,11 +636,68 @@ mod tests {
     #[test]
     fn narrow_terminal_keeps_the_tab_strip() {
         let screen = render(60, 20);
-        assert!(screen.contains("Proc"));
-        assert!(screen.contains("Services"));
+        assert!(screen.contains("1Proc"));
+        assert!(screen.contains("7Serv"));
         let wide = render(120, 20);
         assert!(wide.contains("Performance"));
         assert!(wide.contains("App history"));
+    }
+
+    #[test]
+    fn tabs_are_numbered_and_the_active_tab_is_filled() {
+        let (mut app, _) = App::new(Settings::default(), false);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        let screen = crate::ui::test_util::render(&app, 120, 30);
+        let line = screen.lines().nth(1).unwrap();
+        assert!(line.starts_with("1 Processes"), "{line:?}");
+        assert!(line.contains("2 Performance"));
+        assert!(line.contains("7 Services"));
+        let mut hits = crate::ui::hits::HitMap::default();
+        let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        terminal.draw(|frame| draw(frame, &app, &mut hits)).unwrap();
+        let buffer = terminal.backend().buffer().clone();
+        let x = line[..line.find("Processes").unwrap()].chars().count() as u16;
+        assert_eq!(buffer[(x, 1)].bg, app.theme().accent);
+    }
+
+    #[test]
+    fn every_list_tab_stripes_its_body() {
+        use crate::app::Tab;
+        for tab in [
+            Tab::Processes,
+            Tab::Details,
+            Tab::Services,
+            Tab::Startup,
+            Tab::Users,
+            Tab::AppHistory,
+        ] {
+            let (mut app, _) = App::new(Settings::default(), false);
+            let mut snapshot = crate::model::Snapshot::fixture();
+            if snapshot.startup.len() == 1 {
+                let mut second = snapshot.startup[0].clone();
+                second.name.push_str(" 2");
+                snapshot.startup.push(second);
+            }
+            if snapshot.sessions.len() == 1 {
+                let mut second = snapshot.sessions[0].clone();
+                second.user = "second".into();
+                second.uid = 999;
+                snapshot.sessions.push(second);
+            }
+            app.apply_snapshot(snapshot);
+            app.tab = tab;
+            let theme = *app.theme();
+            let mut hits = crate::ui::hits::HitMap::default();
+            let mut terminal = Terminal::new(TestBackend::new(120, 40)).unwrap();
+            terminal.draw(|frame| draw(frame, &app, &mut hits)).unwrap();
+            let buffer = terminal.backend().buffer();
+            let stripes = buffer
+                .content
+                .iter()
+                .filter(|cell| cell.bg == theme.surface_alt)
+                .count();
+            assert!(stripes > 0, "{tab:?} shows no striped row");
+        }
     }
 
     #[test]

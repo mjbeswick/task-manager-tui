@@ -3,7 +3,7 @@ source: tests/render.rs
 expression: "screen(&app(Tab::Processes, \"light\"), 40, 20)"
 ---
  File  Options  View  Help            / 
-Proc  Perf  History  Startup  Users     
+1Proc  2Perf  3Hist  4Star  5User       
                           27%      62%  
 Name                      CPU ▼ Memory  
 ────────────────────────────────────────

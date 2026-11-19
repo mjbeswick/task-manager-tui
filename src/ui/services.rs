@@ -119,11 +119,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
             Rect::new(body.x, y, body.width, 1),
             Target::Row(scroll + offset),
         );
-        let base = if is_selected {
-            theme.selected_style()
-        } else {
-            theme.surface_style()
-        };
+        let base = theme.row_style(is_selected, scroll + offset);
         fill_area(buf, Rect::new(body.x, y, body.width, 1), base);
         put_match(
             buf,
@@ -148,7 +144,19 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
             base,
             body,
         );
-        put_right(buf, body.x + name + 49, y, row.state.label(), base, body);
+        let status_style = if is_selected {
+            base
+        } else {
+            base.fg(theme.tone_color(row.state.tone()))
+        };
+        put_right(
+            buf,
+            body.x + name + 49,
+            y,
+            row.state.label(),
+            status_style,
+            body,
+        );
         put_right(buf, body.x + name + 57, y, row.scope.label(), base, body);
     }
 
@@ -194,6 +202,34 @@ mod tests {
         assert!(screen.contains("Stopped"));
         assert!(screen.contains("system"));
         assert!(screen.contains("user"));
+    }
+
+    #[test]
+    fn service_status_uses_tone_colours() {
+        let colour_of = |selected: usize, word: &str| {
+            let mut app = app();
+            app.services.selected = selected;
+            let theme = *app.theme();
+            let mut hits = crate::ui::hits::HitMap::default();
+            let mut terminal =
+                ratatui::Terminal::new(ratatui::backend::TestBackend::new(120, 30)).unwrap();
+            terminal
+                .draw(|frame| crate::ui::draw(frame, &app, &mut hits))
+                .unwrap();
+            let buffer = terminal.backend().buffer().clone();
+            let screen = render(&app, 120, 30);
+            let y = screen.lines().position(|line| line.contains(word)).unwrap();
+            let line = screen.lines().nth(y).unwrap();
+            let x = line[..line.rfind(word).unwrap()].chars().count() as u16;
+            let fg = buffer[(x, y as u16)].fg;
+            (fg, theme)
+        };
+        // Row 1 is selected, so Running on row 0 keeps its tone.
+        let (running, theme) = colour_of(1, "Running");
+        assert_eq!(running, theme.good);
+        // Row 0 is selected, so Stopped on row 1 keeps its tone.
+        let (stopped, theme) = colour_of(0, "Stopped");
+        assert_eq!(stopped, theme.muted);
     }
 
     #[test]

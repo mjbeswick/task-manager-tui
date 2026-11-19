@@ -44,6 +44,16 @@ impl Kind {
     }
 }
 
+/// Meaning a row's status word carries, independent of any colour.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tone {
+    Normal,
+    Good,
+    Muted,
+    Warn,
+    Danger,
+}
+
 /// Windows 10 status labels, mapped from platform process states.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Status {
@@ -62,6 +72,14 @@ impl Status {
             Status::Suspended => "Suspended",
             Status::NotResponding => "Not responding",
             Status::Stopped => "Stopped",
+        }
+    }
+
+    pub fn tone(self) -> Tone {
+        match self {
+            Status::NotResponding => Tone::Danger,
+            Status::Suspended | Status::Stopped => Tone::Warn,
+            Status::Running | Status::Sleeping => Tone::Normal,
         }
     }
 }
@@ -504,6 +522,13 @@ impl ServiceState {
             ServiceState::Stopped => "Stopped",
         }
     }
+
+    pub fn tone(self) -> Tone {
+        match self {
+            ServiceState::Running => Tone::Good,
+            ServiceState::Stopped => Tone::Muted,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -780,6 +805,17 @@ mod tests {
         set.insert(old);
         assert!(!set.contains(&new));
         assert!(set.contains(&old));
+    }
+
+    #[test]
+    fn status_tones_follow_meaning() {
+        assert_eq!(Status::NotResponding.tone(), Tone::Danger);
+        assert_eq!(Status::Suspended.tone(), Tone::Warn);
+        assert_eq!(Status::Stopped.tone(), Tone::Warn);
+        assert_eq!(Status::Running.tone(), Tone::Normal);
+        assert_eq!(Status::Sleeping.tone(), Tone::Normal);
+        assert_eq!(ServiceState::Running.tone(), Tone::Good);
+        assert_eq!(ServiceState::Stopped.tone(), Tone::Muted);
     }
 
     #[test]

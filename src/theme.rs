@@ -37,6 +37,8 @@ pub struct Theme {
     pub name: ThemeName,
     pub bg: Color,
     pub surface: Color,
+    /// Alternating body-row background, a few percent from `surface`.
+    pub surface_alt: Color,
     pub text: Color,
     pub muted: Color,
     pub border: Color,
@@ -58,6 +60,7 @@ pub const LIGHT: Theme = Theme {
     name: ThemeName::Light,
     bg: Color::Rgb(0xF0, 0xF0, 0xF0),
     surface: Color::Rgb(0xFF, 0xFF, 0xFF),
+    surface_alt: Color::Rgb(0xF7, 0xF7, 0xF7),
     text: Color::Rgb(0x00, 0x00, 0x00),
     muted: Color::Rgb(0x60, 0x5E, 0x5C),
     border: Color::Rgb(0xCC, 0xCC, 0xCC),
@@ -72,8 +75,8 @@ pub const LIGHT: Theme = Theme {
         Color::Rgb(0xFF, 0xF4, 0xC4),
         Color::Rgb(0xFF, 0xE9, 0xA8),
         Color::Rgb(0xFD, 0xD8, 0x7F),
-        Color::Rgb(0xF9, 0xC2, 0x5B),
-        Color::Rgb(0xF5, 0xA4, 0x3F),
+        Color::Rgb(0xF9, 0xB9, 0x6B),
+        Color::Rgb(0xF1, 0x9A, 0x8F),
     ],
     ascii: false,
     coarse: false,
@@ -83,6 +86,7 @@ pub const DARK: Theme = Theme {
     name: ThemeName::Dark,
     bg: Color::Rgb(0x20, 0x20, 0x20),
     surface: Color::Rgb(0x27, 0x27, 0x27),
+    surface_alt: Color::Rgb(0x2C, 0x2C, 0x2C),
     text: Color::Rgb(0xFF, 0xFF, 0xFF),
     muted: Color::Rgb(0xA0, 0xA0, 0xA0),
     border: Color::Rgb(0x3A, 0x3A, 0x3A),
@@ -97,15 +101,15 @@ pub const DARK: Theme = Theme {
         Color::Rgb(0x3A, 0x33, 0x22),
         Color::Rgb(0x4A, 0x3D, 0x20),
         Color::Rgb(0x5A, 0x44, 0x1C),
-        Color::Rgb(0x6A, 0x4A, 0x18),
-        Color::Rgb(0x7A, 0x4E, 0x14),
+        Color::Rgb(0x6B, 0x3A, 0x1E),
+        Color::Rgb(0x74, 0x28, 0x1F),
     ],
     ascii: false,
     coarse: false,
 };
 
 /// Percent of the system total at which each heat step starts.
-pub const HEAT_STEPS: [f32; 5] = [1.0, 5.0, 15.0, 30.0, 50.0];
+pub const HEAT_STEPS: [f32; 5] = [1.0, 3.0, 8.0, 20.0, 40.0];
 
 /// Characters that differ between unicode and ASCII modes.
 #[derive(Debug, Clone, Copy)]
@@ -217,6 +221,29 @@ impl Theme {
         Style::default().fg(self.accent).bg(self.bg)
     }
 
+    /// Background for a body row: selection wins, otherwise alternate.
+    pub fn row_style(&self, selected: bool, index: usize) -> Style {
+        if selected {
+            return self.selected_style();
+        }
+        let bg = if index.is_multiple_of(2) {
+            self.surface
+        } else {
+            self.surface_alt
+        };
+        Style::default().fg(self.text).bg(bg)
+    }
+
+    pub fn tone_color(&self, tone: crate::model::Tone) -> Color {
+        match tone {
+            crate::model::Tone::Normal => self.text,
+            crate::model::Tone::Good => self.good,
+            crate::model::Tone::Muted => self.muted,
+            crate::model::Tone::Warn => self.warn,
+            crate::model::Tone::Danger => self.bad,
+        }
+    }
+
     pub fn selected_style(&self) -> Style {
         Style::default()
             .fg(self.text)
@@ -235,7 +262,7 @@ impl Theme {
     /// below the first step. 16 colour mode keeps a single step at 15 percent.
     pub fn heat_for(&self, share: f32) -> Option<Color> {
         if self.coarse {
-            return (share >= 15.0).then_some(self.heat[4]);
+            return (share >= 20.0).then_some(self.heat[4]);
         }
         HEAT_STEPS
             .iter()
@@ -406,8 +433,9 @@ pub fn indexed_rgb(color: Color) -> (u8, u8, u8) {
 /// else takes the nearest named colour.
 fn ansi16(color: Color, theme: &Theme) -> Color {
     let light = theme.name == ThemeName::Light;
-    let roles: [(Color, Color, Color); 13] = [
+    let roles: [(Color, Color, Color); 14] = [
         (theme.heat[4], Color::Yellow, Color::Red),
+        (theme.surface_alt, Color::White, Color::Black),
         (theme.selection, Color::Cyan, Color::Blue),
         (theme.text, Color::Black, Color::White),
         (theme.bg, Color::White, Color::Black),
@@ -479,6 +507,11 @@ mod tests {
                 theme.name
             );
             assert!(
+                contrast(theme.text, theme.surface_alt) >= 4.5,
+                "{:?} text on surface_alt",
+                theme.name
+            );
+            assert!(
                 contrast(theme.muted, theme.bg) >= 4.5,
                 "{:?} muted on bg is {}",
                 theme.name,
@@ -520,15 +553,39 @@ mod tests {
         let mut theme = LIGHT;
         assert_eq!(theme.heat_for(0.9), None);
         assert_eq!(theme.heat_for(1.0), Some(theme.heat[0]));
-        assert_eq!(theme.heat_for(4.9), Some(theme.heat[0]));
-        assert_eq!(theme.heat_for(5.0), Some(theme.heat[1]));
-        assert_eq!(theme.heat_for(15.0), Some(theme.heat[2]));
-        assert_eq!(theme.heat_for(30.0), Some(theme.heat[3]));
-        assert_eq!(theme.heat_for(50.0), Some(theme.heat[4]));
+        assert_eq!(theme.heat_for(2.9), Some(theme.heat[0]));
+        assert_eq!(theme.heat_for(3.0), Some(theme.heat[1]));
+        assert_eq!(theme.heat_for(7.9), Some(theme.heat[1]));
+        assert_eq!(theme.heat_for(8.0), Some(theme.heat[2]));
+        assert_eq!(theme.heat_for(20.0), Some(theme.heat[3]));
+        assert_eq!(theme.heat_for(40.0), Some(theme.heat[4]));
         assert_eq!(theme.heat_for(100.0), Some(theme.heat[4]));
         theme.coarse = true;
-        assert_eq!(theme.heat_for(14.9), None);
-        assert_eq!(theme.heat_for(15.0), Some(theme.heat[4]));
+        assert_eq!(theme.heat_for(19.9), None);
+        assert_eq!(theme.heat_for(20.0), Some(theme.heat[4]));
+    }
+
+    #[test]
+    fn stripes_collapse_at_sixteen_colours() {
+        for theme in [LIGHT, DARK] {
+            assert_eq!(
+                ColorDepth::Ansi16.map(theme.surface_alt, &theme),
+                ColorDepth::Ansi16.map(theme.surface, &theme),
+                "{:?}",
+                theme.name
+            );
+        }
+    }
+
+    #[test]
+    fn rows_alternate_and_selection_wins() {
+        for theme in [LIGHT, DARK] {
+            assert_eq!(theme.row_style(false, 0).bg, Some(theme.surface));
+            assert_eq!(theme.row_style(false, 1).bg, Some(theme.surface_alt));
+            assert_eq!(theme.row_style(false, 2).bg, Some(theme.surface));
+            assert_eq!(theme.row_style(true, 1).bg, Some(theme.selection));
+            assert_ne!(theme.surface, theme.surface_alt);
+        }
     }
 
     #[test]
@@ -584,6 +641,7 @@ mod tests {
                     ("text/surface", theme.text, theme.surface),
                     ("muted/bg", theme.muted, theme.bg),
                     ("text/selection", theme.text, theme.selection),
+                    ("text/surface_alt", theme.text, theme.surface_alt),
                 ] {
                     let ratio = contrast(m(fg), m(bg));
                     assert!(ratio >= 4.5, "{:?} {depth:?} {name} is {ratio}", theme.name);
