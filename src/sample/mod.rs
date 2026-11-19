@@ -349,6 +349,8 @@ impl Inner {
         self.sys
             .processes()
             .iter()
+            // Linux lists every thread as a process sharing its parent's memory.
+            .filter(|(_, process)| process.thread_kind().is_none())
             .map(|(pid, process)| {
                 let uid = process.user_id().map(|id| **id);
                 let exe = process.exe().map(|path| path.to_string_lossy().to_string());

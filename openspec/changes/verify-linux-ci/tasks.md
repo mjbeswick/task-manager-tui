@@ -9,6 +9,8 @@
 
 - [x] 2.1 Build and test on the Linux server at 192.168.0.55, then render every tab with `--once`. Verify: `cargo test` passes there and every frame contains the tab strip.
 
+- [x] 2.2 Stop counting Linux threads as processes. Verify: on the server, `opencode` shows the same process count as `pgrep -c opencode`, and Users memory stays below physical memory.
+
 ## 3. First CI run
 
 - [ ] 3.1 Create a private GitHub repo and push main. Verify: `gh run list` shows a run for the pushed commit.
