@@ -26,6 +26,9 @@ fn main() -> Result<()> {
     if let Some(theme) = &cli.theme {
         loaded.theme = theme.clone();
     }
+    if let Some(style) = &cli.chart_style {
+        loaded.chart_style = style.clone();
+    }
     if let Some(interval) = &cli.interval {
         loaded.set_speed(interval);
     }

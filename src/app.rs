@@ -1454,6 +1454,16 @@ mod tests {
     }
 
     #[test]
+    fn a_saved_blocks_style_starts_blocks() {
+        let settings = Settings {
+            chart_style: "blocks".into(),
+            ..Settings::default()
+        };
+        let (app, _) = App::new(settings, false);
+        assert_eq!(app.chart_style, crate::model::ChartStyle::Blocks);
+    }
+
+    #[test]
     fn unknown_saved_theme_falls_back_with_a_notice() {
         let settings = Settings {
             theme: "solarized".into(),

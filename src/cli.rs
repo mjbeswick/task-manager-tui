@@ -14,9 +14,14 @@ pub struct Cli {
     #[arg(long, value_parser = parse_interval)]
     pub interval: Option<String>,
 
-    /// Colour theme: light, dark, nord, gruvbox, phosphor, or amber.
+    /// Colour theme: light, dark, nord, gruvbox, phosphor, amber, tokyo-night,
+    /// catppuccin, solarized-light, or rose-pine.
     #[arg(long, value_parser = parse_theme)]
     pub theme: Option<String>,
+
+    /// Chart style: filled, line, dots, or blocks.
+    #[arg(long = "chart-style", value_parser = parse_chart_style)]
+    pub chart_style: Option<String>,
 
     /// Use ASCII glyphs instead of box drawing and block characters.
     #[arg(long)]
@@ -57,6 +62,22 @@ fn parse_interval(value: &str) -> Result<String, String> {
         other => Err(format!(
             "unknown interval '{other}'; try high, normal, low, or paused"
         )),
+    }
+}
+
+fn parse_chart_style(value: &str) -> Result<String, String> {
+    match crate::model::ChartStyle::parse(value) {
+        Some(style) => Ok(style.key().to_string()),
+        None => {
+            let keys: Vec<&str> = crate::model::ChartStyle::ALL
+                .iter()
+                .map(|style| style.key())
+                .collect();
+            Err(format!(
+                "unknown chart style '{value}'; try {}",
+                keys.join(", ")
+            ))
+        }
     }
 }
 
@@ -104,6 +125,8 @@ mod tests {
             "low",
             "--theme",
             "dark",
+            "--chart-style",
+            "blocks",
             "--ascii",
             "--tab",
             "services",
@@ -112,6 +135,7 @@ mod tests {
         .unwrap();
         assert_eq!(cli.interval.as_deref(), Some("low"));
         assert_eq!(cli.theme.as_deref(), Some("dark"));
+        assert_eq!(cli.chart_style.as_deref(), Some("blocks"));
         assert!(cli.ascii);
         assert_eq!(cli.tab, Some(Tab::Services));
         assert!(cli.once);
@@ -122,6 +146,9 @@ mod tests {
         assert!(Cli::try_parse_from(["taskmgr", "--tab", "nope"]).is_err());
         assert!(Cli::try_parse_from(["taskmgr", "--interval", "fast"]).is_err());
         assert!(Cli::try_parse_from(["taskmgr", "--theme", "purple"]).is_err());
+        assert!(Cli::try_parse_from(["taskmgr", "--chart-style", "wiggle"]).is_err());
+        let blocks = Cli::try_parse_from(["taskmgr", "--chart-style", "BLOCKS"]).unwrap();
+        assert_eq!(blocks.chart_style.as_deref(), Some("blocks"));
         let nord = Cli::try_parse_from(["taskmgr", "--theme", "NORD"]).unwrap();
         assert_eq!(nord.theme.as_deref(), Some("nord"));
         assert!(Cli::try_parse_from(["taskmgr", "--color", "8"]).is_err());

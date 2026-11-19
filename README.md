@@ -42,6 +42,7 @@ taskmgr
 |---|---|
 | `--tab <name>` | Open `processes`, `performance`, `app-history`, `startup`, `users`, `details`, or `services` |
 | `--theme <name>` | `light`, `dark`, `nord`, `gruvbox`, `phosphor`, `amber`, `tokyo-night`, `catppuccin`, `solarized-light`, or `rose-pine` for this run |
+| `--chart-style <name>` | `filled`, `line`, `dots`, or `blocks` for this run |
 | `--interval <speed>` | `high` (0.5 s), `normal` (1 s), `low` (2 s), `paused` |
 | `--ascii` | ASCII glyphs instead of box drawing and blocks |
 | `--color <depth>` | `auto`, `truecolor`, `256`, or `16`. Auto reads `COLORTERM` and `TERM` |
