@@ -16,17 +16,17 @@ Name                                                                  Status    
 ▾ System processes (2)                                                                                                  
   ▸ WindowServer (1)                                                           4.8%   1.2 GB  15.0 KB/s                 
   ▸ launchd (1)                                                                0.2%  12.0 MB  15.0 KB/s                 
-                            ┌─ Properties ─────────────────────────────────────────────────┐                            
-                            │                                                              │                            
-                            │  Name: homebrew.mxcl.colima                                  │                            
-                            │  Command: /opt/homebrew/opt/colima/bin/colima start --foregr │                            
-                            │  Owner: michael                                              │                            
-                            │  Source: /Users/michael/Library/LaunchAgents/homebrew.mxcl.c │                            
-                            │  Status: Stopped                                             │                            
-                            │  Startup impact: Not measured                                │                            
-                            │  [Esc] Close                                                 │                            
-                            │                                                              │                            
-                            └──────────────────────────────────────────────────────────────┘                            
+                        ┌─ Properties ─────────────────────────────────────────────────────────┐                        
+                        │                                                                      │                        
+                        │  Name: homebrew.mxcl.colima                                          │                        
+                        │  Command: /opt/homebrew/opt/colima/bin/colima start --foreground     │                        
+                        │  Owner: michael                                                      │                        
+                        │  Source: /Users/michael/Library/LaunchAgents/homebrew.mxcl.colima.pl │                        
+                        │  Status: Stopped                                                     │                        
+                        │  Startup impact: Not measured                                        │                        
+                        │  [Esc] Close                                                         │                        
+                        │                                                                      │                        
+                        └──────────────────────────────────────────────────────────────────────┘                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

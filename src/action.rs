@@ -3,7 +3,7 @@
 
 use crate::app::{App, Dialog, Effect, MENUS, MenuState, PendingAction, Tab};
 use crate::input::Action;
-use crate::model::{Kind, ProcKey, ProcRow, ProcSel, Status};
+use crate::model::{Kind, ProcKey, ProcRow, ProcSel, Signal, Status};
 use crate::platform::ServiceAction;
 use crate::sample::group::{SortDir, SortKey};
 
@@ -150,6 +150,7 @@ impl App {
             }
             Action::Inspect => self.inspect(),
             Action::SetPriority => self.open_priority_dialog(),
+            Action::OpenSignal => self.open_signal_dialog(),
             Action::SetAffinity => {
                 self.notice("Set affinity is not supported on Linux or macOS.");
             }
@@ -188,7 +189,11 @@ impl App {
             | Action::Confirm
             | Action::RunSubmit
             | Action::RunChar(_)
-            | Action::RunBackspace => {}
+            | Action::RunBackspace
+            | Action::ToggleSignalTree
+            | Action::PriorityChar(_)
+            | Action::PriorityBackspace
+            | Action::PriorityStep(_) => {}
         }
         effects
     }
@@ -223,9 +228,9 @@ impl App {
             Target::FewerDetails => self.dispatch(Action::ToggleDetails),
             Target::DialogConfirm => self.dispatch(Action::Confirm),
             Target::DialogCancel | Target::DialogClose => self.dispatch(Action::Cancel),
-            Target::DialogPriority(index) => {
-                if let Some(Dialog::Priority { selected, .. }) = &mut self.dialog {
-                    *selected = index;
+            Target::DialogSignal(index) => {
+                if let Some(Dialog::Signal { selected, .. }) = &mut self.dialog {
+                    *selected = index.min(Signal::ALL.len() - 1);
                 }
                 Vec::new()
             }
@@ -387,14 +392,63 @@ impl App {
 
     fn open_priority_dialog(&mut self) {
         let Some(row) = self.selected_process() else {
-            self.notice("Select a process on the Details tab first.");
+            self.notice("Select a process row first.");
             return;
         };
         self.dialog = Some(Dialog::Priority {
             key: row.key,
             name: row.name,
-            selected: row.priority.level_index(),
+            input: row.priority.nice.to_string(),
+            editing: false,
+            error: false,
         });
+    }
+
+    fn open_signal_dialog(&mut self) {
+        let Some(row) = self.selected_process() else {
+            self.notice("Select a process row first.");
+            return;
+        };
+        self.dialog = Some(Dialog::Signal {
+            key: row.key,
+            name: row.name,
+            pid: row.key.pid,
+            selected: 0,
+            tree: false,
+        });
+    }
+
+    fn submit_signal(&mut self, key: ProcKey, signal: Signal, tree: bool) -> Vec<Effect> {
+        let mut effects = Vec::new();
+        let row = self.snapshot.process(key);
+        let needs_confirm = signal.requires_confirm()
+            || row.is_some_and(|row| {
+                row.kind == Kind::System || row.uid != Some(crate::platform::current_uid())
+            });
+        if needs_confirm {
+            let name = row
+                .map(|r| r.name.clone())
+                .unwrap_or_else(|| format!("PID {}", key.pid));
+            let tree_note = if tree { " and its process tree" } else { "" };
+            self.dialog = Some(Dialog::Confirm {
+                title: format!("Send SIG{}", signal.name()),
+                message: format!(
+                    "Send SIG{} to {name} (PID {}){tree_note}? {}",
+                    signal.name(),
+                    key.pid,
+                    if signal == Signal::Stop {
+                        "Tracking continues until SIGCONT."
+                    } else {
+                        "Unsaved work may be lost."
+                    }
+                ),
+                confirm_label: format!("Send SIG{}", signal.name()),
+                action: PendingAction::Signal(key, signal, tree),
+            });
+        } else {
+            effects.push(Effect::Signal { key, signal, tree });
+        }
+        effects
     }
 
     fn inspect(&mut self) {
@@ -492,7 +546,7 @@ impl App {
         } else {
             effects.push(Effect::Signal {
                 key,
-                force: false,
+                signal: Signal::Term,
                 tree: false,
             });
         }
@@ -530,14 +584,67 @@ impl App {
             Action::MoveUp | Action::MoveDown => {
                 let delta = if action == Action::MoveUp { -1 } else { 1 };
                 match &mut self.dialog {
-                    Some(Dialog::Priority { selected, .. }) => {
-                        let count = crate::model::Priority::LEVELS.len() as isize;
+                    Some(Dialog::Signal { selected, .. }) => {
+                        let count = Signal::ALL.len() as isize;
                         *selected = (*selected as isize + delta).rem_euclid(count) as usize;
                     }
                     Some(Dialog::Appearance { selected }) => {
                         *selected = (*selected as isize + delta).rem_euclid(3) as usize;
                     }
                     _ => {}
+                }
+            }
+            Action::ToggleSignalTree => {
+                if let Some(Dialog::Signal { tree, .. }) = &mut self.dialog {
+                    *tree = !*tree;
+                }
+            }
+            Action::PriorityStep(delta) => {
+                if let Some(Dialog::Priority {
+                    input,
+                    editing,
+                    error,
+                    ..
+                }) = &mut self.dialog
+                {
+                    let current = input.trim().parse::<i32>().unwrap_or(0);
+                    *input = crate::model::Priority::clamp(current + delta).to_string();
+                    *editing = false;
+                    *error = false;
+                }
+            }
+            Action::PriorityChar(ch) => {
+                if let Some(Dialog::Priority {
+                    input,
+                    editing,
+                    error,
+                    ..
+                }) = &mut self.dialog
+                {
+                    if !*editing {
+                        input.clear();
+                        *editing = true;
+                    }
+                    if ch != '-' || input.is_empty() {
+                        input.push(ch);
+                    }
+                    *error = false;
+                }
+            }
+            Action::PriorityBackspace => {
+                if let Some(Dialog::Priority {
+                    input,
+                    editing,
+                    error,
+                    ..
+                }) = &mut self.dialog
+                {
+                    if !*editing {
+                        input.clear();
+                        *editing = true;
+                    }
+                    input.pop();
+                    *error = false;
                 }
             }
             Action::Confirm | Action::CycleBack
@@ -585,22 +692,45 @@ impl App {
                 return effects;
             }
             Action::Confirm => {
-                if let Some(Dialog::Priority { key, selected, .. }) = &self.dialog {
-                    let (_, nice) = crate::model::Priority::LEVELS[*selected];
-                    effects.push(Effect::Priority { key: *key, nice });
+                if let Some(Dialog::Signal {
+                    key,
+                    selected,
+                    tree,
+                    ..
+                }) = &self.dialog
+                {
+                    let signal = Signal::ALL[(*selected).min(Signal::ALL.len() - 1)];
+                    let key = *key;
+                    let tree = *tree;
                     self.dialog = None;
+                    return self.submit_signal(key, signal, tree);
+                }
+                if let Some(Dialog::Priority { key, input, .. }) = &self.dialog {
+                    let key = *key;
+                    match input.trim().parse::<i32>() {
+                        Ok(nice) => {
+                            let nice = crate::model::Priority::clamp(nice);
+                            self.dialog = None;
+                            effects.push(Effect::Priority { key, nice });
+                        }
+                        Err(_) => {
+                            if let Some(Dialog::Priority { error, .. }) = &mut self.dialog {
+                                *error = true;
+                            }
+                        }
+                    }
                     return effects;
                 }
                 if let Some(Dialog::Confirm { action, .. }) = self.dialog.take() {
                     match action {
                         PendingAction::EndTask(key) => effects.push(Effect::Signal {
                             key,
-                            force: false,
+                            signal: Signal::Term,
                             tree: false,
                         }),
                         PendingAction::EndTree(key) => effects.push(Effect::Signal {
                             key,
-                            force: true,
+                            signal: Signal::Kill,
                             tree: true,
                         }),
                         PendingAction::ClearHistory => effects.push(Effect::ClearHistory),
@@ -612,6 +742,9 @@ impl App {
                         }
                         PendingAction::Priority(key, nice) => {
                             effects.push(Effect::Priority { key, nice })
+                        }
+                        PendingAction::Signal(key, signal, tree) => {
+                            effects.push(Effect::Signal { key, signal, tree })
                         }
                     }
                 }
@@ -867,7 +1000,7 @@ mod tests {
         assert!(app.dialog.is_none());
         assert!(matches!(
             effects.as_slice(),
-            [Effect::Signal { key, force: false, tree: false }] if *key == row.key
+            [Effect::Signal { key, signal: Signal::Term, tree: false }] if *key == row.key
         ));
     }
 
@@ -891,7 +1024,7 @@ mod tests {
         assert!(matches!(
             effects.as_slice(),
             [Effect::Signal {
-                force: false,
+                signal: Signal::Term,
                 tree: false,
                 ..
             }]
@@ -1029,9 +1162,7 @@ mod tests {
         assert!(app.dialog.is_none());
     }
 
-    #[test]
-    fn priority_dialog_sets_a_level() {
-        let mut app = app();
+    fn a_background_process(app: &mut App) -> ProcRow {
         app.tab = Tab::Details;
         let row = app
             .snapshot
@@ -1042,18 +1173,192 @@ mod tests {
             .clone();
         app.details.key = Some(row.key);
         app.sync_details_public();
+        row
+    }
+
+    #[test]
+    fn priority_dialog_starts_from_the_current_nice() {
+        let mut app = app();
+        let row = a_background_process(&mut app);
+        app.dispatch(Action::SetPriority);
+        assert!(matches!(
+            &app.dialog,
+            Some(Dialog::Priority { input, .. }) if input == &row.priority.nice.to_string()
+        ));
+    }
+
+    #[test]
+    fn priority_steps_and_types_a_value() {
+        let mut app = app();
+        let row = a_background_process(&mut app);
+        app.dispatch(Action::SetPriority);
+        app.dispatch(Action::PriorityStep(5));
+        assert!(matches!(
+            &app.dialog,
+            Some(Dialog::Priority { input, .. }) if input == "5"
+        ));
+        app.dispatch(Action::PriorityChar('7'));
+        assert!(matches!(
+            &app.dialog,
+            Some(Dialog::Priority { input, editing, .. }) if input == "7" && *editing
+        ));
+        let effects = app.dispatch(Action::Confirm);
+        assert!(matches!(
+            effects.as_slice(),
+            [Effect::Priority { key, nice }] if *key == row.key && *nice == 7
+        ));
+        assert!(app.dialog.is_none());
+    }
+
+    #[test]
+    fn priority_clamps_out_of_range_values() {
+        let mut app = app();
+        a_background_process(&mut app);
+        app.dispatch(Action::SetPriority);
+        app.dispatch(Action::PriorityChar('4'));
+        app.dispatch(Action::PriorityChar('0'));
+        let effects = app.dispatch(Action::Confirm);
+        assert!(matches!(
+            effects.as_slice(),
+            [Effect::Priority { nice: 19, .. }]
+        ));
+        app.dispatch(Action::SetPriority);
+        app.dispatch(Action::PriorityChar('-'));
+        app.dispatch(Action::PriorityChar('9'));
+        let effects = app.dispatch(Action::Confirm);
+        assert!(matches!(
+            effects.as_slice(),
+            [Effect::Priority { nice: -9, .. }]
+        ));
+    }
+
+    #[test]
+    fn priority_refuses_an_empty_field() {
+        let mut app = app();
+        a_background_process(&mut app);
+        app.dispatch(Action::SetPriority);
+        app.dispatch(Action::PriorityBackspace);
+        let effects = app.dispatch(Action::Confirm);
+        assert!(effects.is_empty());
+        assert!(matches!(
+            app.dialog,
+            Some(Dialog::Priority { error: true, .. })
+        ));
+    }
+
+    #[test]
+    fn priority_opens_from_the_processes_tab() {
+        let mut app = app();
+        app.tab = Tab::Processes;
+        let index = app
+            .process
+            .items
+            .iter()
+            .position(|item| matches!(item, crate::sample::group::ProcItem::Group { .. }))
+            .unwrap();
+        app.select_row(index);
         app.dispatch(Action::SetPriority);
         assert!(matches!(app.dialog, Some(Dialog::Priority { .. })));
+        assert!(!app.notices.iter().any(|n| n.contains("Details tab")));
+    }
+
+    fn owned_background(app: &mut App) -> ProcRow {
+        let uid = crate::platform::current_uid();
+        let mut snapshot = crate::model::Snapshot::fixture();
+        for p in &mut snapshot.processes {
+            p.uid = Some(uid);
+        }
+        app.apply_snapshot(snapshot);
+        a_background_process(app)
+    }
+
+    #[test]
+    fn signal_dialog_sends_term_for_an_owned_process() {
+        let mut app = app();
+        let row = owned_background(&mut app);
+        app.dispatch(Action::OpenSignal);
+        assert!(matches!(app.dialog, Some(Dialog::Signal { .. })));
+        let effects = app.dispatch(Action::Confirm);
+        assert!(matches!(
+            effects.as_slice(),
+            [Effect::Signal { key, signal: Signal::Term, tree: false }] if *key == row.key
+        ));
+        assert!(app.dialog.is_none());
+    }
+
+    #[test]
+    fn signal_dialog_confirms_kill() {
+        let mut app = app();
+        owned_background(&mut app);
+        app.dispatch(Action::OpenSignal);
         app.dispatch(Action::MoveDown);
         let effects = app.dispatch(Action::Confirm);
-        match effects.as_slice() {
-            [Effect::Priority { key, nice }] => {
-                assert_eq!(*key, row.key);
-                assert_eq!(*nice, 5, "Below normal");
-            }
-            other => panic!("unexpected effects: {other:?}"),
-        }
+        assert!(effects.is_empty());
+        assert!(matches!(app.dialog, Some(Dialog::Confirm { .. })));
+        let effects = app.dispatch(Action::Confirm);
+        assert!(matches!(
+            effects.as_slice(),
+            [Effect::Signal {
+                signal: Signal::Kill,
+                tree: false,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn signal_tree_toggle_reaches_the_effect() {
+        let mut app = app();
+        owned_background(&mut app);
+        app.dispatch(Action::OpenSignal);
+        app.dispatch(Action::ToggleSignalTree);
+        let effects = app.dispatch(Action::Confirm);
+        assert!(matches!(
+            effects.as_slice(),
+            [Effect::Signal {
+                signal: Signal::Term,
+                tree: true,
+                ..
+            }]
+        ));
+    }
+
+    #[test]
+    fn signal_confirms_for_a_system_process() {
+        let mut app = app();
+        app.tab = Tab::Details;
+        let row = app
+            .snapshot
+            .processes
+            .iter()
+            .find(|p| p.kind == Kind::System)
+            .unwrap()
+            .clone();
+        app.details.key = Some(row.key);
+        app.sync_details_public();
+        app.dispatch(Action::OpenSignal);
+        let effects = app.dispatch(Action::Confirm);
+        assert!(effects.is_empty());
+        assert!(matches!(app.dialog, Some(Dialog::Confirm { .. })));
+    }
+
+    #[test]
+    fn signal_on_a_kind_heading_only_notices() {
+        let mut app = app();
+        app.tab = Tab::Processes;
+        app.collapse_all();
+        assert!(matches!(app.process.selected_key(), Some(ProcSel::Kind(_))));
+        let effects = app.dispatch(Action::OpenSignal);
+        assert!(effects.is_empty());
         assert!(app.dialog.is_none());
+        assert!(app.notices.last().unwrap().contains("Select a process"));
+    }
+
+    #[test]
+    fn signal_for_every_descendant_is_one_effect() {
+        let processes = crate::model::Snapshot::fixture().processes;
+        let found = descendants(&processes, 1);
+        assert!(found.iter().any(|key| key.pid == 4242));
     }
 
     #[test]

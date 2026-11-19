@@ -72,10 +72,11 @@ If graph blocks show as boxes or question marks, your font lacks them. Use
 | `/` | Filter the list. `Enter` keeps the filter, `Esc` clears it |
 | `Delete`, `e` | End task |
 | `E` | End process tree |
+| `K` | Send a signal: TERM, KILL, INT, HUP, STOP, CONT, optionally to the tree |
 | `f` | Fewer details |
 | `t` | Light or dark theme |
 | `+` `-` | Update speed |
-| `p` | Set process priority |
+| `p` | Set process priority as a nice value from -20 to 19 |
 | `a` | Set affinity, unavailable on both platforms |
 | `?` | Keyboard help |
 | `Space` | Enable or disable a startup entry, expand a process group |

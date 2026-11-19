@@ -181,8 +181,8 @@ fn apply_effects(app: &mut App, sampler: &mut Sampler, effects: Vec<Effect>) -> 
                 sampler.clear_history();
                 app.notice("Usage history cleared.");
             }
-            Effect::Signal { key, force, tree } => {
-                signal_process(app, key, force, tree);
+            Effect::Signal { key, signal, tree } => {
+                signal_process(app, key, signal, tree);
             }
             Effect::Service { name, action } => {
                 let Some(row) = app
@@ -277,10 +277,15 @@ fn apply_effects(app: &mut App, sampler: &mut Sampler, effects: Vec<Effect>) -> 
     Ok(quit)
 }
 
-fn signal_process(app: &mut App, key: task_manager_tui::model::ProcKey, force: bool, tree: bool) {
+fn signal_process(
+    app: &mut App,
+    key: task_manager_tui::model::ProcKey,
+    signal: task_manager_tui::model::Signal,
+    tree: bool,
+) {
     let Some(row) = app.snapshot.process(key) else {
         app.dialog = Some(Dialog::Error {
-            title: "Could not end task".to_string(),
+            title: format!("Could not send SIG{}", signal.name()),
             message: "The process no longer exists.".to_string(),
         });
         return;
@@ -296,17 +301,14 @@ fn signal_process(app: &mut App, key: task_manager_tui::model::ProcKey, force: b
 
     let mut failure = None;
     for pid in targets {
-        if let Err(error) = platform::signal(pid, force) {
+        if let Err(error) = platform::signal(pid, signal) {
             failure = Some((pid, error));
             break;
         }
     }
 
     match failure {
-        None => app.notice(format!(
-            "Ending {name}{}.",
-            if force { " (force)" } else { "" }
-        )),
+        None => app.notice(format!("Sent SIG{} to {name}.", signal.name())),
         Some((pid, error)) => {
             let message = match error.raw_os_error() {
                 Some(libc::EPERM) => format!(
@@ -316,7 +318,7 @@ fn signal_process(app: &mut App, key: task_manager_tui::model::ProcKey, force: b
                 _ => format!("Signal to PID {pid} failed: {error}"),
             };
             app.dialog = Some(Dialog::Error {
-                title: "Could not end task".to_string(),
+                title: format!("Could not send SIG{}", signal.name()),
                 message,
             });
         }

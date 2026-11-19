@@ -22,10 +22,11 @@ const HELP: &[(&str, &str)] = &[
     ("<, >, r", "Sort column, reverse"),
     ("/", "Filter"),
     ("Delete, e, E", "End task, end tree"),
+    ("K", "Send a signal"),
     ("f", "Fewer details"),
     ("t", "Light or dark theme"),
     ("+, -", "Update speed"),
-    ("p", "Set process priority"),
+    ("p", "Set priority by nice value"),
     ("a", "Set affinity (unavailable)"),
     ("Space", "Toggle a startup entry"),
     ("s, S, R", "Start, stop, restart a service"),
@@ -35,7 +36,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
     let theme = app.theme();
     dim(buf, area, theme);
 
-    let max_width = area.width.saturating_sub(4).min(64);
+    let max_width = area.width.saturating_sub(4).min(72);
     let (content_width, content_height) = match dialog {
         Dialog::Confirm { message, .. } => {
             let lines = wrap(message, max_width.saturating_sub(6) as usize);
@@ -45,9 +46,10 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
             let lines = wrap(message, max_width.saturating_sub(6) as usize);
             (max_width, lines.len() as u16 + 5)
         }
-        Dialog::Help => (max_width.min(56), HELP.len() as u16 + 4),
+        Dialog::Help => (max_width.min(72), HELP.len() as u16 + 4),
         Dialog::Run { .. } => (max_width.min(52), 9),
-        Dialog::Priority { .. } => (max_width.min(40), 12),
+        Dialog::Priority { .. } => (max_width.min(52), 6),
+        Dialog::Signal { .. } => (max_width.min(52), 10),
         Dialog::Appearance { .. } => (max_width.min(46), 9),
         Dialog::Properties { lines, .. } => (
             max_width,
@@ -147,15 +149,15 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
                     buf,
                     list.x + 2,
                     row,
-                    &format!("{:<20}", key),
+                    &format!("{:<24}", key),
                     Style::default().fg(theme.accent).bg(theme.surface),
                     list,
                 );
                 put(
                     buf,
-                    list.x + 22,
+                    list.x + 26,
                     row,
-                    &truncate_line(meaning, list.width.saturating_sub(23) as usize),
+                    &truncate_line(meaning, list.width.saturating_sub(27) as usize),
                     Style::default().fg(theme.text).bg(theme.surface),
                     list,
                 );
@@ -258,7 +260,11 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
             hits.add(Rect::new(inner.x + 2, y, 18, 1), Target::DialogConfirm);
             hits.add(Rect::new(inner.x + 22, y, 11, 1), Target::DialogCancel);
         }
-        Dialog::Priority { name, selected, .. } => {
+        Dialog::Priority {
+            name, input, error, ..
+        } => {
+            let muted = Style::default().fg(theme.muted).bg(theme.surface);
+            let text = Style::default().fg(theme.text).bg(theme.surface);
             put(
                 buf,
                 inner.x + 2,
@@ -267,12 +273,83 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
                     &format!("Priority for {name}"),
                     inner.width.saturating_sub(3) as usize,
                 ),
+                muted,
+                inner,
+            );
+            let nice = input.trim().parse::<i32>().ok();
+            let label = nice
+                .map(|nice| crate::model::Priority { nice }.label())
+                .unwrap_or("");
+            let field = format!("Nice: [{}]", input);
+            put(
+                buf,
+                inner.x + 2,
+                inner.y + 1,
+                &truncate_line(&field, inner.width.saturating_sub(3) as usize),
+                Style::default()
+                    .fg(theme.text)
+                    .bg(theme.bg)
+                    .add_modifier(Modifier::BOLD),
+                inner,
+            );
+            put(
+                buf,
+                (inner.x + 4 + field.chars().count() as u16).min(inner.x + inner.width - 1),
+                inner.y + 1,
+                label,
+                text,
+                inner,
+            );
+            let hint = if *error {
+                "Enter a value from -20 to 19."
+            } else {
+                "Range -20 to 19. Up/Down 1, PgUp/PgDn 5."
+            };
+            put(
+                buf,
+                inner.x + 2,
+                inner.y + 2,
+                &truncate_line(hint, inner.width.saturating_sub(3) as usize),
+                if *error {
+                    Style::default().fg(theme.bad).bg(theme.surface)
+                } else {
+                    muted
+                },
+                inner,
+            );
+            let y = inner.y + inner.height.saturating_sub(1);
+            put(
+                buf,
+                inner.x + 2,
+                y,
+                "[Enter] Set      [Esc] Cancel",
+                Style::default().fg(theme.accent).bg(theme.surface),
+                inner,
+            );
+            hits.add(Rect::new(inner.x + 2, y, 11, 1), Target::DialogConfirm);
+            hits.add(Rect::new(inner.x + 19, y, 12, 1), Target::DialogCancel);
+        }
+        Dialog::Signal {
+            name,
+            pid,
+            selected,
+            tree,
+            ..
+        } => {
+            put(
+                buf,
+                inner.x + 2,
+                inner.y,
+                &truncate_line(
+                    &format!("Signal for {name} (PID {pid})"),
+                    inner.width.saturating_sub(3) as usize,
+                ),
                 Style::default().fg(theme.muted).bg(theme.surface),
                 inner,
             );
-            for (index, (label, nice)) in crate::model::Priority::LEVELS.iter().enumerate() {
+            for (index, signal) in crate::model::Signal::ALL.iter().enumerate() {
                 let row = inner.y + 1 + index as u16;
-                if row >= inner.y + inner.height - 2 {
+                if row >= inner.y + inner.height - 1 {
                     break;
                 }
                 let active = index == *selected;
@@ -293,26 +370,36 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
                     buf,
                     inner.x + 2,
                     row,
-                    &format!("{label:<14} nice {nice}"),
+                    &format!(
+                        "{:<5}{:<12}{}",
+                        signal.name(),
+                        signal.label(),
+                        signal.number()
+                    ),
                     style,
                     inner,
                 );
                 hits.add(
                     Rect::new(inner.x + 1, row, inner.width.saturating_sub(2), 1),
-                    Target::DialogPriority(index),
+                    Target::DialogSignal(index),
                 );
             }
             let y = inner.y + inner.height.saturating_sub(1);
+            let footer = format!(
+                "[Enter] Send   [Space] Tree: {}   [Esc] Cancel",
+                if *tree { "on" } else { "off" }
+            );
             put(
                 buf,
                 inner.x + 2,
                 y,
-                "[Enter] Set      [Esc] Cancel",
+                &truncate_line(&footer, inner.width.saturating_sub(3) as usize),
                 Style::default().fg(theme.accent).bg(theme.surface),
                 inner,
             );
-            hits.add(Rect::new(inner.x + 2, y, 11, 1), Target::DialogConfirm);
-            hits.add(Rect::new(inner.x + 19, y, 12, 1), Target::DialogCancel);
+            hits.add(Rect::new(inner.x + 2, y, 13, 1), Target::DialogConfirm);
+            hits.add(Rect::new(inner.x + 17, y, 18, 1), Target::DialogConfirm);
+            hits.add(Rect::new(inner.x + 37, y, 12, 1), Target::DialogCancel);
         }
         Dialog::Properties { lines, .. } => {
             for (index, line) in lines.iter().enumerate() {

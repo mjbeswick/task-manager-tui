@@ -129,7 +129,9 @@ fn golden_priority_dialog() {
     app.dialog = Some(Dialog::Priority {
         key: row.key,
         name: row.name,
-        selected: 2,
+        input: "-5".into(),
+        editing: false,
+        error: false,
     });
     insta::assert_snapshot!("dialog-priority-120x40", screen(&app, 120, 40));
 }

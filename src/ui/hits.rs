@@ -20,7 +20,7 @@ pub enum Target {
     FewerDetails,
     DialogConfirm,
     DialogCancel,
-    DialogPriority(usize),
+    DialogSignal(usize),
     AppearanceRow(usize),
     DialogClose,
     /// A sortable column header.

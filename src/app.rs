@@ -1,8 +1,8 @@
 //! Application state. View state only, plus the last snapshot.
 
 use crate::model::{
-    AppUsage, ChartColor, ChartStyle, ProcKey, ProcRow, ProcSel, ServiceRow, SessionRow, Snapshot,
-    StartupRow,
+    AppUsage, ChartColor, ChartStyle, ProcKey, ProcRow, ProcSel, ServiceRow, SessionRow, Signal,
+    Snapshot, StartupRow,
 };
 use crate::platform::ServiceAction;
 use crate::sample::group::{self, ProcItem, SortDir, SortKey};
@@ -335,6 +335,7 @@ pub enum PendingAction {
     Service(String, ServiceAction),
     Startup(String, bool),
     Priority(ProcKey, i32),
+    Signal(ProcKey, Signal, bool),
 }
 
 #[derive(Debug, Clone)]
@@ -356,7 +357,16 @@ pub enum Dialog {
     Priority {
         key: ProcKey,
         name: String,
+        input: String,
+        editing: bool,
+        error: bool,
+    },
+    Signal {
+        key: ProcKey,
+        name: String,
+        pid: u32,
         selected: usize,
+        tree: bool,
     },
     Appearance {
         selected: usize,
@@ -375,6 +385,7 @@ impl Dialog {
             Dialog::Help => "Keyboard shortcuts",
             Dialog::Run { .. } => "Run a new task",
             Dialog::Priority { .. } => "Set priority",
+            Dialog::Signal { .. } => "Send signal",
             Dialog::Appearance { .. } => "Appearance",
             Dialog::Properties { title, .. } => title,
         }
@@ -450,7 +461,7 @@ pub enum Effect {
     },
     Signal {
         key: ProcKey,
-        force: bool,
+        signal: Signal,
         tree: bool,
     },
     Service {

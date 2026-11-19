@@ -35,6 +35,11 @@ pub enum Action {
     FilterDone,
     EndTask,
     EndTree,
+    OpenSignal,
+    ToggleSignalTree,
+    PriorityChar(char),
+    PriorityBackspace,
+    PriorityStep(i32),
     ToggleStartup,
     ServiceStart,
     ServiceStop,
@@ -147,6 +152,7 @@ pub fn translate(app: &App, key: KeyEvent) -> Option<Action> {
         KeyCode::Right | KeyCode::Char('l') => Action::Expand,
         KeyCode::Delete | KeyCode::Char('e') => Action::EndTask,
         KeyCode::Char('E') => Action::EndTree,
+        KeyCode::Char('K') => Action::OpenSignal,
         KeyCode::Char('/') => Action::FilterStart,
         KeyCode::Char('<') | KeyCode::Char(',') => Action::SortPrevious,
         KeyCode::Char('>') | KeyCode::Char('.') => Action::SortNext,
@@ -197,10 +203,29 @@ fn translate_dialog(dialog: &Dialog, key: KeyEvent) -> Option<Action> {
             _ => None,
         },
         Dialog::Priority { .. } => match key.code {
-            KeyCode::Up => Some(Action::MoveUp),
-            KeyCode::Down => Some(Action::MoveDown),
+            KeyCode::Up => Some(Action::PriorityStep(1)),
+            KeyCode::Down => Some(Action::PriorityStep(-1)),
+            KeyCode::PageUp => Some(Action::PriorityStep(5)),
+            KeyCode::PageDown => Some(Action::PriorityStep(-5)),
             KeyCode::Enter => Some(Action::Confirm),
             KeyCode::Esc => Some(Action::Cancel),
+            KeyCode::Backspace => Some(Action::PriorityBackspace),
+            KeyCode::Char(ch)
+                if ch.is_ascii_digit()
+                    || (ch == '-'
+                        && !key.modifiers.contains(KeyModifiers::CONTROL)
+                        && !key.modifiers.contains(KeyModifiers::ALT)) =>
+            {
+                Some(Action::PriorityChar(ch))
+            }
+            _ => None,
+        },
+        Dialog::Signal { .. } => match key.code {
+            KeyCode::Up => Some(Action::MoveUp),
+            KeyCode::Down => Some(Action::MoveDown),
+            KeyCode::Char(' ') => Some(Action::ToggleSignalTree),
+            KeyCode::Enter => Some(Action::Confirm),
+            KeyCode::Esc | KeyCode::Char('q') => Some(Action::Cancel),
             _ => None,
         },
         Dialog::Run { .. } => match key.code {
@@ -407,6 +432,64 @@ mod tests {
         assert_eq!(translate(&app, key(KeyCode::Left)), Some(Action::CycleBack));
         assert_eq!(translate(&app, key(KeyCode::Right)), Some(Action::Confirm));
         assert_eq!(translate(&app, key(KeyCode::Esc)), Some(Action::Cancel));
+    }
+
+    #[test]
+    fn signal_dialog_keys() {
+        let mut app = app();
+        assert_eq!(
+            translate(&app, key(KeyCode::Char('K'))),
+            Some(Action::OpenSignal)
+        );
+        app.dialog = Some(Dialog::Signal {
+            key: crate::model::ProcKey::new(1, 1),
+            name: "node".into(),
+            pid: 1,
+            selected: 0,
+            tree: false,
+        });
+        assert_eq!(translate(&app, key(KeyCode::Up)), Some(Action::MoveUp));
+        assert_eq!(translate(&app, key(KeyCode::Down)), Some(Action::MoveDown));
+        assert_eq!(
+            translate(&app, key(KeyCode::Char(' '))),
+            Some(Action::ToggleSignalTree)
+        );
+        assert_eq!(translate(&app, key(KeyCode::Enter)), Some(Action::Confirm));
+        assert_eq!(translate(&app, key(KeyCode::Esc)), Some(Action::Cancel));
+    }
+
+    #[test]
+    fn priority_dialog_takes_digits_and_steps() {
+        let mut app = app();
+        app.dialog = Some(Dialog::Priority {
+            key: crate::model::ProcKey::new(1, 1),
+            name: "node".into(),
+            input: "0".into(),
+            editing: false,
+            error: false,
+        });
+        assert_eq!(
+            translate(&app, key(KeyCode::Char('7'))),
+            Some(Action::PriorityChar('7'))
+        );
+        assert_eq!(
+            translate(&app, key(KeyCode::Char('-'))),
+            Some(Action::PriorityChar('-'))
+        );
+        assert_eq!(
+            translate(&app, key(KeyCode::PageUp)),
+            Some(Action::PriorityStep(5))
+        );
+        assert_eq!(
+            translate(&app, key(KeyCode::PageDown)),
+            Some(Action::PriorityStep(-5))
+        );
+        assert_eq!(
+            translate(&app, key(KeyCode::Backspace)),
+            Some(Action::PriorityBackspace)
+        );
+        assert_eq!(translate(&app, key(KeyCode::Enter)), Some(Action::Confirm));
+        assert_eq!(translate(&app, key(KeyCode::Char('x'))), None);
     }
 
     #[test]

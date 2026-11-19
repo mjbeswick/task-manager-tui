@@ -16,18 +16,18 @@ launchd                                            1      Running     michael   
                                                                                                                         
                                                                                                                         
                                                                                                                         
-                                        ┌─ Set priority ───────────────────────┐                                        
-                                        │  Priority for node                   │                                        
-                                        │  High           nice -10             │                                        
-                                        │  Above normal   nice -5              │                                        
-                                        │  Normal         nice 0               │                                        
-                                        │  Below normal   nice 5               │                                        
-                                        │  Low            nice 10              │                                        
-                                        │                                      │                                        
-                                        │                                      │                                        
-                                        │                                      │                                        
-                                        │  [Enter] Set      [Esc] Cancel       │                                        
-                                        └──────────────────────────────────────┘                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                  ┌─ Set priority ───────────────────────────────────┐                                  
+                                  │  Priority for node                               │                                  
+                                  │  Nice: [-5]  Above normal                        │                                  
+                                  │  Range -20 to 19. Up/Down 1, PgUp/PgDn 5.        │                                  
+                                  │  [Enter] Set      [Esc] Cancel                   │                                  
+                                  └──────────────────────────────────────────────────┘                                  
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

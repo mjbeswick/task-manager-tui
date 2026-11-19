@@ -12,7 +12,7 @@ use linux as imp;
 #[cfg(target_os = "macos")]
 use macos as imp;
 
-use crate::model::{ServiceRow, SessionRow, SessionStatus, StartupRow};
+use crate::model::{ServiceRow, SessionRow, SessionStatus, Signal, StartupRow};
 use std::collections::HashMap;
 
 pub use proc::{CommandOutput, RealRunner, RecordingRunner, Runner};
@@ -62,12 +62,11 @@ pub fn set_startup(runner: &dyn Runner, row: &StartupRow, enabled: bool) -> Resu
     imp::set_startup(runner, row, enabled)
 }
 
-/// Send SIGTERM, or SIGKILL when `force` is set. Returns the operating system's
-/// error unchanged so the caller can explain a refusal.
-pub fn signal(pid: u32, force: bool) -> std::io::Result<()> {
-    let signal = if force { libc::SIGKILL } else { libc::SIGTERM };
+/// Send one POSIX signal. Returns the operating system's error unchanged so the
+/// caller can explain a refusal.
+pub fn signal(pid: u32, signal: Signal) -> std::io::Result<()> {
     // SAFETY: kill takes an integer pid and signal and cannot violate memory safety.
-    let result = unsafe { libc::kill(pid as libc::pid_t, signal) };
+    let result = unsafe { libc::kill(pid as libc::pid_t, signal.number()) };
     if result == 0 {
         Ok(())
     } else {
@@ -221,7 +220,7 @@ mod tests {
             .spawn()
             .expect("spawn sleep");
         let pid = child.id();
-        signal(pid, false).expect("signal delivered");
+        signal(pid, Signal::Term).expect("signal delivered");
         let mut child = child;
         let mut waited = None;
         for _ in 0..100 {
@@ -236,7 +235,7 @@ mod tests {
 
     #[test]
     fn signal_reports_a_missing_process() {
-        let error = signal(4_000_000, false).unwrap_err();
+        let error = signal(4_000_000, Signal::Term).unwrap_err();
         assert_eq!(error.raw_os_error(), Some(libc::ESRCH));
     }
 }

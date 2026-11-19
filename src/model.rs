@@ -278,6 +278,10 @@ pub struct Priority {
 }
 
 impl Priority {
+    /// The unix nice range accepted by `renice`.
+    pub const MIN: i32 = -20;
+    pub const MAX: i32 = 19;
+
     /// Windows 10 priority levels map onto the unix nice range.
     pub const LEVELS: [(&'static str, i32); 5] = [
         ("High", -10),
@@ -286,6 +290,11 @@ impl Priority {
         ("Below normal", 5),
         ("Low", 10),
     ];
+
+    /// Keep a typed value inside the range every target accepts.
+    pub fn clamp(nice: i32) -> i32 {
+        nice.clamp(Self::MIN, Self::MAX)
+    }
 
     pub fn level_index(self) -> usize {
         let mut best = 0;
@@ -305,6 +314,67 @@ impl Priority {
             }
         }
         best.0
+    }
+}
+
+/// POSIX signals the interface can send. The numbers are the same on Linux and
+/// macOS, the only targets this crate builds for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Signal {
+    Term,
+    Kill,
+    Int,
+    Hup,
+    Stop,
+    Cont,
+}
+
+impl Signal {
+    pub const ALL: [Signal; 6] = [
+        Signal::Term,
+        Signal::Kill,
+        Signal::Int,
+        Signal::Hup,
+        Signal::Stop,
+        Signal::Cont,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Signal::Term => "TERM",
+            Signal::Kill => "KILL",
+            Signal::Int => "INT",
+            Signal::Hup => "HUP",
+            Signal::Stop => "STOP",
+            Signal::Cont => "CONT",
+        }
+    }
+
+    pub fn number(self) -> i32 {
+        match self {
+            Signal::Hup => 1,
+            Signal::Int => 2,
+            Signal::Kill => 9,
+            Signal::Term => 15,
+            Signal::Cont => 18,
+            Signal::Stop => 19,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Signal::Term => "Terminate",
+            Signal::Kill => "Kill",
+            Signal::Int => "Interrupt",
+            Signal::Hup => "Hang up",
+            Signal::Stop => "Stop",
+            Signal::Cont => "Continue",
+        }
+    }
+
+    /// Signals that can strand or abruptly destroy work get a second question.
+    pub fn requires_confirm(self) -> bool {
+        matches!(self, Signal::Kill | Signal::Stop)
     }
 }
 
@@ -710,6 +780,25 @@ mod tests {
         set.insert(old);
         assert!(!set.contains(&new));
         assert!(set.contains(&old));
+    }
+
+    #[test]
+    fn signals_have_posix_numbers_and_unique_names() {
+        assert_eq!(
+            Signal::ALL.iter().map(|s| s.number()).collect::<Vec<_>>(),
+            vec![15, 9, 2, 1, 19, 18]
+        );
+        let mut names: Vec<_> = Signal::ALL.iter().map(|s| s.name()).collect();
+        names.sort_unstable();
+        names.dedup();
+        assert_eq!(names.len(), Signal::ALL.len());
+    }
+
+    #[test]
+    fn priority_clamps_to_the_renice_range() {
+        assert_eq!(Priority::clamp(-40), -20);
+        assert_eq!(Priority::clamp(40), 19);
+        assert_eq!(Priority::clamp(7), 7);
     }
 
     #[test]

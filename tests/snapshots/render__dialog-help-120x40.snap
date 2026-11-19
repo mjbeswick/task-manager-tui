@@ -9,31 +9,31 @@ Name                                                                  Status    
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 ▾ Apps (2)                                                                                                              
   ▸ Safari (1)                                                                 6.4%   1.2 GB  15.0 KB/s                 
-  ▸ Ghostty (1)                                                                2.1%   380 MB  15.0 KB/s                 
-▾ Background processes (2)      ┌─ Keyboard shortcuts ─────────────────────────────────┐                                
-  ▸ node (1)                    │  q, Ctrl+C           Quit                            │2 MB  15.0 KB/s                 
-  ▸ postgres (1)                │  F10, Alt+F/O/V/H    Menu bar                        │0 MB  15.0 KB/s                 
-▾ System processes (2)          │  F1                  This help                       │                                
-  ▸ WindowServer (1)            │  F2                  Appearance: theme, style, colou │2 GB  15.0 KB/s                 
-  ▸ launchd (1)                 │  F5                  Refresh now                     │0 MB  15.0 KB/s                 
-                                │  1-7, Tab            Switch tabs                     │                                
-                                │  Up/Down, j/k, PgUp/PMove and scroll                 │                                
-                                │  g / G, Ctrl+d / CtrlTop, bottom, half page          │                                
-                                │  Enter, Left/Right, hExpand, collapse, inspect       │                                
-                                │  Mouse               Click tabs, rows, menus; wheel  │                                
-                                │  <, >, r             Sort column, reverse            │                                
-                                │  /                   Filter                          │                                
-                                │  Delete, e, E        End task, end tree              │                                
-                                │  f                   Fewer details                   │                                
-                                │  t                   Light or dark theme             │                                
-                                │  +, -                Update speed                    │                                
-                                │  p                   Set process priority            │                                
-                                │  a                   Set affinity (unavailable)      │                                
-                                │  Space               Toggle a startup entry          │                                
-                                │  s, S, R             Start, stop, restart a service  │                                
-                                │  [Esc] Close                                         │                                
-                                │                                                      │                                
-                                └──────────────────────────────────────────────────────┘                                
+  ▸ Ghostty (1)         ┌─ Keyboard shortcuts ─────────────────────────────────────────────────┐.0 KB/s                 
+▾ Background processes (│  q, Ctrl+C               Quit                                        │                        
+  ▸ node (1)            │  F10, Alt+F/O/V/H        Menu bar                                    │.0 KB/s                 
+  ▸ postgres (1)        │  F1                      This help                                   │.0 KB/s                 
+▾ System processes (2)  │  F2                      Appearance: theme, style, colour            │                        
+  ▸ WindowServer (1)    │  F5                      Refresh now                                 │.0 KB/s                 
+  ▸ launchd (1)         │  1-7, Tab                Switch tabs                                 │.0 KB/s                 
+                        │  Up/Down, j/k, PgUp/PgDn Move and scroll                             │                        
+                        │  g / G, Ctrl+d / Ctrl+u  Top, bottom, half page                      │                        
+                        │  Enter, Left/Right, h/l  Expand, collapse, inspect                   │                        
+                        │  Mouse                   Click tabs, rows, menus; wheel scrolls      │                        
+                        │  <, >, r                 Sort column, reverse                        │                        
+                        │  /                       Filter                                      │                        
+                        │  Delete, e, E            End task, end tree                          │                        
+                        │  K                       Send a signal                               │                        
+                        │  f                       Fewer details                               │                        
+                        │  t                       Light or dark theme                         │                        
+                        │  +, -                    Update speed                                │                        
+                        │  p                       Set priority by nice value                  │                        
+                        │  a                       Set affinity (unavailable)                  │                        
+                        │  Space                   Toggle a startup entry                      │                        
+                        │  s, S, R                 Start, stop, restart a service              │                        
+                        │  [Esc] Close                                                         │                        
+                        │                                                                      │                        
+                        └──────────────────────────────────────────────────────────────────────┘                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

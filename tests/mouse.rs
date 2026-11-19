@@ -97,20 +97,22 @@ fn confirm_dialog_publishes_both_buttons() {
 }
 
 #[test]
-fn priority_dialog_publishes_each_level() {
+fn signal_dialog_publishes_each_signal() {
     let mut app = app(Tab::Details);
     let row = app.snapshot.processes[0].clone();
-    app.dialog = Some(Dialog::Priority {
+    app.dialog = Some(Dialog::Signal {
         key: row.key,
         name: row.name,
+        pid: row.key.pid,
         selected: 0,
+        tree: false,
     });
     let (_, hits) = render_with_hits(&app, 120, 40);
     let found = targets(&hits, 120, 40);
-    for index in 0..5 {
+    for index in 0..6 {
         assert!(
-            found.contains(&Target::DialogPriority(index)),
-            "level {index}"
+            found.contains(&Target::DialogSignal(index)),
+            "signal {index}"
         );
     }
     assert!(found.contains(&Target::DialogConfirm));

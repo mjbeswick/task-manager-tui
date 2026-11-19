@@ -18,13 +18,13 @@ Name                                                                  Status    
   ▸ launchd (1)                                                                0.2%  12.0 MB  15.0 KB/s                 
                                                                                                                         
                                                                                                                         
-                            ┌─ Could not end task ─────────────────────────────────────────┐                            
-                            │                                                              │                            
-                            │  Operation not permitted for PID 500. It belongs to another  │                            
-                            │  user or needs administrator rights.                         │                            
-                            │  [Esc] Close                                                 │                            
-                            │                                                              │                            
-                            └──────────────────────────────────────────────────────────────┘                            
+                        ┌─ Could not end task ─────────────────────────────────────────────────┐                        
+                        │                                                                      │                        
+                        │  Operation not permitted for PID 500. It belongs to another user or  │                        
+                        │  needs administrator rights.                                         │                        
+                        │  [Esc] Close                                                         │                        
+                        │                                                                      │                        
+                        └──────────────────────────────────────────────────────────────────────┘                        
                                                                                                                         
                                                                                                                         
                                                                                                                         
