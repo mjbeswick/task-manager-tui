@@ -695,8 +695,9 @@ impl App {
                                 .iter()
                                 .position(|s| *s == self.chart_style)
                                 .unwrap_or(0)
-                                + 2)
-                                % 3]
+                                + crate::model::ChartStyle::ALL.len()
+                                - 1)
+                                % crate::model::ChartStyle::ALL.len()]
                         };
                         self.set_chart_style(style);
                         effects.push(Effect::PersistSettings);
@@ -1506,6 +1507,15 @@ mod tests {
         assert!(view.1.iter().any(|(label, item)| {
             *label == "Appearance..." && *item == crate::app::MenuItem::Appearance
         }));
+    }
+
+    #[test]
+    fn appearance_back_cycle_wraps_to_blocks() {
+        let mut app = app();
+        assert_eq!(app.chart_style, crate::model::ChartStyle::Filled);
+        app.dialog = Some(Dialog::Appearance { selected: 1 });
+        app.dispatch(Action::CycleBack);
+        assert_eq!(app.chart_style, crate::model::ChartStyle::Blocks);
     }
 
     #[test]

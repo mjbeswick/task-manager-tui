@@ -216,6 +216,60 @@ pub fn fill_column(
     }
 }
 
+/// A Blocks column: eighths for the tip, triangles for a one-step slope, and
+/// quadrants for a steeper join with the older column to the left.
+fn blocks_column(
+    buf: &mut Buffer,
+    column: Rect,
+    total: usize,
+    older: Option<usize>,
+    edge: Color,
+    bg: Color,
+    theme: &Theme,
+) {
+    let glyphs = theme.glyphs();
+    let (x, top, height) = (column.x, column.y, column.height);
+    let coarse = theme.ascii || theme.coarse;
+    for offset in 0..height as usize {
+        let units = total.saturating_sub(offset * 8).min(8);
+        if units == 0 {
+            break;
+        }
+        let is_top = total <= (offset + 1) * 8;
+        let rise = if height > 1 {
+            offset as f32 / (height - 1) as f32
+        } else {
+            0.0
+        };
+        let colour = if is_top || coarse {
+            edge
+        } else {
+            ramp(edge, bg, 0.2 + rise * 0.65)
+        };
+        let glyph = if units == 8 {
+            glyphs.block_full
+        } else if is_top && !theme.ascii {
+            let own = units as isize;
+            let other = older
+                .map(|total| total.saturating_sub(offset * 8).min(8) as isize)
+                .unwrap_or(own);
+            match own - other {
+                diff if diff >= 2 => '▟',
+                diff if diff <= -2 => '▛',
+                1 => '◢',
+                -1 => '◣',
+                _ => glyphs.eighths[units - 1],
+            }
+        } else {
+            glyphs.eighths[units - 1]
+        };
+        let row = top + height - 1 - offset as u16;
+        buf[(x, row)]
+            .set_char(glyph)
+            .set_style(ratatui::style::Style::default().fg(colour).bg(bg));
+    }
+}
+
 /// A per-plot matrix of braille dots: two columns and four rows per cell.
 struct Dots {
     width: usize,
@@ -389,15 +443,28 @@ pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: 
         None
     };
     let mut previous_dot: Option<(usize, usize)> = None;
+    let fractions: Vec<Option<f32>> = (0..width)
+        .map(|column| {
+            sample_column(&values, column, width).map(|value| (value / maximum).clamp(0.0, 1.0))
+        })
+        .collect();
+    let totals: Vec<usize> = fractions
+        .iter()
+        .map(|fraction| {
+            fraction
+                .map(|fraction| (fraction * (height * 8) as f32).round() as usize)
+                .unwrap_or(0)
+        })
+        .collect();
 
     // The time axis is always the last 60 samples spread over the plot width, so
     // a full history fills the chart on any terminal size.
     for column in 0..width {
-        let Some(value) = sample_column(&values, column, width) else {
+        let Some(fraction) = fractions[column] else {
             previous = None;
             continue;
         };
-        let fraction = (value / maximum).clamp(0.0, 1.0);
+        let value = fraction * maximum;
         let x = plot.x + plot.width - 1 - column as u16;
         let halves = ((value / maximum).clamp(0.0, 1.0) * (height * 2) as f32).round() as usize;
         let level = halves.div_ceil(2).clamp(0, height);
@@ -408,6 +475,22 @@ pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: 
                     buf,
                     Rect::new(x, column_top, 1, plot.height),
                     fraction,
+                    color,
+                    theme.surface,
+                    theme,
+                );
+            }
+            ChartStyle::Blocks => {
+                let older = if column + 1 < width && fractions[column + 1].is_some() {
+                    Some(totals[column + 1])
+                } else {
+                    None
+                };
+                blocks_column(
+                    buf,
+                    Rect::new(x, column_top, 1, plot.height),
+                    totals[column],
+                    older,
                     color,
                     theme.surface,
                     theme,
@@ -865,6 +948,60 @@ mod tests {
             "no braille cell was drawn"
         );
         assert!(!symbols.contains(&theme.glyphs().bullet));
+    }
+
+    fn blocks_cell(total: usize, older: usize, ascii: bool) -> Buffer {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, ascii);
+        let area = Rect::new(0, 0, 1, 8);
+        let mut buffer = Buffer::empty(area);
+        blocks_column(
+            &mut buffer,
+            area,
+            total,
+            Some(older),
+            theme.graph_fill,
+            theme.surface,
+            &theme,
+        );
+        buffer
+    }
+
+    fn symbols(buffer: &Buffer) -> Vec<char> {
+        buffer
+            .content
+            .iter()
+            .filter_map(|cell| cell.symbol().chars().next())
+            .collect()
+    }
+
+    #[test]
+    fn blocks_style_joins_a_steep_slope_with_quadrants() {
+        // Own tip is 6/8, the older column is full: a two-eighth join.
+        let chars = symbols(&blocks_cell(22, 58, false));
+        assert!(chars.contains(&'▛'), "left-higher quadrant: {chars:?}");
+    }
+
+    #[test]
+    fn blocks_style_joins_a_one_step_slope_with_a_triangle() {
+        // Own tip 2/8 against the older 3/8.
+        let chars = symbols(&blocks_cell(34, 35, false));
+        assert!(chars.contains(&'◣'), "one-step triangle: {chars:?}");
+    }
+
+    #[test]
+    fn blocks_style_keeps_eighths_on_a_flat_tip() {
+        let chars = symbols(&blocks_cell(29, 29, false));
+        assert!(chars.contains(&'▅'), "eighth block: {chars:?}");
+        assert!(
+            !chars.iter().any(|ch| "▙▛▜▟◢◣◤◥".contains(*ch)),
+            "no slope glyph on a level fill"
+        );
+    }
+
+    #[test]
+    fn blocks_style_is_ascii_in_ascii_mode() {
+        let buffer = blocks_cell(22, 58, true);
+        assert!(buffer.content.iter().all(|cell| cell.symbol().is_ascii()));
     }
 
     #[test]

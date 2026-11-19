@@ -125,8 +125,9 @@ dropped and the position counter in the status bar takes over.
   maximum. Filled charts use a gamma-correct colour ramp, line and dot charts take
   the colour of the highest sample in each braille cell, and resampling interpolates
   when the plot is wide and keeps peaks when it is narrow. View > Appearance, or F2,
-  switches between Filled, Line, and Dots rendering and chart colours: Teal, Blue,
-  Orange, Magenta, Mono, or Theme. Per resource takes five distinct colours from the
+  switches between Filled, Line, Dots, and Blocks rendering and chart colours: Teal,
+  Blue, Orange, Magenta, Mono, or Theme. Blocks fills with quadrants, eighth blocks, and
+  half-cell triangles to draw a sloped area edge. Per resource takes five distinct colours from the
   active theme, one per resource.
 - **App history** - CPU time, peak memory, and disk totals per application,
   accumulated across restarts.

@@ -90,16 +90,23 @@ pub enum ChartStyle {
     Filled,
     Line,
     Dots,
+    Blocks,
 }
 
 impl ChartStyle {
-    pub const ALL: [ChartStyle; 3] = [ChartStyle::Filled, ChartStyle::Line, ChartStyle::Dots];
+    pub const ALL: [ChartStyle; 4] = [
+        ChartStyle::Filled,
+        ChartStyle::Line,
+        ChartStyle::Dots,
+        ChartStyle::Blocks,
+    ];
 
     pub fn label(self) -> &'static str {
         match self {
             ChartStyle::Filled => "Filled",
             ChartStyle::Line => "Line",
             ChartStyle::Dots => "Dots",
+            ChartStyle::Blocks => "Blocks",
         }
     }
 
@@ -107,7 +114,8 @@ impl ChartStyle {
         match self {
             ChartStyle::Filled => ChartStyle::Line,
             ChartStyle::Line => ChartStyle::Dots,
-            ChartStyle::Dots => ChartStyle::Filled,
+            ChartStyle::Dots => ChartStyle::Blocks,
+            ChartStyle::Blocks => ChartStyle::Filled,
         }
     }
 
@@ -116,6 +124,7 @@ impl ChartStyle {
             ChartStyle::Filled => "filled",
             ChartStyle::Line => "line",
             ChartStyle::Dots => "dots",
+            ChartStyle::Blocks => "blocks",
         }
     }
 
@@ -124,6 +133,7 @@ impl ChartStyle {
             "filled" => Some(ChartStyle::Filled),
             "line" => Some(ChartStyle::Line),
             "dots" => Some(ChartStyle::Dots),
+            "blocks" => Some(ChartStyle::Blocks),
             _ => None,
         }
     }
@@ -879,7 +889,8 @@ mod tests {
     #[test]
     fn chart_choices_cycle_and_parse() {
         assert_eq!(ChartStyle::Filled.next(), ChartStyle::Line);
-        assert_eq!(ChartStyle::Dots.next(), ChartStyle::Filled);
+        assert_eq!(ChartStyle::Dots.next(), ChartStyle::Blocks);
+        assert_eq!(ChartStyle::Blocks.next(), ChartStyle::Filled);
         assert_eq!(ChartStyle::parse("dots"), Some(ChartStyle::Dots));
         assert_eq!(ChartStyle::parse("nope"), None);
         assert_eq!(ChartColor::Theme.next(), ChartColor::PerResource);
