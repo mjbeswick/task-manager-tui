@@ -58,9 +58,9 @@ history MUST fill the width at any terminal size.
 
 ### Requirement: Chart appearance is adjustable
 
-The user SHALL choose between Filled, Line, and Dots rendering and between Teal, Blue,
-Orange, Magenta, Mono, and Theme colours at View > Appearance or F2. The chosen style
-and colour MUST persist across restarts.
+The user SHALL choose between Filled, Line, Dots, and Blocks rendering and between Teal,
+Blue, Orange, Magenta, Mono, and Theme colours at View > Appearance or F2. The chosen
+style and colour MUST persist across restarts.
 
 #### Scenario: Change the style
 - **WHEN** the user selects Line in the Appearance dialog
@@ -81,6 +81,10 @@ and colour MUST persist across restarts.
 #### Scenario: Follow the theme
 - **WHEN** the user selects the Theme chart colour and changes the window theme
 - **THEN** charts use the new theme's chart fill immediately
+
+#### Scenario: Blocks style
+- **WHEN** the user selects Blocks
+- **THEN** filled charts use quadrant templates, eighth blocks, and half-cell triangles to draw the area edge
 
 ### Requirement: One chart label
 
