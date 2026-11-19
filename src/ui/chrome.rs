@@ -315,30 +315,28 @@ fn draw_tabs(buf: &mut Buffer, top: Rect, area: Rect, rule: Rect, app: &App, hit
         buf[(x, rule.y)].set_char(glyphs.hline).set_style(border);
     }
     if let Some((_, start, width)) = cells.iter().find(|(tab, _, _)| *tab == app.tab) {
-        let accent = Style::default().fg(theme.accent).bg(theme.bg);
+        let frame = Style::default().fg(theme.border).bg(theme.bg);
         let left = start.saturating_sub(1);
         let right = start + width - 1;
         // Top border.
-        buf[(left, top.y)].set_char(glyphs.tl).set_style(accent);
+        buf[(left, top.y)].set_char(glyphs.tl).set_style(frame);
         for dx in 0..*width - 1 {
             buf[(start + dx, top.y)]
                 .set_char(glyphs.hline)
-                .set_style(accent);
+                .set_style(frame);
         }
-        buf[(right, top.y)].set_char(glyphs.tr).set_style(accent);
+        buf[(right, top.y)].set_char(glyphs.tr).set_style(frame);
         // Sides.
-        buf[(left, area.y)].set_char(glyphs.vline).set_style(accent);
-        buf[(right, area.y)]
-            .set_char(glyphs.vline)
-            .set_style(accent);
+        buf[(left, area.y)].set_char(glyphs.vline).set_style(frame);
+        buf[(right, area.y)].set_char(glyphs.vline).set_style(frame);
         // Open bottom: clear the rule under the tab and keep the sides going.
         let blank = Style::default().fg(theme.text).bg(theme.bg);
         for x in left..=right {
             buf[(x, rule.y)].set_char(' ').set_style(blank);
         }
         // Outward junctions: the rule flows into each side.
-        buf[(left, rule.y)].set_char(glyphs.br).set_style(accent);
-        buf[(right, rule.y)].set_char(glyphs.bl).set_style(accent);
+        buf[(left, rule.y)].set_char(glyphs.br).set_style(frame);
+        buf[(right, rule.y)].set_char(glyphs.bl).set_style(frame);
     }
 }
 
@@ -988,7 +986,7 @@ mod tests {
         // The bottom is open: sides continue, the rule span is blank.
         assert_eq!(buffer[(0, 3)].symbol(), glyphs.br.to_string());
         assert_eq!(buffer[(12, 3)].symbol(), glyphs.bl.to_string());
-        assert_eq!(buffer[(0, 3)].fg, theme.accent, "bottom corner");
+        assert_eq!(buffer[(0, 3)].fg, theme.border, "outline matches the rule");
         assert_eq!(
             buffer[(5, 3)].symbol(),
             " ",
