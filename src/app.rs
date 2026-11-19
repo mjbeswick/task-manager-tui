@@ -422,7 +422,7 @@ pub const MENUS: [(&str, &[(&str, MenuItem)]); 4] = [
     (
         "Options",
         &[
-            ("Dark mode", MenuItem::Theme),
+            ("Next theme", MenuItem::Theme),
             ("Update speed: High", MenuItem::SpeedHigh),
             ("Update speed: Normal", MenuItem::SpeedNormal),
             ("Update speed: Low", MenuItem::SpeedLow),
@@ -513,7 +513,17 @@ impl App {
     pub fn new(settings: Settings, ascii_flag: bool) -> (Self, Vec<String>) {
         let mut notices = Vec::new();
         let ascii = ascii_flag || settings.ascii;
-        let theme_name = ThemeName::parse(&settings.theme).unwrap_or(ThemeName::Light);
+        let theme_name = match ThemeName::parse(&settings.theme) {
+            Some(name) => name,
+            None => {
+                notices.push(format!(
+                    "Unknown theme '{}'; using {}.",
+                    settings.theme,
+                    ThemeName::Light.label()
+                ));
+                ThemeName::Light
+            }
+        };
         let chart_style = ChartStyle::parse(&settings.chart_style).unwrap_or(ChartStyle::Filled);
         let chart_color =
             ChartColor::parse(&settings.chart_color).unwrap_or(ChartColor::PerResource);
@@ -569,10 +579,7 @@ impl App {
         self.theme_name = name;
         self.theme = Theme::from_name(name, self.ascii);
         self.theme.coarse = self.depth == crate::theme::ColorDepth::Ansi16;
-        self.settings.theme = match name {
-            ThemeName::Light => "light".to_string(),
-            ThemeName::Dark => "dark".to_string(),
-        };
+        self.settings.theme = name.key().to_string();
     }
 
     pub fn set_depth(&mut self, depth: crate::theme::ColorDepth) {
@@ -581,7 +588,11 @@ impl App {
     }
 
     pub fn toggle_theme(&mut self) {
-        self.set_theme(self.theme_name.toggle());
+        self.set_theme(self.theme_name.next());
+    }
+
+    pub fn previous_theme(&mut self) {
+        self.set_theme(self.theme_name.previous());
     }
 
     pub fn set_chart_style(&mut self, style: ChartStyle) {
@@ -1258,6 +1269,29 @@ mod tests {
         app.toggle_theme();
         assert_eq!(app.theme_name, ThemeName::Dark);
         assert_eq!(app.settings.theme, "dark");
+        for expected in [
+            ThemeName::Nord,
+            ThemeName::Gruvbox,
+            ThemeName::Phosphor,
+            ThemeName::Amber,
+            ThemeName::Light,
+        ] {
+            app.toggle_theme();
+            assert_eq!(app.theme_name, expected);
+        }
+        app.set_theme(ThemeName::Nord);
+        assert_eq!(app.settings.theme, "nord");
+    }
+
+    #[test]
+    fn unknown_saved_theme_falls_back_with_a_notice() {
+        let settings = Settings {
+            theme: "solarized".into(),
+            ..Settings::default()
+        };
+        let (app, notices) = App::new(settings, false);
+        assert_eq!(app.theme_name, ThemeName::Light);
+        assert!(notices.iter().any(|n| n.contains("Unknown theme")));
     }
 
     #[test]

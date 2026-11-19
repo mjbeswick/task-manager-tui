@@ -14,7 +14,7 @@ pub struct Cli {
     #[arg(long, value_parser = parse_interval)]
     pub interval: Option<String>,
 
-    /// Colour theme: light or dark.
+    /// Colour theme: light, dark, nord, gruvbox, phosphor, or amber.
     #[arg(long, value_parser = parse_theme)]
     pub theme: Option<String>,
 
@@ -72,9 +72,11 @@ fn parse_color(value: &str) -> Result<String, String> {
 }
 
 fn parse_theme(value: &str) -> Result<String, String> {
-    match value.to_ascii_lowercase().as_str() {
-        "light" | "dark" => Ok(value.to_ascii_lowercase()),
-        other => Err(format!("unknown theme '{other}'; try light or dark")),
+    match crate::theme::ThemeName::parse(value) {
+        Some(name) => Ok(name.key().to_string()),
+        None => Err(format!(
+            "unknown theme '{value}'; try light, dark, nord, gruvbox, phosphor, or amber"
+        )),
     }
 }
 
@@ -116,6 +118,8 @@ mod tests {
         assert!(Cli::try_parse_from(["taskmgr", "--tab", "nope"]).is_err());
         assert!(Cli::try_parse_from(["taskmgr", "--interval", "fast"]).is_err());
         assert!(Cli::try_parse_from(["taskmgr", "--theme", "purple"]).is_err());
+        let nord = Cli::try_parse_from(["taskmgr", "--theme", "NORD"]).unwrap();
+        assert_eq!(nord.theme.as_deref(), Some("nord"));
         assert!(Cli::try_parse_from(["taskmgr", "--color", "8"]).is_err());
         let cli = Cli::try_parse_from(["taskmgr", "--color", "256"]).unwrap();
         assert_eq!(cli.color, "256");

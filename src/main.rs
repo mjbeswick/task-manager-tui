@@ -85,9 +85,16 @@ fn run(
 ) -> Result<()> {
     let mut hits = HitMap::default();
     let mut last_click: Option<(std::time::Instant, Target)> = None;
+    let mut last_tab = app.tab;
+    set_title(app.tab);
 
     loop {
         terminal.draw(|frame| ui::draw(frame, app, &mut hits))?;
+
+        if app.tab != last_tab {
+            set_title(app.tab);
+            last_tab = app.tab;
+        }
 
         if event::poll(Duration::from_millis(250))? {
             match event::read()? {
@@ -372,6 +379,13 @@ fn once(app: &mut App) -> Result<()> {
     }
     sampler.stop();
     Ok(())
+}
+
+fn set_title(tab: task_manager_tui::app::Tab) {
+    let _ = execute!(
+        io::stdout(),
+        terminal::SetTitle(format!("Task Manager - {}", tab.label()))
+    );
 }
 
 fn init_terminal() -> Result<Terminal<CrosstermBackend<Stdout>>> {

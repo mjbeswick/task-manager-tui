@@ -24,7 +24,7 @@ const HELP: &[(&str, &str)] = &[
     ("Delete, e, E", "End task, end tree"),
     ("K", "Send a signal"),
     ("f", "Fewer details"),
-    ("t", "Light or dark theme"),
+    ("t", "Next colour theme"),
     ("+, -", "Update speed"),
     ("p", "Set priority by nice value"),
     ("a", "Set affinity (unavailable)"),
@@ -223,9 +223,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
                 let row = inner.y + 1 + index as u16;
                 let active = index == *selected;
                 let style = if active {
-                    Style::default()
-                        .fg(ratatui::style::Color::White)
-                        .bg(theme.accent)
+                    Style::default().fg(theme.on_accent).bg(theme.accent)
                 } else {
                     Style::default().fg(theme.text).bg(theme.surface)
                 };
@@ -354,9 +352,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
                 }
                 let active = index == *selected;
                 let style = if active {
-                    Style::default()
-                        .fg(ratatui::style::Color::White)
-                        .bg(theme.accent)
+                    Style::default().fg(theme.on_accent).bg(theme.accent)
                 } else {
                     Style::default().fg(theme.text).bg(theme.surface)
                 };

@@ -45,7 +45,7 @@ fn draw_rail(buf: &mut Buffer, area: Rect, app: &App, narrow: bool, hits: &mut H
             let text = format!(" {} ", resource.label());
             let style = if active {
                 Style::default()
-                    .fg(ratatui::style::Color::White)
+                    .fg(theme.on_accent)
                     .bg(theme.accent)
                     .add_modifier(Modifier::BOLD)
             } else {

@@ -161,19 +161,19 @@ pub fn put_right(buf: &mut Buffer, right: u16, y: u16, text: &str, style: Style,
 
 fn draw_menu_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     let theme = app.theme();
-    fill_area(buf, area, Style::default().bg(theme.bg));
+    fill_area(buf, area, Style::default().bg(theme.chrome));
     let mut x = area.x;
     for (index, (label, _)) in MENUS.iter().enumerate() {
         let active = app.menu.is_some_and(|menu| menu.menu == index);
         let style = if active {
             Style::default()
-                .fg(ratatui::style::Color::White)
+                .fg(theme.on_accent)
                 .bg(theme.accent)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default()
                 .fg(theme.text)
-                .bg(theme.bg)
+                .bg(theme.chrome)
                 .add_modifier(Modifier::BOLD)
         };
         let text = format!(" {label} ");
@@ -183,18 +183,6 @@ fn draw_menu_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         x += width;
     }
     if app.tab == Tab::Performance {
-        let title = "Task Manager";
-        put_right(
-            buf,
-            area.x + area.width - 1,
-            area.y,
-            title,
-            Style::default()
-                .fg(theme.muted)
-                .bg(theme.bg)
-                .add_modifier(Modifier::BOLD),
-            area,
-        );
         return;
     }
     let free = (area.x + area.width).saturating_sub(x + 2);
@@ -263,7 +251,7 @@ fn draw_filter_field(buf: &mut Buffer, bar: Rect, free: u16, app: &App, hits: &m
 
 fn draw_tabs(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     let theme = app.theme();
-    fill_area(buf, area, Style::default().bg(theme.bg));
+    fill_area(buf, area, Style::default().bg(theme.chrome));
     let glyphs = theme.glyphs();
     let compact = area.width < 90;
     let mut x = area.x;
@@ -271,11 +259,11 @@ fn draw_tabs(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         let active = tab == app.tab;
         let style = if active {
             Style::default()
-                .fg(ratatui::style::Color::White)
+                .fg(theme.on_accent)
                 .bg(theme.accent)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(theme.muted).bg(theme.bg)
+            Style::default().fg(theme.muted).bg(theme.chrome)
         };
         let text = if compact {
             let short: String = tab.short_label().chars().take(4).collect();
@@ -301,19 +289,31 @@ fn draw_tabs(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
                 x,
                 area.y,
                 &separator,
-                Style::default().fg(theme.border).bg(theme.bg),
+                Style::default().fg(theme.border).bg(theme.chrome),
                 area,
             );
             x += separator.chars().count() as u16;
         }
     }
-    let underline = area.y + area.height;
-    let _ = underline;
+    // The window title sits at the right of the chrome band.
+    if area.x + area.width > x + 14 {
+        put_right(
+            buf,
+            area.x + area.width - 1,
+            area.y,
+            "Task Manager",
+            Style::default()
+                .fg(theme.muted)
+                .bg(theme.chrome)
+                .add_modifier(Modifier::BOLD),
+            area,
+        );
+    }
 }
 
 fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     let theme = app.theme();
-    let bar = Style::default().bg(theme.surface).fg(theme.muted);
+    let bar = Style::default().bg(theme.status).fg(theme.muted);
     fill_area(buf, area, bar);
 
     let action = if app.tab == Tab::Processes {
@@ -389,7 +389,7 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     if show_action {
         let style = Style::default()
             .fg(theme.accent)
-            .bg(theme.surface)
+            .bg(theme.status)
             .add_modifier(Modifier::UNDERLINED);
         let width = action.chars().count() as u16;
         put(buf, x, area.y, action, style, area);
@@ -412,7 +412,7 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
                 x,
                 area.y,
                 text.trim_end(),
-                Style::default().fg(theme.text).bg(theme.surface),
+                Style::default().fg(theme.text).bg(theme.status),
                 area,
             );
         }
@@ -490,9 +490,7 @@ fn draw_menu_dropdown(
         }
         let selected = index == menu.item;
         let style = if selected {
-            Style::default()
-                .fg(ratatui::style::Color::White)
-                .bg(theme.accent)
+            Style::default().fg(theme.on_accent).bg(theme.accent)
         } else {
             Style::default().fg(theme.text).bg(theme.surface)
         };
@@ -544,7 +542,7 @@ mod tests {
         assert!(wide.trim_end().ends_with("/ Filter"), "{wide:?}");
         assert!(!wide.contains("Task Manager"));
         let perf = bar(screen_for(Tab::Performance, 120, "", false));
-        assert!(perf.contains("Task Manager") && !perf.contains("Filter"));
+        assert!(!perf.contains("Filter"));
         let set = bar(screen_for(Tab::Services, 120, "nginx", false));
         assert!(set.contains("/ nginx") && set.contains('×'), "{set:?}");
         let editing = bar(screen_for(Tab::Startup, 120, "rect", true));
@@ -586,7 +584,7 @@ mod tests {
         use crate::app::Tab;
         use crate::theme::{ColorDepth, ThemeName};
         for depth in [ColorDepth::Ansi256, ColorDepth::Ansi16] {
-            for theme in [ThemeName::Light, ThemeName::Dark] {
+            for theme in ThemeName::ALL {
                 for tab in [Tab::Processes, Tab::Performance] {
                     let (mut app, _) = App::new(Settings::default(), false);
                     app.apply_snapshot(crate::model::Snapshot::fixture());
@@ -730,6 +728,7 @@ mod tests {
         let screen = crate::ui::test_util::render(&app, 120, 30);
         let line = screen.lines().nth(1).unwrap();
         assert!(line.starts_with("1 Processes"), "{line:?}");
+        assert!(line.trim_end().ends_with("Task Manager"), "{line:?}");
         assert!(line.contains("2 Performance"));
         assert!(line.contains("7 Services"));
         let mut hits = crate::ui::hits::HitMap::default();
@@ -738,6 +737,21 @@ mod tests {
         let buffer = terminal.backend().buffer().clone();
         let x = line[..line.find("Processes").unwrap()].chars().count() as u16;
         assert_eq!(buffer[(x, 1)].bg, app.theme().accent);
+    }
+
+    #[test]
+    fn chrome_and_status_use_their_band_colours() {
+        let (mut app, _) = App::new(Settings::default(), false);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        let theme = *app.theme();
+        let mut hits = crate::ui::hits::HitMap::default();
+        let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        terminal.draw(|frame| draw(frame, &app, &mut hits)).unwrap();
+        let buffer = terminal.backend().buffer();
+        assert_eq!(buffer[(5, 0)].bg, theme.chrome, "menu bar");
+        assert_eq!(buffer[(95, 1)].bg, theme.chrome, "tab strip");
+        assert_eq!(buffer[(100, 29)].bg, theme.status, "status bar");
+        assert_ne!(theme.chrome, theme.status);
     }
 
     #[test]

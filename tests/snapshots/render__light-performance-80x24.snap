@@ -2,8 +2,8 @@
 source: tests/render.rs
 expression: "screen(&app(Tab::Performance, \"light\"), 80, 24)"
 ---
- File  Options  View  Help                                         Task Manager 
-1Proc  2Perf  3Hist  4Star  5User  6Deta  7Serv                                 
+ File  Options  View  Help                                                      
+1Proc  2Perf  3Hist  4Star  5User  6Deta  7Serv                    Task Manager 
 ▌ CPU               ┌──────────────────────────────────────────────────────────┐
 ▌ ▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂ │         │         │         │        │         │   27.0% │
 ▌ 27% 3.20 GHz      │─────────│─────────│─────────│────────│─────────│─────────│

@@ -6,29 +6,61 @@ use ratatui::style::{Color, Modifier, Style};
 pub enum ThemeName {
     Light,
     Dark,
+    Nord,
+    Gruvbox,
+    Phosphor,
+    Amber,
 }
 
 impl ThemeName {
+    pub const ALL: [ThemeName; 6] = [
+        ThemeName::Light,
+        ThemeName::Dark,
+        ThemeName::Nord,
+        ThemeName::Gruvbox,
+        ThemeName::Phosphor,
+        ThemeName::Amber,
+    ];
+
     pub fn label(self) -> &'static str {
         match self {
-            ThemeName::Light => "Light",
-            ThemeName::Dark => "Dark",
+            ThemeName::Light => "Windows Light",
+            ThemeName::Dark => "Windows Dark",
+            ThemeName::Nord => "Nord",
+            ThemeName::Gruvbox => "Gruvbox Dark",
+            ThemeName::Phosphor => "Phosphor",
+            ThemeName::Amber => "Amber",
         }
     }
 
-    pub fn toggle(self) -> Self {
+    pub fn key(self) -> &'static str {
         match self {
-            ThemeName::Light => ThemeName::Dark,
-            ThemeName::Dark => ThemeName::Light,
+            ThemeName::Light => "light",
+            ThemeName::Dark => "dark",
+            ThemeName::Nord => "nord",
+            ThemeName::Gruvbox => "gruvbox",
+            ThemeName::Phosphor => "phosphor",
+            ThemeName::Amber => "amber",
         }
+    }
+
+    pub fn index(self) -> usize {
+        Self::ALL.iter().position(|name| *name == self).unwrap_or(0)
+    }
+
+    pub fn next(self) -> Self {
+        Self::ALL[(self.index() + 1) % Self::ALL.len()]
+    }
+
+    pub fn previous(self) -> Self {
+        Self::ALL[(self.index() + Self::ALL.len() - 1) % Self::ALL.len()]
     }
 
     pub fn parse(value: &str) -> Option<Self> {
-        match value.to_ascii_lowercase().as_str() {
-            "light" => Some(ThemeName::Light),
-            "dark" => Some(ThemeName::Dark),
-            _ => None,
-        }
+        let value = value.to_ascii_lowercase();
+        Self::ALL
+            .into_iter()
+            .find(|name| name.key() == value || name.label().eq_ignore_ascii_case(&value))
     }
 }
 
@@ -39,10 +71,16 @@ pub struct Theme {
     pub surface: Color,
     /// Alternating body-row background, a few percent from `surface`.
     pub surface_alt: Color,
+    /// Background for the menu bar and tab strip.
+    pub chrome: Color,
+    /// Background for the status bar.
+    pub status: Color,
     pub text: Color,
     pub muted: Color,
     pub border: Color,
     pub accent: Color,
+    /// Text drawn on an accent-filled block.
+    pub on_accent: Color,
     pub selection: Color,
     pub graph_fill: Color,
     pub graph_grid: Color,
@@ -61,10 +99,13 @@ pub const LIGHT: Theme = Theme {
     bg: Color::Rgb(0xF0, 0xF0, 0xF0),
     surface: Color::Rgb(0xFF, 0xFF, 0xFF),
     surface_alt: Color::Rgb(0xF7, 0xF7, 0xF7),
+    chrome: Color::Rgb(0xE8, 0xE8, 0xE8),
+    status: Color::Rgb(0xED, 0xED, 0xED),
     text: Color::Rgb(0x00, 0x00, 0x00),
     muted: Color::Rgb(0x60, 0x5E, 0x5C),
     border: Color::Rgb(0xCC, 0xCC, 0xCC),
-    accent: Color::Rgb(0x00, 0x78, 0xD7),
+    accent: Color::Rgb(0x00, 0x70, 0xC0),
+    on_accent: Color::Rgb(0xFF, 0xFF, 0xFF),
     selection: Color::Rgb(0xCC, 0xE8, 0xFF),
     graph_fill: Color::Rgb(0x1E, 0x8A, 0x73),
     graph_grid: Color::Rgb(0xE0, 0xE0, 0xE0),
@@ -87,10 +128,13 @@ pub const DARK: Theme = Theme {
     bg: Color::Rgb(0x20, 0x20, 0x20),
     surface: Color::Rgb(0x27, 0x27, 0x27),
     surface_alt: Color::Rgb(0x2C, 0x2C, 0x2C),
+    chrome: Color::Rgb(0x1A, 0x1A, 0x1A),
+    status: Color::Rgb(0x1E, 0x1E, 0x1E),
     text: Color::Rgb(0xFF, 0xFF, 0xFF),
     muted: Color::Rgb(0xA0, 0xA0, 0xA0),
     border: Color::Rgb(0x3A, 0x3A, 0x3A),
-    accent: Color::Rgb(0x00, 0x78, 0xD7),
+    accent: Color::Rgb(0x00, 0x70, 0xC0),
+    on_accent: Color::Rgb(0xFF, 0xFF, 0xFF),
     selection: Color::Rgb(0x0A, 0x3D, 0x62),
     graph_fill: Color::Rgb(0x4C, 0xC2, 0xA8),
     graph_grid: Color::Rgb(0x3A, 0x3A, 0x3A),
@@ -103,6 +147,122 @@ pub const DARK: Theme = Theme {
         Color::Rgb(0x5A, 0x44, 0x1C),
         Color::Rgb(0x6B, 0x3A, 0x1E),
         Color::Rgb(0x74, 0x28, 0x1F),
+    ],
+    ascii: false,
+    coarse: false,
+};
+
+pub const NORD: Theme = Theme {
+    name: ThemeName::Nord,
+    bg: Color::Rgb(0x2E, 0x34, 0x40),
+    surface: Color::Rgb(0x3B, 0x42, 0x52),
+    surface_alt: Color::Rgb(0x34, 0x3B, 0x47),
+    chrome: Color::Rgb(0x2A, 0x30, 0x3A),
+    status: Color::Rgb(0x2E, 0x34, 0x40),
+    text: Color::Rgb(0xEC, 0xEF, 0xF4),
+    muted: Color::Rgb(0x9A, 0xA5, 0xB5),
+    border: Color::Rgb(0x4C, 0x56, 0x6A),
+    accent: Color::Rgb(0x88, 0xC0, 0xD0),
+    on_accent: Color::Rgb(0x2E, 0x34, 0x40),
+    selection: Color::Rgb(0x43, 0x4C, 0x5E),
+    graph_fill: Color::Rgb(0x88, 0xC0, 0xD0),
+    graph_grid: Color::Rgb(0x43, 0x4C, 0x5E),
+    good: Color::Rgb(0xA3, 0xBE, 0x8C),
+    warn: Color::Rgb(0xEB, 0xCB, 0x8B),
+    bad: Color::Rgb(0xBF, 0x61, 0x6A),
+    heat: [
+        Color::Rgb(0x3A, 0x41, 0x4A),
+        Color::Rgb(0x46, 0x44, 0x4A),
+        Color::Rgb(0x54, 0x44, 0x4A),
+        Color::Rgb(0x61, 0x40, 0x47),
+        Color::Rgb(0x6E, 0x3B, 0x42),
+    ],
+    ascii: false,
+    coarse: false,
+};
+
+pub const GRUVBOX: Theme = Theme {
+    name: ThemeName::Gruvbox,
+    bg: Color::Rgb(0x28, 0x28, 0x28),
+    surface: Color::Rgb(0x32, 0x30, 0x2F),
+    surface_alt: Color::Rgb(0x2C, 0x2A, 0x29),
+    chrome: Color::Rgb(0x1F, 0x1F, 0x1F),
+    status: Color::Rgb(0x24, 0x24, 0x24),
+    text: Color::Rgb(0xEB, 0xDB, 0xB2),
+    muted: Color::Rgb(0xA8, 0x99, 0x84),
+    border: Color::Rgb(0x50, 0x49, 0x45),
+    accent: Color::Rgb(0xFA, 0xBD, 0x2F),
+    on_accent: Color::Rgb(0x28, 0x28, 0x28),
+    selection: Color::Rgb(0x50, 0x49, 0x45),
+    graph_fill: Color::Rgb(0x8E, 0xC0, 0x7C),
+    graph_grid: Color::Rgb(0x3C, 0x38, 0x36),
+    good: Color::Rgb(0xB8, 0xBB, 0x26),
+    warn: Color::Rgb(0xFA, 0xBD, 0x2F),
+    bad: Color::Rgb(0xFB, 0x49, 0x34),
+    heat: [
+        Color::Rgb(0x3A, 0x33, 0x24),
+        Color::Rgb(0x4A, 0x3C, 0x22),
+        Color::Rgb(0x5A, 0x43, 0x20),
+        Color::Rgb(0x6A, 0x40, 0x26),
+        Color::Rgb(0x78, 0x35, 0x2E),
+    ],
+    ascii: false,
+    coarse: false,
+};
+
+pub const PHOSPHOR: Theme = Theme {
+    name: ThemeName::Phosphor,
+    bg: Color::Rgb(0x0A, 0x0F, 0x0A),
+    surface: Color::Rgb(0x0F, 0x16, 0x0F),
+    surface_alt: Color::Rgb(0x12, 0x1A, 0x12),
+    chrome: Color::Rgb(0x06, 0x0A, 0x06),
+    status: Color::Rgb(0x08, 0x10, 0x08),
+    text: Color::Rgb(0x7D, 0xF9, 0xA5),
+    muted: Color::Rgb(0x4E, 0x9A, 0x6A),
+    border: Color::Rgb(0x1E, 0x3A, 0x26),
+    accent: Color::Rgb(0x33, 0xFF, 0x99),
+    on_accent: Color::Rgb(0x04, 0x14, 0x0A),
+    selection: Color::Rgb(0x14, 0x43, 0x2A),
+    graph_fill: Color::Rgb(0x33, 0xFF, 0x99),
+    graph_grid: Color::Rgb(0x16, 0x30, 0x1F),
+    good: Color::Rgb(0x33, 0xFF, 0x99),
+    warn: Color::Rgb(0xFF, 0xCE, 0x54),
+    bad: Color::Rgb(0xFF, 0x6B, 0x6B),
+    heat: [
+        Color::Rgb(0x12, 0x30, 0x1C),
+        Color::Rgb(0x1B, 0x3D, 0x22),
+        Color::Rgb(0x4A, 0x3B, 0x1A),
+        Color::Rgb(0x5C, 0x2E, 0x18),
+        Color::Rgb(0x6B, 0x1F, 0x1F),
+    ],
+    ascii: false,
+    coarse: false,
+};
+
+pub const AMBER: Theme = Theme {
+    name: ThemeName::Amber,
+    bg: Color::Rgb(0x0F, 0x0B, 0x06),
+    surface: Color::Rgb(0x16, 0x10, 0x0A),
+    surface_alt: Color::Rgb(0x1A, 0x13, 0x0C),
+    chrome: Color::Rgb(0x0A, 0x07, 0x04),
+    status: Color::Rgb(0x0D, 0x0A, 0x05),
+    text: Color::Rgb(0xFF, 0xC4, 0x6B),
+    muted: Color::Rgb(0xB0, 0x8A, 0x4A),
+    border: Color::Rgb(0x3A, 0x2A, 0x14),
+    accent: Color::Rgb(0xFF, 0xB0, 0x00),
+    on_accent: Color::Rgb(0x14, 0x10, 0x0A),
+    selection: Color::Rgb(0x3A, 0x2A, 0x10),
+    graph_fill: Color::Rgb(0xFF, 0xB0, 0x00),
+    graph_grid: Color::Rgb(0x2E, 0x22, 0x0F),
+    good: Color::Rgb(0x9B, 0xD7, 0x6B),
+    warn: Color::Rgb(0xFF, 0xB0, 0x00),
+    bad: Color::Rgb(0xFF, 0x6B, 0x5A),
+    heat: [
+        Color::Rgb(0x2A, 0x22, 0x13),
+        Color::Rgb(0x3A, 0x2C, 0x12),
+        Color::Rgb(0x4A, 0x35, 0x10),
+        Color::Rgb(0x5A, 0x3A, 0x14),
+        Color::Rgb(0x6B, 0x2E, 0x1A),
     ],
     ascii: false,
     coarse: false,
@@ -192,6 +352,10 @@ impl Theme {
         let mut theme = match name {
             ThemeName::Light => LIGHT,
             ThemeName::Dark => DARK,
+            ThemeName::Nord => NORD,
+            ThemeName::Gruvbox => GRUVBOX,
+            ThemeName::Phosphor => PHOSPHOR,
+            ThemeName::Amber => AMBER,
         };
         theme.ascii = ascii;
         theme
@@ -432,7 +596,7 @@ pub fn indexed_rgb(color: Color) -> (u8, u8, u8) {
 /// 16 colour mapping. Theme roles map by hand so greys stay apart; anything
 /// else takes the nearest named colour.
 fn ansi16(color: Color, theme: &Theme) -> Color {
-    let light = theme.name == ThemeName::Light;
+    let light = !is_dark(theme.bg);
     let roles: [(Color, Color, Color); 14] = [
         (theme.heat[4], Color::Yellow, Color::Red),
         (theme.surface_alt, Color::White, Color::Black),
@@ -475,6 +639,11 @@ fn channel(value: u8) -> f32 {
     }
 }
 
+/// True when a background is closer to black than to white.
+pub fn is_dark(color: Color) -> bool {
+    luminance(color) < 0.5
+}
+
 /// WCAG relative luminance.
 fn luminance(color: Color) -> f32 {
     let (r, g, b) = indexed_rgb(color);
@@ -492,9 +661,16 @@ pub fn contrast(a: Color, b: Color) -> f32 {
 mod tests {
     use super::*;
 
+    fn all_themes() -> Vec<Theme> {
+        ThemeName::ALL
+            .into_iter()
+            .map(|name| Theme::from_name(name, false))
+            .collect()
+    }
+
     #[test]
     fn text_is_readable_in_both_themes() {
-        for theme in [LIGHT, DARK] {
+        for theme in all_themes() {
             assert!(
                 contrast(theme.text, theme.bg) >= 4.5,
                 "{:?} text on bg is {}",
@@ -526,6 +702,22 @@ mod tests {
                 contrast(theme.accent, theme.bg) >= 3.0,
                 "{:?} accent",
                 theme.name
+            );
+            assert!(
+                contrast(theme.text, theme.chrome) >= 4.5,
+                "{:?} text on chrome",
+                theme.name
+            );
+            assert!(
+                contrast(theme.text, theme.status) >= 4.5,
+                "{:?} text on status",
+                theme.name
+            );
+            assert!(
+                contrast(theme.on_accent, theme.accent) >= 4.5,
+                "{:?} on_accent is {}",
+                theme.name,
+                contrast(theme.on_accent, theme.accent)
             );
         }
     }
@@ -567,7 +759,7 @@ mod tests {
 
     #[test]
     fn stripes_collapse_at_sixteen_colours() {
-        for theme in [LIGHT, DARK] {
+        for theme in all_themes() {
             assert_eq!(
                 ColorDepth::Ansi16.map(theme.surface_alt, &theme),
                 ColorDepth::Ansi16.map(theme.surface, &theme),
@@ -579,7 +771,7 @@ mod tests {
 
     #[test]
     fn rows_alternate_and_selection_wins() {
-        for theme in [LIGHT, DARK] {
+        for theme in all_themes() {
             assert_eq!(theme.row_style(false, 0).bg, Some(theme.surface));
             assert_eq!(theme.row_style(false, 1).bg, Some(theme.surface_alt));
             assert_eq!(theme.row_style(false, 2).bg, Some(theme.surface));
@@ -604,7 +796,7 @@ mod tests {
     fn no_rgb_survives_a_reduced_depth() {
         use ratatui::buffer::Buffer;
         use ratatui::layout::Rect;
-        for theme in [LIGHT, DARK] {
+        for theme in all_themes() {
             for depth in [ColorDepth::Ansi256, ColorDepth::Ansi16] {
                 let mut buf = Buffer::empty(Rect::new(0, 0, 4, 1));
                 buf[(0, 0)].set_fg(theme.text).set_bg(theme.bg);
@@ -629,7 +821,7 @@ mod tests {
 
     #[test]
     fn text_is_readable_at_every_depth() {
-        for theme in [LIGHT, DARK] {
+        for theme in all_themes() {
             for depth in [
                 ColorDepth::TrueColor,
                 ColorDepth::Ansi256,
@@ -642,6 +834,8 @@ mod tests {
                     ("muted/bg", theme.muted, theme.bg),
                     ("text/selection", theme.text, theme.selection),
                     ("text/surface_alt", theme.text, theme.surface_alt),
+                    ("text/chrome", theme.text, theme.chrome),
+                    ("text/status", theme.text, theme.status),
                 ] {
                     let ratio = contrast(m(fg), m(bg));
                     assert!(ratio >= 4.5, "{:?} {depth:?} {name} is {ratio}", theme.name);
@@ -701,7 +895,15 @@ mod tests {
 
     #[test]
     fn theme_names_toggle_and_parse() {
-        assert_eq!(ThemeName::Light.toggle(), ThemeName::Dark);
+        assert_eq!(ThemeName::Light.next(), ThemeName::Dark);
+        assert_eq!(ThemeName::Light.previous(), ThemeName::Amber);
+        assert_eq!(
+            ThemeName::ALL
+                .iter()
+                .filter(|n| ThemeName::parse(n.key()) == Some(**n))
+                .count(),
+            6
+        );
         assert_eq!(ThemeName::parse("dark"), Some(ThemeName::Dark));
         assert_eq!(ThemeName::parse("nope"), None);
     }

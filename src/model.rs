@@ -198,7 +198,7 @@ impl ChartColor {
     ) -> ratatui::style::Color {
         use crate::app::ResourceChoice as R;
         use ratatui::style::Color;
-        let dark = theme.name == crate::theme::ThemeName::Dark;
+        let dark = crate::theme::is_dark(theme.bg);
         match self {
             ChartColor::PerResource => match (resource, dark) {
                 (R::Cpu, false) => Color::Rgb(0x11, 0x7D, 0xBB),

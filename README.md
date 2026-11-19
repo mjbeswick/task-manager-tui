@@ -1,7 +1,7 @@
 # taskmgr
 
 A Windows 10 Task Manager clone for Linux and macOS terminals. Seven tabs, the
-Windows 10 light and dark themes, grouped process table, and 60 second graphs,
+Windows 10 and modern terminal themes, grouped process table, and 60 second graphs,
 driven from the keyboard or the mouse.
 
 ```
@@ -41,7 +41,7 @@ taskmgr
 | Flag | Meaning |
 |---|---|
 | `--tab <name>` | Open `processes`, `performance`, `app-history`, `startup`, `users`, `details`, or `services` |
-| `--theme <name>` | `light` or `dark` for this run |
+| `--theme <name>` | `light`, `dark`, `nord`, `gruvbox`, `phosphor`, or `amber` for this run |
 | `--interval <speed>` | `high` (0.5 s), `normal` (1 s), `low` (2 s), `paused` |
 | `--ascii` | ASCII glyphs instead of box drawing and blocks |
 | `--color <depth>` | `auto`, `truecolor`, `256`, or `16`. Auto reads `COLORTERM` and `TERM` |
@@ -74,7 +74,7 @@ If graph blocks show as boxes or question marks, your font lacks them. Use
 | `E` | End process tree |
 | `K` | Send a signal: TERM, KILL, INT, HUP, STOP, CONT, optionally to the tree |
 | `f` | Fewer details |
-| `t` | Light or dark theme |
+| `t` | Next colour theme |
 | `+` `-` | Update speed |
 | `p` | Set process priority as a nice value from -20 to 19 |
 | `a` | Set affinity, unavailable on both platforms |
@@ -122,6 +122,9 @@ clear it. Every action still has a key.
 - **Services** - launchd jobs or systemd units, start, stop, and restart.
 
 ## Table readability
+
+The theme collection holds Windows Light, Windows Dark, Nord, Gruvbox Dark, Phosphor,
+and Amber. `t`, the Appearance dialog, and `--theme` cycle through them in that order.
 
 List tables alternate a slightly lighter or darker row background so a wide row is
 easier to follow across its columns. Processes escalate cell shading through 1, 3, 8,

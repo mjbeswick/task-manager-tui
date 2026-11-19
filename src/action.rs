@@ -657,7 +657,11 @@ impl App {
                 };
                 match selected {
                     0 => {
-                        self.toggle_theme();
+                        if forward {
+                            self.toggle_theme();
+                        } else {
+                            self.previous_theme();
+                        }
                         effects.push(Effect::PersistSettings);
                     }
                     1 => {
