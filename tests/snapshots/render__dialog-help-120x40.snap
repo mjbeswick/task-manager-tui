@@ -4,18 +4,18 @@ expression: "screen(&app, 120, 40)"
 ---
  File  Options  View  Help                                                                                 Task Manager 
 Processes │ Performance │ App history │ Startup │ Users │ Details │ Services                                            
-Name                                                                   Status    CPU ▼ Memory       Disk  Network  GPU  
+                                                                                27%      62%    5.3MB/s  12.0Mbps    -  
+Name                                                                  Status    CPU ▼ Memory       Disk   Network  GPU  
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 ▾ Apps (2)                                                                                                              
-  ▸ Safari (1)                                                                  6.4%   1.2 GB  15.0 KB/s                
-  ▸ Ghostty (1)                                                                 2.1%   380 MB  15.0 KB/s                
-▾ Background processes (2)                                                                                              
-  ▸ node (1)                    ┌─ Keyboard shortcuts ─────────────────────────────────┐12 MB  15.0 KB/s                
-  ▸ postgres (1)                │  q, Ctrl+C           Quit                            │.0 MB  15.0 KB/s                
-▾ System processes (2)          │  F10, Alt+F/O/V/H    Menu bar                        │                                
-  ▸ WindowServer (1)            │  F1                  This help                       │.2 GB  15.0 KB/s                
-  ▸ launchd (1)                 │  F2                  Appearance: theme, style, colou │.0 MB  15.0 KB/s                
-                                │  F5                  Refresh now                     │                                
+  ▸ Safari (1)                                                                 6.4%   1.2 GB  15.0 KB/s                 
+  ▸ Ghostty (1)                                                                2.1%   380 MB  15.0 KB/s                 
+▾ Background processes (2)      ┌─ Keyboard shortcuts ─────────────────────────────────┐                                
+  ▸ node (1)                    │  q, Ctrl+C           Quit                            │2 MB  15.0 KB/s                 
+  ▸ postgres (1)                │  F10, Alt+F/O/V/H    Menu bar                        │0 MB  15.0 KB/s                 
+▾ System processes (2)          │  F1                  This help                       │                                
+  ▸ WindowServer (1)            │  F2                  Appearance: theme, style, colou │2 GB  15.0 KB/s                 
+  ▸ launchd (1)                 │  F5                  Refresh now                     │0 MB  15.0 KB/s                 
                                 │  1-7, Tab            Switch tabs                     │                                
                                 │  Up/Down, j/k, PgUp/PMove and scroll                 │                                
                                 │  g / G, Ctrl+d / CtrlTop, bottom, half page          │                                

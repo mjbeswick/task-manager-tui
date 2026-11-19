@@ -47,6 +47,8 @@ pub struct Theme {
     pub good: Color,
     pub warn: Color,
     pub bad: Color,
+    /// Processes cell shading, palest first.
+    pub heat: [Color; 5],
     pub ascii: bool,
     /// 16 colour mode: graphs keep half cell steps, fills are not mixed.
     pub coarse: bool,
@@ -66,6 +68,13 @@ pub const LIGHT: Theme = Theme {
     good: Color::Rgb(0x10, 0x7C, 0x10),
     warn: Color::Rgb(0x9D, 0x5A, 0x00),
     bad: Color::Rgb(0xC4, 0x2B, 0x1C),
+    heat: [
+        Color::Rgb(0xFF, 0xF4, 0xC4),
+        Color::Rgb(0xFF, 0xE9, 0xA8),
+        Color::Rgb(0xFD, 0xD8, 0x7F),
+        Color::Rgb(0xF9, 0xC2, 0x5B),
+        Color::Rgb(0xF5, 0xA4, 0x3F),
+    ],
     ascii: false,
     coarse: false,
 };
@@ -84,9 +93,19 @@ pub const DARK: Theme = Theme {
     good: Color::Rgb(0x6C, 0xC6, 0x6C),
     warn: Color::Rgb(0xE0, 0xA0, 0x40),
     bad: Color::Rgb(0xF0, 0x70, 0x60),
+    heat: [
+        Color::Rgb(0x3A, 0x33, 0x22),
+        Color::Rgb(0x4A, 0x3D, 0x20),
+        Color::Rgb(0x5A, 0x44, 0x1C),
+        Color::Rgb(0x6A, 0x4A, 0x18),
+        Color::Rgb(0x7A, 0x4E, 0x14),
+    ],
     ascii: false,
     coarse: false,
 };
+
+/// Percent of the system total at which each heat step starts.
+pub const HEAT_STEPS: [f32; 5] = [1.0, 5.0, 15.0, 30.0, 50.0];
 
 /// Characters that differ between unicode and ASCII modes.
 #[derive(Debug, Clone, Copy)]
@@ -203,6 +222,18 @@ impl Theme {
             .fg(self.muted)
             .bg(self.surface)
             .add_modifier(Modifier::BOLD)
+    }
+
+    /// Shade for a cell holding `share` percent of the system total, or `None`
+    /// below the first step. 16 colour mode keeps a single step at 15 percent.
+    pub fn heat_for(&self, share: f32) -> Option<Color> {
+        if self.coarse {
+            return (share >= 15.0).then_some(self.heat[4]);
+        }
+        HEAT_STEPS
+            .iter()
+            .rposition(|step| share >= *step)
+            .map(|index| self.heat[index])
     }
 
     pub fn danger(&self) -> Style {
@@ -364,7 +395,8 @@ pub fn indexed_rgb(color: Color) -> (u8, u8, u8) {
 /// else takes the nearest named colour.
 fn ansi16(color: Color, theme: &Theme) -> Color {
     let light = theme.name == ThemeName::Light;
-    let roles: [(Color, Color, Color); 12] = [
+    let roles: [(Color, Color, Color); 13] = [
+        (theme.heat[4], Color::Yellow, Color::Red),
         (theme.selection, Color::Cyan, Color::Blue),
         (theme.text, Color::Black, Color::White),
         (theme.bg, Color::White, Color::Black),
@@ -473,6 +505,22 @@ mod tests {
     }
 
     #[test]
+    fn heat_steps_follow_the_thresholds() {
+        let mut theme = LIGHT;
+        assert_eq!(theme.heat_for(0.9), None);
+        assert_eq!(theme.heat_for(1.0), Some(theme.heat[0]));
+        assert_eq!(theme.heat_for(4.9), Some(theme.heat[0]));
+        assert_eq!(theme.heat_for(5.0), Some(theme.heat[1]));
+        assert_eq!(theme.heat_for(15.0), Some(theme.heat[2]));
+        assert_eq!(theme.heat_for(30.0), Some(theme.heat[3]));
+        assert_eq!(theme.heat_for(50.0), Some(theme.heat[4]));
+        assert_eq!(theme.heat_for(100.0), Some(theme.heat[4]));
+        theme.coarse = true;
+        assert_eq!(theme.heat_for(14.9), None);
+        assert_eq!(theme.heat_for(15.0), Some(theme.heat[4]));
+    }
+
+    #[test]
     fn xterm256_hits_exact_entries() {
         assert_eq!(xterm256(0, 0, 0), 16);
         assert_eq!(xterm256(255, 255, 255), 231);
@@ -535,6 +583,16 @@ mod tests {
                     "{:?} {depth:?}",
                     theme.name
                 );
+                // 16 colour mode only ever draws the deepest step.
+                let first = if depth == ColorDepth::Ansi16 { 4 } else { 0 };
+                for (step, heat) in theme.heat.iter().enumerate().skip(first) {
+                    let ratio = contrast(m(theme.text), m(*heat));
+                    assert!(
+                        ratio >= 4.5,
+                        "{:?} {depth:?} heat {step} is {ratio}",
+                        theme.name
+                    );
+                }
             }
         }
     }
