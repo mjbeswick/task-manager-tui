@@ -18,7 +18,7 @@ const HELP: &[(&str, &str)] = &[
     ("Up/Down, j/k, PgUp/PgDn", "Move and scroll"),
     ("g / G, Ctrl+d / Ctrl+u", "Top, bottom, half page"),
     ("Enter, Left/Right, h/l", "Expand, collapse, inspect"),
-    ("Mouse", "Click tabs, rows, menus; wheel scrolls"),
+    ("Mouse", "Click tabs, rows, menus; wheel and scrollbar"),
     ("<, >, r", "Sort column, reverse"),
     ("/", "Filter"),
     ("Delete, e, E", "End task, end tree"),

@@ -15,6 +15,14 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         return;
     }
 
+    let rows = app.service_rows();
+    let body_height = area.height.saturating_sub(2);
+    let bar = crate::ui::chrome::scrollbar_rect(area, area.y + 2, body_height, rows.len());
+    let area = if bar.is_some() {
+        Rect::new(area.x, area.y, area.width.saturating_sub(1), area.height)
+    } else {
+        area
+    };
     let name = area.width.saturating_sub(7 + 30 + 12 + 8).max(12);
     let header = theme.header_style();
     fill_area(
@@ -84,7 +92,6 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         return;
     }
 
-    let rows = app.service_rows();
     if rows.is_empty() {
         let message = if app.services.filter.is_empty() {
             "No services reported by the system's service manager."
@@ -103,14 +110,9 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     );
     let selected = app.services.selected;
     let visible = body.height as usize;
-    let scroll = if selected < app.services.scroll {
-        selected
-    } else if selected >= app.services.scroll + visible {
-        selected + 1 - visible
-    } else {
-        app.services.scroll
-    };
-    let scroll = scroll.min(rows.len().saturating_sub(visible));
+    app.services.visible.set(visible);
+    hits.add(body, Target::ScrollZone(crate::app::Tab::Services));
+    let scroll = app.services.scroll.min(rows.len().saturating_sub(visible));
 
     for (offset, row) in rows.iter().skip(scroll).take(visible).enumerate() {
         let y = body.y + offset as u16;
@@ -158,6 +160,20 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
             body,
         );
         put_right(buf, body.x + name + 57, y, row.scope.label(), base, body);
+    }
+    if let Some(bar) = bar {
+        crate::ui::chrome::draw_scrollbar(
+            buf,
+            theme,
+            hits,
+            crate::ui::chrome::ScrollbarSpec {
+                rect: bar,
+                len: rows.len(),
+                visible,
+                viewport: scroll,
+                tab: crate::app::Tab::Services,
+            },
+        );
     }
 
     if let Some(row) = rows.get(selected) {

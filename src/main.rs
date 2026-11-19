@@ -85,6 +85,7 @@ fn run(
 ) -> Result<()> {
     let mut hits = HitMap::default();
     let mut last_click: Option<(std::time::Instant, Target)> = None;
+    let mut drag: Option<Drag> = None;
     let mut last_tab = app.tab;
     set_title(app.tab);
 
@@ -107,7 +108,7 @@ fn run(
                     }
                 }
                 Event::Mouse(mouse)
-                    if handle_mouse(app, sampler, &hits, mouse, &mut last_click)? =>
+                    if handle_mouse(app, sampler, &hits, mouse, &mut last_click, &mut drag)? =>
                 {
                     break;
                 }
@@ -126,6 +127,16 @@ fn run(
     Ok(())
 }
 
+/// A scrollbar drag in progress.
+struct Drag {
+    tab: task_manager_tui::app::Tab,
+    grab: u16,
+    track_top: u16,
+    track: u16,
+    thumb: u16,
+    max_scroll: usize,
+}
+
 /// Handle a mouse event. Returns true when the application should exit.
 fn handle_mouse(
     app: &mut App,
@@ -133,14 +144,59 @@ fn handle_mouse(
     hits: &HitMap,
     mouse: MouseEvent,
     last_click: &mut Option<(std::time::Instant, Target)>,
+    drag: &mut Option<Drag>,
 ) -> Result<bool> {
+    use task_manager_tui::app::Tab;
     use task_manager_tui::input::Action;
 
     match mouse.kind {
+        MouseEventKind::Drag(MouseButton::Left) => {
+            if let Some(state) = drag {
+                let viewport = task_manager_tui::ui::chrome::drag_viewport(
+                    state.track_top,
+                    state.grab,
+                    mouse.row,
+                    state.track,
+                    state.thumb,
+                    state.max_scroll,
+                );
+                app.set_list_scroll(state.tab, viewport);
+            }
+            Ok(false)
+        }
+        MouseEventKind::Up(_) => {
+            *drag = None;
+            Ok(false)
+        }
         MouseEventKind::Down(MouseButton::Left) => {
             let Some(target) = hits.hit(mouse.column, mouse.row) else {
                 return Ok(false);
             };
+            if let Target::ScrollbarThumb(tab) = target
+                && let Some(thumb) = hits.rect_of(target)
+                && let Some(track) = hits.rect_of(Target::ScrollbarTrack(tab))
+            {
+                let visible = app.list_visible(tab);
+                *drag = Some(Drag {
+                    tab,
+                    grab: mouse.row.saturating_sub(thumb.y),
+                    track_top: track.y,
+                    track: track.height,
+                    thumb: thumb.height,
+                    max_scroll: app.list_len(tab).saturating_sub(visible),
+                });
+                return Ok(false);
+            }
+            if let Target::ScrollbarTrack(tab) = target
+                && let Some(thumb) = hits.rect_of(Target::ScrollbarThumb(tab))
+            {
+                if mouse.row < thumb.y {
+                    app.page_list(tab, -1);
+                } else if mouse.row >= thumb.y + thumb.height {
+                    app.page_list(tab, 1);
+                }
+                return Ok(false);
+            }
             let now = std::time::Instant::now();
             let double = matches!(target, Target::Row(_))
                 && last_click.is_some_and(|(at, previous)| {
@@ -156,16 +212,37 @@ fn handle_mouse(
             apply_effects(app, sampler, effects)
         }
         MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => {
-            let action = if matches!(mouse.kind, MouseEventKind::ScrollDown) {
-                Action::MoveDown
-            } else {
-                Action::MoveUp
-            };
-            let mut effects = Vec::new();
-            for _ in 0..3 {
-                effects.extend(app.dispatch(action.clone()));
+            let down = matches!(mouse.kind, MouseEventKind::ScrollDown);
+            let target = hits.hit(mouse.column, mouse.row);
+            match target {
+                Some(Target::MenuItem(..)) => {
+                    let action = if down {
+                        Action::MenuDown
+                    } else {
+                        Action::MenuUp
+                    };
+                    let effects = app.dispatch(action);
+                    apply_effects(app, sampler, effects)
+                }
+                Some(Target::ScrollZone(Tab::Performance)) => {
+                    let action = if down {
+                        Action::MoveDown
+                    } else {
+                        Action::MoveUp
+                    };
+                    let effects = app.dispatch(action);
+                    apply_effects(app, sampler, effects)
+                }
+                Some(Target::ScrollZone(tab)) => {
+                    app.scroll_list(tab, if down { 3 } else { -3 });
+                    Ok(false)
+                }
+                Some(Target::Row(_)) => {
+                    app.scroll_list(app.tab, if down { 3 } else { -3 });
+                    Ok(false)
+                }
+                _ => Ok(false),
             }
-            apply_effects(app, sampler, effects)
         }
         _ => Ok(false),
     }

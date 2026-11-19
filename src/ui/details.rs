@@ -80,6 +80,20 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         (area, None)
     };
 
+    let rows = app.details_rows();
+    let body_top = table_area.y + 2;
+    let body_height = table_area.height.saturating_sub(2);
+    let bar = crate::ui::chrome::scrollbar_rect(table_area, body_top, body_height, rows.len());
+    let table_area = if bar.is_some() {
+        Rect::new(
+            table_area.x,
+            table_area.y,
+            table_area.width.saturating_sub(1),
+            table_area.height,
+        )
+    } else {
+        table_area
+    };
     let layout = layout_for(table_area.width, app.show_optional());
     draw_header(buf, table_area, &layout, app);
     hits.header(
@@ -99,7 +113,6 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         ],
     );
 
-    let rows = app.details_rows();
     if rows.is_empty() {
         let message = if app.details.filter.is_empty() {
             "No processes to show."
@@ -125,15 +138,10 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         table_area.height.saturating_sub(2),
     );
     let visible = body.height as usize;
+    app.details.visible.set(visible);
+    hits.add(body, Target::ScrollZone(crate::app::Tab::Details));
     let selected = app.details.selected;
-    let scroll = if selected < app.details.scroll {
-        selected
-    } else if selected >= app.details.scroll + visible {
-        selected + 1 - visible
-    } else {
-        app.details.scroll
-    };
-    let scroll = scroll.min(rows.len().saturating_sub(visible));
+    let scroll = app.details.scroll.min(rows.len().saturating_sub(visible));
 
     for (offset, row) in rows.iter().skip(scroll).take(visible).enumerate() {
         let y = body.y + offset as u16;
@@ -144,6 +152,20 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         );
         let base = app.theme().row_style(is_selected, scroll + offset);
         draw_row(buf, body, y, row, &layout, app, base);
+    }
+    if let Some(bar) = bar {
+        crate::ui::chrome::draw_scrollbar(
+            buf,
+            theme,
+            hits,
+            crate::ui::chrome::ScrollbarSpec {
+                rect: bar,
+                len: rows.len(),
+                visible,
+                viewport: scroll,
+                tab: crate::app::Tab::Details,
+            },
+        );
     }
 
     if let Some(panel_area) = panel_area

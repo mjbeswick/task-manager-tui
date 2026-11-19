@@ -508,6 +508,89 @@ fn draw_menu_dropdown(
     }
 }
 
+/// Width below which the scrollbar is dropped in favour of the counter.
+pub const MIN_SCROLLBAR_COLUMNS: u16 = 60;
+
+/// The one-column bar for a body, or `None` when every row fits or the
+/// terminal is too narrow to spare the column.
+pub fn scrollbar_rect(area: Rect, body_top: u16, body_height: u16, len: usize) -> Option<Rect> {
+    if area.width < MIN_SCROLLBAR_COLUMNS || body_height == 0 || len <= body_height as usize {
+        None
+    } else {
+        Some(Rect::new(area.x + area.width - 1, body_top, 1, body_height))
+    }
+}
+
+/// Thumb height and top offset inside a track, as a pure function.
+pub fn scrollbar_geometry(len: usize, visible: usize, viewport: usize) -> Option<(u16, u16)> {
+    if visible == 0 || len <= visible {
+        return None;
+    }
+    let track = visible as u32;
+    let thumb = ((track * visible as u32) / len as u32).clamp(1, track) as u16;
+    let max_scroll = (len - visible) as u32;
+    let travel = (track - thumb as u32) * viewport as u32 + max_scroll / 2;
+    let top = travel.checked_div(max_scroll).unwrap_or(0) as u16;
+    Some((thumb, top))
+}
+
+/// Map a pointer row to a viewport offset while dragging a thumb.
+pub fn drag_viewport(
+    track_top: u16,
+    grab: u16,
+    row: u16,
+    track: u16,
+    thumb: u16,
+    max_scroll: usize,
+) -> usize {
+    let usable = track.saturating_sub(thumb);
+    let top = row.saturating_sub(track_top + grab).min(usable);
+    if usable == 0 {
+        0
+    } else {
+        ((top as u32 * max_scroll as u32 + usable as u32 / 2) / usable as u32) as usize
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct ScrollbarSpec {
+    pub rect: Rect,
+    pub len: usize,
+    pub visible: usize,
+    pub viewport: usize,
+    pub tab: Tab,
+}
+
+pub fn draw_scrollbar(buf: &mut Buffer, theme: &Theme, hits: &mut HitMap, spec: ScrollbarSpec) {
+    let ScrollbarSpec {
+        rect,
+        len,
+        visible,
+        viewport,
+        tab,
+    } = spec;
+    let Some((thumb_height, thumb_top)) = scrollbar_geometry(len, visible, viewport) else {
+        return;
+    };
+    let track = Style::default().fg(theme.border).bg(theme.surface);
+    for y in rect.y..rect.y + rect.height {
+        buf[(rect.x, y)]
+            .set_char(theme.glyphs().vline)
+            .set_style(track);
+    }
+    let thumb = Style::default().fg(theme.accent).bg(theme.surface);
+    for y in rect.y + thumb_top..rect.y + thumb_top + thumb_height {
+        buf[(rect.x, y)]
+            .set_char(theme.glyphs().block_full)
+            .set_style(thumb);
+    }
+    hits.add(rect, Target::ScrollbarTrack(tab));
+    hits.add(
+        Rect::new(rect.x, rect.y + thumb_top, 1, thumb_height),
+        Target::ScrollbarThumb(tab),
+    );
+}
+
 /// Split a width into a flexible name column and right-aligned fixed columns.
 pub fn columns(width: u16, fixed: &[(&'static str, u16)]) -> (u16, Vec<(&'static str, u16)>) {
     let used: u16 = fixed.iter().map(|(_, w)| *w).sum();
@@ -752,6 +835,54 @@ mod tests {
         assert_eq!(buffer[(95, 1)].bg, theme.chrome, "tab strip");
         assert_eq!(buffer[(100, 29)].bg, theme.status, "status bar");
         assert_ne!(theme.chrome, theme.status);
+    }
+
+    #[test]
+    fn scrollbar_geometry_tracks_the_visible_fraction() {
+        let (thumb, top) = scrollbar_geometry(300, 20, 0).unwrap();
+        assert_eq!(thumb, 1);
+        assert_eq!(top, 0);
+        let (_, middle) = scrollbar_geometry(300, 20, 140).unwrap();
+        assert!(middle > 0 && middle < 19, "middle thumb top {middle}");
+        let (_, end) = scrollbar_geometry(300, 20, 280).unwrap();
+        assert_eq!(end, 19);
+        assert!(scrollbar_geometry(10, 20, 0).is_none());
+        assert!(scrollbar_geometry(20, 20, 0).is_none());
+    }
+
+    #[test]
+    fn dragging_maps_pointer_travel_to_the_viewport() {
+        assert_eq!(drag_viewport(0, 0, 0, 20, 2, 280), 0);
+        assert_eq!(drag_viewport(0, 0, 20, 20, 2, 280), 280);
+        assert_eq!(drag_viewport(0, 1, 10, 20, 2, 280), 140);
+        assert_eq!(drag_viewport(0, 0, 99, 20, 20, 280), 0, "no travel");
+    }
+
+    #[test]
+    fn scrollbars_appear_only_when_a_list_overflows() {
+        let mut app = App::new(Settings::default(), false).0;
+        let mut snapshot = crate::model::Snapshot::fixture();
+        let template = snapshot.processes[0].clone();
+        for i in 0..300u32 {
+            let mut row = template.clone();
+            row.key = crate::model::ProcKey::new(20_000 + i, 1);
+            row.name = format!("proc{i:03}");
+            row.kind = crate::model::Kind::Background;
+            snapshot.processes.push(row);
+        }
+        app.apply_snapshot(snapshot);
+        for (width, expect) in [(120u16, true), (50, false)] {
+            app.tab = crate::app::Tab::Processes;
+            let mut hits = crate::ui::hits::HitMap::default();
+            let mut terminal = Terminal::new(TestBackend::new(width, 40)).unwrap();
+            terminal.draw(|frame| draw(frame, &app, &mut hits)).unwrap();
+            let thumb = hits.rect_of(Target::ScrollbarThumb(crate::app::Tab::Processes));
+            assert_eq!(thumb.is_some(), expect, "width {width}");
+            if expect {
+                let track = hits.rect_of(Target::ScrollbarTrack(crate::app::Tab::Processes));
+                assert!(track.unwrap().height >= thumb.unwrap().height);
+            }
+        }
     }
 
     #[test]

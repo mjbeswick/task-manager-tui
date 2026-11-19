@@ -15,6 +15,14 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         return;
     }
 
+    let rows = app.startup_rows();
+    let body_height = area.height.saturating_sub(2);
+    let bar = crate::ui::chrome::scrollbar_rect(area, area.y + 2, body_height, rows.len());
+    let area = if bar.is_some() {
+        Rect::new(area.x, area.y, area.width.saturating_sub(1), area.height)
+    } else {
+        area
+    };
     let name = area.width.saturating_sub(12 + 16 + 8).max(12);
     let header = theme.header_style();
     fill_area(
@@ -76,7 +84,6 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         return;
     }
 
-    let rows = app.startup_rows();
     if rows.is_empty() {
         let message = if app.startup.filter.is_empty() {
             empty_message()
@@ -93,8 +100,20 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         area.width,
         area.height.saturating_sub(2),
     );
-    for (index, row) in rows.iter().take(body.height as usize).enumerate() {
+    app.startup.visible.set(body.height as usize);
+    hits.add(body, Target::ScrollZone(crate::app::Tab::Startup));
+    let scroll = app
+        .startup
+        .scroll
+        .min(rows.len().saturating_sub(body.height as usize));
+    for (index, row) in rows
+        .iter()
+        .skip(scroll)
+        .take(body.height as usize)
+        .enumerate()
+    {
         let y = body.y + index as u16;
+        let index = scroll + index;
         let selected = index == app.startup.selected;
         hits.add(Rect::new(body.x, y, body.width, 1), Target::Row(index));
         let base = theme.row_style(selected, index);
@@ -121,6 +140,20 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         put_right(buf, body.x + name + 10, y, status, base, body);
         put_right(buf, body.x + name + 26, y, row.impact.label(), base, body);
         put_right(buf, body.x + name + 34, y, row.scope.label(), base, body);
+    }
+    if let Some(bar) = bar {
+        crate::ui::chrome::draw_scrollbar(
+            buf,
+            theme,
+            hits,
+            crate::ui::chrome::ScrollbarSpec {
+                rect: bar,
+                len: rows.len(),
+                visible: body.height as usize,
+                viewport: scroll,
+                tab: crate::app::Tab::Startup,
+            },
+        );
     }
 
     if let Some(row) = rows.get(app.startup.selected) {

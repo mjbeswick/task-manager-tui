@@ -41,6 +41,48 @@ fn chrome_publishes_menu_tabs_and_rows() {
 }
 
 #[test]
+fn scrollbar_and_wheel_zones_are_published() {
+    let mut app = app(Tab::Processes);
+    let mut snapshot = task_manager_tui::model::Snapshot::fixture();
+    let template = snapshot.processes[0].clone();
+    for i in 0..300u32 {
+        let mut row = template.clone();
+        row.key = task_manager_tui::model::ProcKey::new(30_000 + i, 1);
+        row.name = format!("proc{i:03}");
+        row.kind = task_manager_tui::model::Kind::Background;
+        snapshot.processes.push(row);
+    }
+    app.apply_snapshot(snapshot);
+    let (_, hits) = render_with_hits(&app, 120, 40);
+    assert!(
+        hits.rect_of(Target::ScrollZone(Tab::Processes)).is_some(),
+        "rows expose a wheel zone"
+    );
+    let found = targets(&hits, 120, 40);
+    assert!(found.contains(&Target::ScrollbarTrack(Tab::Processes)));
+    assert!(found.contains(&Target::ScrollbarThumb(Tab::Processes)));
+    let thumb = hits
+        .rect_of(Target::ScrollbarThumb(Tab::Processes))
+        .unwrap();
+    let track = hits
+        .rect_of(Target::ScrollbarTrack(Tab::Processes))
+        .unwrap();
+    assert!(thumb.y >= track.y && thumb.y + thumb.height <= track.y + track.height);
+    assert_eq!(
+        hits.hit(thumb.x, thumb.y),
+        Some(Target::ScrollbarThumb(Tab::Processes))
+    );
+    if thumb.y > track.y {
+        assert_eq!(
+            hits.hit(track.x, track.y),
+            Some(Target::ScrollbarTrack(Tab::Processes))
+        );
+    }
+    let (_, narrow) = render_with_hits(&app, 50, 40);
+    assert!(!targets(&narrow, 50, 40).contains(&Target::ScrollbarThumb(Tab::Processes)));
+}
+
+#[test]
 fn performance_rail_is_clickable() {
     let app = app(Tab::Performance);
     let (_, hits) = render_with_hits(&app, 120, 40);

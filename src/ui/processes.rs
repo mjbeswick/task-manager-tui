@@ -74,11 +74,20 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         return;
     }
 
-    let layout = layout_for(area.width, app.process.more_details, app.show_optional());
+    let items = &app.process.items;
     // Windows 10 puts the system total above each resource label. Short
     // terminals keep the single row header.
     let totals = area.height >= 12;
     let header_rows = if totals { 3 } else { 2 };
+    let body_height = area.height.saturating_sub(header_rows);
+    let bar =
+        crate::ui::chrome::scrollbar_rect(area, area.y + header_rows, body_height, items.len());
+    let area = if bar.is_some() {
+        Rect::new(area.x, area.y, area.width.saturating_sub(1), area.height)
+    } else {
+        area
+    };
+    let layout = layout_for(area.width, app.process.more_details, app.show_optional());
     draw_header(buf, area, area.y, &layout, app, totals);
     {
         use crate::sample::group::SortKey as K;
@@ -104,7 +113,6 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         area.width,
         area.height.saturating_sub(header_rows),
     );
-    let items = &app.process.items;
     if items.is_empty() {
         let message = if app.process.filter.is_empty() {
             "No processes to show."
@@ -124,15 +132,10 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     }
 
     let visible = rows_area.height as usize;
+    app.process.visible.set(visible);
+    hits.add(rows_area, Target::ScrollZone(crate::app::Tab::Processes));
     let selected = app.process.selected;
-    let scroll = if selected < app.process.scroll {
-        selected
-    } else if selected >= app.process.scroll + visible {
-        selected + 1 - visible
-    } else {
-        app.process.scroll
-    };
-    let scroll = scroll.min(items.len().saturating_sub(visible));
+    let scroll = app.process.scroll.min(items.len().saturating_sub(visible));
 
     for (offset, item) in items.iter().skip(scroll).take(visible).enumerate() {
         let y = rows_area.y + offset as u16;
@@ -143,6 +146,20 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         );
         let row = (theme.row_style(is_selected, scroll + offset), is_selected);
         draw_item(buf, area, y, item, &layout, app, row);
+    }
+    if let Some(bar) = bar {
+        crate::ui::chrome::draw_scrollbar(
+            buf,
+            theme,
+            hits,
+            crate::ui::chrome::ScrollbarSpec {
+                rect: bar,
+                len: items.len(),
+                visible,
+                viewport: scroll,
+                tab: crate::app::Tab::Processes,
+            },
+        );
     }
 }
 

@@ -28,6 +28,11 @@ pub enum Target {
     /// The filter field in the menu bar, and its clear mark.
     FilterField,
     FilterClear,
+    /// The rows of a list, so the wheel knows what it is over.
+    ScrollZone(Tab),
+    /// The scrollbar track and its draggable thumb.
+    ScrollbarTrack(Tab),
+    ScrollbarThumb(Tab),
 }
 
 #[derive(Debug, Default)]
@@ -70,6 +75,15 @@ impl HitMap {
                     && row < rect.y + rect.height
             })
             .map(|(_, target)| *target)
+    }
+
+    /// The rectangle recorded for a target, when it has one.
+    pub fn rect_of(&self, target: Target) -> Option<Rect> {
+        self.entries
+            .iter()
+            .rev()
+            .find(|(_, recorded)| *recorded == target)
+            .map(|(rect, _)| *rect)
     }
 
     pub fn len(&self) -> usize {

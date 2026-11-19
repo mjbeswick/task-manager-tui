@@ -130,6 +130,8 @@ pub struct ProcessTab {
     pub more_details: bool,
     pub show_optional_columns: bool,
     pub last_navigation: Option<std::time::Instant>,
+    /// Row count last drawn, so keyboard moves can keep the selection in view.
+    pub visible: std::cell::Cell<usize>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -244,6 +246,7 @@ pub struct DetailsTab {
     pub sort: SortKeyState,
     pub filter: String,
     pub panel: bool,
+    pub visible: std::cell::Cell<usize>,
 }
 
 #[derive(Debug, Default)]
@@ -300,6 +303,7 @@ pub struct AppHistoryTab {
     pub scroll: usize,
     pub sort: SortKeyState,
     pub filter: String,
+    pub visible: std::cell::Cell<usize>,
 }
 
 #[derive(Debug, Default)]
@@ -308,6 +312,7 @@ pub struct StartupTab {
     pub key: Option<String>,
     pub scroll: usize,
     pub filter: String,
+    pub visible: std::cell::Cell<usize>,
 }
 
 #[derive(Debug, Default)]
@@ -317,6 +322,7 @@ pub struct UsersTab {
     pub scroll: usize,
     pub panel: bool,
     pub filter: String,
+    pub visible: std::cell::Cell<usize>,
 }
 
 #[derive(Debug, Default)]
@@ -325,6 +331,7 @@ pub struct ServicesTab {
     pub key: Option<String>,
     pub scroll: usize,
     pub filter: String,
+    pub visible: std::cell::Cell<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -616,6 +623,8 @@ impl App {
         self.sync_startup();
         self.sync_users();
         self.sync_history();
+        self.clamp_viewports();
+        self.keep_selection_visible();
     }
 
     pub fn filter(&self) -> &str {
@@ -910,8 +919,129 @@ impl App {
     }
 
     /// Move the selection on the active tab. Returns false at the edges.
+    pub fn list_len(&self, tab: Tab) -> usize {
+        match tab {
+            Tab::Processes => self.process.items.len(),
+            Tab::Details => self.details_rows().len(),
+            Tab::Services => self.service_rows().len(),
+            Tab::Startup => self.startup_rows().len(),
+            Tab::Users => self.user_rows().len(),
+            Tab::AppHistory => self.history_rows().len(),
+            Tab::Performance => 0,
+        }
+    }
+
+    pub fn list_visible(&self, tab: Tab) -> usize {
+        match tab {
+            Tab::Processes => self.process.visible.get(),
+            Tab::Details => self.details.visible.get(),
+            Tab::Services => self.services.visible.get(),
+            Tab::Startup => self.startup.visible.get(),
+            Tab::Users => self.users.visible.get(),
+            Tab::AppHistory => self.app_history.visible.get(),
+            Tab::Performance => 0,
+        }
+    }
+
+    pub fn list_scroll(&self, tab: Tab) -> usize {
+        match tab {
+            Tab::Processes => self.process.scroll,
+            Tab::Details => self.details.scroll,
+            Tab::Services => self.services.scroll,
+            Tab::Startup => self.startup.scroll,
+            Tab::Users => self.users.scroll,
+            Tab::AppHistory => self.app_history.scroll,
+            Tab::Performance => 0,
+        }
+    }
+
+    fn scroll_mut(&mut self, tab: Tab) -> Option<&mut usize> {
+        match tab {
+            Tab::Processes => Some(&mut self.process.scroll),
+            Tab::Details => Some(&mut self.details.scroll),
+            Tab::Services => Some(&mut self.services.scroll),
+            Tab::Startup => Some(&mut self.startup.scroll),
+            Tab::Users => Some(&mut self.users.scroll),
+            Tab::AppHistory => Some(&mut self.app_history.scroll),
+            Tab::Performance => None,
+        }
+    }
+
+    pub fn clamp_viewport(&mut self, tab: Tab) {
+        let max = self
+            .list_len(tab)
+            .saturating_sub(self.list_visible(tab).max(1));
+        if let Some(scroll) = self.scroll_mut(tab) {
+            *scroll = (*scroll).min(max);
+        }
+    }
+
+    pub fn clamp_viewports(&mut self) {
+        for tab in [
+            Tab::Processes,
+            Tab::Details,
+            Tab::Services,
+            Tab::Startup,
+            Tab::Users,
+            Tab::AppHistory,
+        ] {
+            self.clamp_viewport(tab);
+        }
+    }
+
+    pub fn scroll_list(&mut self, tab: Tab, delta: isize) {
+        let max = self
+            .list_len(tab)
+            .saturating_sub(self.list_visible(tab).max(1)) as isize;
+        if let Some(scroll) = self.scroll_mut(tab) {
+            *scroll = (*scroll as isize + delta).clamp(0, max) as usize;
+        }
+    }
+
+    pub fn set_list_scroll(&mut self, tab: Tab, value: usize) {
+        let max = self
+            .list_len(tab)
+            .saturating_sub(self.list_visible(tab).max(1));
+        if let Some(scroll) = self.scroll_mut(tab) {
+            *scroll = value.min(max);
+        }
+    }
+
+    pub fn page_list(&mut self, tab: Tab, direction: isize) {
+        let step = self.list_visible(tab).saturating_sub(1).max(1) as isize;
+        self.scroll_list(tab, direction * step);
+    }
+
+    fn keep_selection_visible(&mut self) {
+        let tab = self.tab;
+        let visible = self.list_visible(tab);
+        let selected = match tab {
+            Tab::Processes => self.process.selected,
+            Tab::Details => self.details.selected,
+            Tab::Services => self.services.selected,
+            Tab::Startup => self.startup.selected,
+            Tab::Users => self.users.selected,
+            Tab::AppHistory => self.app_history.selected,
+            Tab::Performance => return,
+        };
+        let Some(scroll) = self.scroll_mut(tab) else {
+            return;
+        };
+        if visible == 0 {
+            // Before the first frame there is no viewport yet; put the
+            // selection at the top so the next draw shows it.
+            *scroll = selected;
+            return;
+        }
+        if selected < *scroll {
+            *scroll = selected;
+        } else if selected >= *scroll + visible {
+            *scroll = selected + 1 - visible;
+        }
+    }
+
     pub fn move_selection(&mut self, delta: isize) -> bool {
-        match self.tab {
+        let moved = match self.tab {
             Tab::Processes => {
                 let len = self.process.items.len();
                 if move_index(&mut self.process.selected, len, delta) {
@@ -984,7 +1114,11 @@ impl App {
                 }
             }
             Tab::Performance => false,
+        };
+        if moved {
+            self.keep_selection_visible();
         }
+        moved
     }
 
     pub fn show_optional(&self) -> bool {
@@ -1017,6 +1151,7 @@ impl App {
             ProcSel::Proc(_) => return,
         }
         self.process.refresh(&self.snapshot);
+        self.clamp_viewport(Tab::Processes);
         self.process.key = Some(match self.process.current() {
             Some(item) => item.sel(),
             None => return,
@@ -1292,6 +1427,44 @@ mod tests {
         let (app, notices) = App::new(settings, false);
         assert_eq!(app.theme_name, ThemeName::Light);
         assert!(notices.iter().any(|n| n.contains("Unknown theme")));
+    }
+
+    #[test]
+    fn pointer_scrolling_moves_the_viewport_not_the_selection() {
+        let mut app = app();
+        app.tab = Tab::Processes;
+        app.process.visible.set(5);
+        app.scroll_list(Tab::Processes, 3);
+        assert_eq!(app.process.scroll, 3);
+        assert_eq!(app.process.selected, 0);
+        app.page_list(Tab::Processes, 1);
+        assert_eq!(app.process.scroll, 4, "clamped at the last page");
+        assert_eq!(app.process.selected, 0);
+    }
+
+    #[test]
+    fn keyboard_brings_the_selection_back_into_view() {
+        let mut app = app();
+        app.tab = Tab::Processes;
+        app.process.visible.set(5);
+        app.process.scroll = 0;
+        app.process.selected = 4;
+        app.move_selection(5);
+        assert_eq!(app.process.selected, 8);
+        assert_eq!(app.process.scroll, 4, "selection at the bottom edge");
+    }
+
+    #[test]
+    fn shrinking_the_list_clamps_the_viewport() {
+        let mut app = app();
+        app.tab = Tab::Processes;
+        app.process.visible.set(50);
+        app.process.scroll = 200;
+        app.clamp_viewport(Tab::Processes);
+        assert_eq!(
+            app.process.scroll, 0,
+            "every row fits, so there is one page"
+        );
     }
 
     #[test]

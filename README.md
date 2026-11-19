@@ -92,10 +92,16 @@ part of each name is highlighted. Each tab keeps its own filter.
 
 Mouse capture is on. Click a tab to switch, a menu label to open it, a menu item to
 activate it, a table row to select it, or a resource in the Performance rail to show
-it. Click a row twice to expand or inspect it. The wheel moves the selection three
-rows. Dialog buttons respond to clicks. Click a column header to sort by it, and
-click it again to reverse. Click the filter field to type a filter, or its `×` to
-clear it. Every action still has a key.
+it. Click a row twice to expand or inspect it. Dialog buttons respond to clicks.
+Click a column header to sort by it, and click it again to reverse. Click the filter
+field to type a filter, or its `×` to clear it. Every action still has a key.
+
+The wheel acts on what is under the pointer. Over a table it moves the viewport three
+rows without moving the selection; over the Performance rail it moves the selected
+resource; over an open menu it moves the highlight. Long lists show a one-column
+scrollbar at the right edge. Drag its thumb to move through the list, or click the
+track above or below the thumb to page by one screen. Below 60 columns the bar is
+dropped and the position counter in the status bar takes over.
 
 ## Tabs
 

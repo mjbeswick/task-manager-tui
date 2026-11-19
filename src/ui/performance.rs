@@ -31,6 +31,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
 fn draw_rail(buf: &mut Buffer, area: Rect, app: &App, narrow: bool, hits: &mut HitMap) {
     let theme = app.theme();
     fill_area(buf, area, Style::default().bg(theme.bg));
+    hits.add(area, Target::ScrollZone(crate::app::Tab::Performance));
     let resources = [
         ResourceChoice::Cpu,
         ResourceChoice::Memory,

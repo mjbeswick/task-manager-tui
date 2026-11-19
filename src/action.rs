@@ -249,6 +249,9 @@ impl App {
                 self.filter_clear();
                 Vec::new()
             }
+            Target::ScrollZone(_) | Target::ScrollbarTrack(_) | Target::ScrollbarThumb(_) => {
+                Vec::new()
+            }
         }
     }
 
