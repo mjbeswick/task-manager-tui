@@ -2,7 +2,7 @@
 
 ## 1. Colour depth
 
-- [ ] 1.1 Add a `ColorDepth` value with detection from `COLORTERM` and `TERM`, and a `--color auto|truecolor|256|16` flag in `src/cli.rs`. Verify: unit tests cover each environment case and the flag override.
+- [ ] 1.1 Add a `ColorDepth` value with detection from `COLORTERM` and `TERM`, and a `--color auto|truecolor|256|16` flag in `src/cli.rs`. Verify: unit tests cover `COLORTERM=truecolor`, `TERM=linux`, `TERM=vt100`, `TERM=xterm-kitty` without `COLORTERM` giving 256, and the flag override.
 - [ ] 1.2 Add the post-draw pass that maps every buffer cell to the active depth, with a cached nearest xterm 256 lookup and a per-theme 16 colour role table. Verify: a test renders a frame at each depth and asserts no `Color::Rgb` remains at 256 or 16.
 - [ ] 1.3 Extend `text_is_readable_in_both_themes` to check text, muted, and selection contrast after mapping at all three depths. Verify: `cargo test theme` passes.
 - [ ] 1.4 Document `--color` and the `--ascii` font fallback in the README flags table and a short troubleshooting line. Verify: README lists both.
@@ -10,7 +10,7 @@
 ## 2. Smooth graphs and per resource colour
 
 - [ ] 2.1 Add the eighths glyph array to `Glyphs` with an ASCII twin, and cover it in `ascii_glyphs_are_all_ascii`. Verify: `cargo test theme` passes.
-- [ ] 2.2 Draw Filled graphs with an eighth-resolution top cell in the edge colour and a mixed fill colour below, keeping half blocks at 16 colours. Verify: a new graph test asserts a three eighths sample draws `▃` in the top cell, and existing graph tests pass.
+- [ ] 2.2 Draw Filled graphs with an eighth-resolution top cell in the edge colour and a mixed fill colour below, keeping half blocks at 16 colours. Verify: graph tests assert a three eighths sample draws `▃` in truecolor and a half block at 16 colours, and existing graph tests pass.
 - [ ] 2.3 Add `ChartColor::PerResource` with the five Windows 10 colours and dark variants, list it first in the Appearance dialog, and make it the default for a missing setting. Verify: settings tests assert the new default, an old `teal` file still loads as Teal, and the chart visibility test covers every resource colour in both themes.
 
 ## 3. Performance rail

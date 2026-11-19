@@ -3,8 +3,8 @@
 ### Requirement: Filled graphs have a smooth edge
 
 A Filled graph SHALL resolve its top edge to an eighth of a cell, and SHALL draw
-that edge in a stronger shade than the fill below it. ASCII mode MUST keep whole
-and half cell steps.
+that edge in a stronger shade than the fill below it. ASCII mode and 16 colour
+mode MUST keep whole and half cell steps.
 
 #### Scenario: Partial cell
 - **WHEN** a sample's height ends three eighths into a cell
@@ -17,6 +17,10 @@ and half cell steps.
 #### Scenario: ASCII mode
 - **WHEN** the application runs with `--ascii`
 - **THEN** the graph uses only ASCII characters
+
+#### Scenario: 16 colour mode
+- **WHEN** the application draws at 16 colours
+- **THEN** graphs and rail sparklines use only whole and half block steps
 
 ## MODIFIED Requirements
 

@@ -45,8 +45,10 @@ maps every cell's foreground and background to the active depth before flush.
   The table keeps roles apart instead.
 
 Detection order: `--color` flag, then `COLORTERM` of `truecolor` or `24bit`,
-then `TERM=linux` for 16, then `TERM` ending in `256color` for 256, else 16.
-macOS Terminal.app sets no `COLORTERM`, so it lands on 256. That is correct.
+then `TERM` of `linux` or starting `vt` for 16, else 256. SSH usually drops
+`COLORTERM`, so a kitty or alacritty session on a remote Linux box still gets
+256 rather than 16. macOS Terminal.app sets no `COLORTERM` and lands on 256,
+which is correct.
 
 *Alternative.* Three hand-written palettes per theme. Rejected: six palettes
 drift apart, and every new colour needs six entries. The pass is a single
@@ -77,8 +79,8 @@ every column.
 `Glyphs` gains an eighths array, `▁▂▃▄▅▆▇█`. The ASCII twin repeats the current
 `_`, `"` and `#` steps. Each column's top cell uses the eighth matching its
 remainder, drawn in an edge colour. Cells below use a fill colour mixed 55
-percent toward the chart background. 16 colour mode keeps half blocks, because
-Linux console fonts often lack the eighths.
+percent toward the chart background. 16 colour mode keeps half blocks in graphs
+and sparklines, because Linux console fonts often lack the eighths.
 
 *Alternative.* Braille dots for four times the resolution. Rejected: weaker
 fill, uneven font support, and Windows 10 draws an area, not a dot cloud.
