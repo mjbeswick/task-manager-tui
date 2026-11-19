@@ -840,7 +840,6 @@ impl App {
                 return effects;
             }
             MenuItem::Exit => Action::Quit,
-            MenuItem::Theme => Action::ToggleTheme,
             MenuItem::SpeedHigh => {
                 self.set_speed("high", &mut effects);
                 return effects;
@@ -1459,6 +1458,27 @@ mod tests {
         app.dialog = Some(Dialog::Appearance { selected: 0 });
         app.dispatch(Action::Confirm);
         assert_eq!(app.theme_name, crate::theme::ThemeName::Dark);
+    }
+
+    #[test]
+    fn options_menu_has_no_theme_entry() {
+        let options = crate::app::MENUS
+            .iter()
+            .find(|(label, _)| *label == "Options")
+            .unwrap();
+        assert!(
+            !options
+                .1
+                .iter()
+                .any(|(label, _)| *label == "Next theme" || label.to_lowercase().contains("theme")),
+            "theme is switched from t and Appearance"
+        );
+        assert!(
+            options
+                .1
+                .iter()
+                .all(|(label, _)| label.starts_with("Update speed"))
+        );
     }
 
     #[test]

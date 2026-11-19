@@ -413,7 +413,6 @@ impl Dialog {
 pub enum MenuItem {
     Run,
     Exit,
-    Theme,
     SpeedHigh,
     SpeedNormal,
     SpeedLow,
@@ -439,7 +438,6 @@ pub const MENUS: [(&str, &[(&str, MenuItem)]); 4] = [
     (
         "Options",
         &[
-            ("Next theme", MenuItem::Theme),
             ("Update speed: High", MenuItem::SpeedHigh),
             ("Update speed: Normal", MenuItem::SpeedNormal),
             ("Update speed: Low", MenuItem::SpeedLow),
