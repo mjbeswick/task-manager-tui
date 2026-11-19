@@ -5,7 +5,7 @@ expression: "screen(&app, 120, 40)"
  File  Options  View  Help                                                                 / Filter                     
 ┌─────┌──────────────────────┐                                                                                          
 │1 Pro│ Next theme           │ App history  4 Startup  5 Users  6 Details  7 Services                      Task Manager 
-│     │ Update speed: High   │──────────────────────────────────────────────────────────────────────────────────────────
+└     │ Update speed: High   │──────────────────────────────────────────────────────────────────────────────────────────
 Name  │ Update speed: Normal │                                        Status    CPU ▼ Memory       Disk   Network  GPU  
 ──────│ Update speed: Low    │──────────────────────────────────────────────────────────────────────────────────────────
 ▾ Apps│ Update speed: Paused │                                                  27%      62%    5.3MB/s  12.0Mbps    -  

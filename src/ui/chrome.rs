@@ -336,10 +336,8 @@ fn draw_tabs(buf: &mut Buffer, top: Rect, area: Rect, rule: Rect, app: &App, hit
         for x in left..=right {
             buf[(x, rule.y)].set_char(' ').set_style(blank);
         }
-        buf[(left, rule.y)].set_char(glyphs.vline).set_style(accent);
-        buf[(right, rule.y)]
-            .set_char(glyphs.vline)
-            .set_style(accent);
+        buf[(left, rule.y)].set_char(glyphs.bl).set_style(accent);
+        buf[(right, rule.y)].set_char(glyphs.br).set_style(accent);
     }
 }
 
@@ -987,9 +985,9 @@ mod tests {
         assert_eq!(buffer[(0, 2)].symbol(), glyphs.vline.to_string());
         assert_eq!(buffer[(12, 2)].symbol(), glyphs.vline.to_string());
         // The bottom is open: sides continue, the rule span is blank.
-        assert_eq!(buffer[(0, 3)].symbol(), glyphs.vline.to_string());
-        assert_eq!(buffer[(12, 3)].symbol(), glyphs.vline.to_string());
-        assert_eq!(buffer[(0, 3)].fg, theme.accent, "side at the rule row");
+        assert_eq!(buffer[(0, 3)].symbol(), glyphs.bl.to_string());
+        assert_eq!(buffer[(12, 3)].symbol(), glyphs.br.to_string());
+        assert_eq!(buffer[(0, 3)].fg, theme.accent, "bottom corner");
         assert_eq!(
             buffer[(5, 3)].symbol(),
             " ",
@@ -997,7 +995,7 @@ mod tests {
         );
         assert_eq!(buffer[(5, 3)].bg, theme.bg);
         let rule: String = (0..120).map(|x| buffer[(x, 3)].symbol()).collect();
-        assert!(!rule.contains(glyphs.bl), "no bottom corner");
+        assert!(rule.contains(glyphs.bl) && rule.contains(glyphs.br));
         assert_eq!(
             rule.chars().filter(|ch| *ch == glyphs.hline).count(),
             120 - 13,
@@ -1024,7 +1022,12 @@ mod tests {
         let screen = crate::ui::test_util::render(&app, 120, 30);
         let top = screen.lines().nth(1).unwrap();
         let labels = screen.lines().nth(2).unwrap();
+        let rule = screen.lines().nth(3).unwrap();
         assert!(top.contains('+'), "ascii top corners: {top:?}");
+        assert!(
+            rule.starts_with("+           +"),
+            "ascii bottom corners: {rule:?}"
+        );
         assert!(labels.starts_with("|1 Processes|"), "{labels:?}");
         for ch in top.chars().chain(labels.chars()) {
             assert!(ch.is_ascii(), "non ascii {ch:?}");
@@ -1043,16 +1046,16 @@ mod tests {
             "the active box sides: {line:?}"
         );
         assert_eq!(
-            rule.matches(glyphs.vline).count(),
+            rule.matches(glyphs.bl).count() + rule.matches(glyphs.br).count(),
             2,
-            "the sides reach the rule row: {rule:?}"
+            "the corners reach the rule row: {rule:?}"
         );
         assert_eq!(
             rule.chars().filter(|ch| *ch == glyphs.hline).count(),
             60 - 7,
             "the rule stops under the active tab: {rule:?}"
         );
-        assert!(!rule.contains(glyphs.bl), "no bottom corner: {rule:?}");
+        assert!(rule.contains(glyphs.bl) && rule.contains(glyphs.br));
     }
 
     #[test]
