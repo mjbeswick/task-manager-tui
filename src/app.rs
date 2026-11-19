@@ -1122,7 +1122,16 @@ impl App {
                     false
                 }
             }
-            Tab::Performance => false,
+            Tab::Performance => {
+                if delta > 0 {
+                    self.performance.resource = self.performance.resource.next();
+                } else if delta < 0 {
+                    self.performance.resource = self.performance.resource.previous();
+                } else {
+                    return false;
+                }
+                true
+            }
         };
         if moved {
             self.keep_selection_visible();

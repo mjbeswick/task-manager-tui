@@ -1388,6 +1388,22 @@ mod tests {
     }
 
     #[test]
+    fn performance_rail_moves_with_up_and_down() {
+        use crate::app::ResourceChoice;
+        let mut app = app();
+        app.tab = Tab::Performance;
+        assert_eq!(app.performance.resource, ResourceChoice::Cpu);
+        app.dispatch(Action::MoveDown);
+        assert_eq!(app.performance.resource, ResourceChoice::Memory);
+        app.dispatch(Action::MoveUp);
+        assert_eq!(app.performance.resource, ResourceChoice::Cpu);
+        app.dispatch(Action::MoveUp);
+        assert_eq!(app.performance.resource, ResourceChoice::Gpu, "wraps up");
+        app.dispatch(Action::MoveDown);
+        assert_eq!(app.performance.resource, ResourceChoice::Cpu, "wraps down");
+    }
+
+    #[test]
     fn clicking_a_tab_switches_to_it() {
         let mut app = app();
         let effects = app.click(crate::ui::hits::Target::Tab(Tab::Performance));
