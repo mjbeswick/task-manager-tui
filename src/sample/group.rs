@@ -100,13 +100,12 @@ fn scan_desktop_programs() -> HashSet<String> {
                 continue;
             };
             for line in text.lines() {
-                if let Some(exec) = line.strip_prefix("Exec=") {
-                    if let Some(program) = exec.split_whitespace().next() {
-                        let program = program.trim_matches('"').trim_matches('\'');
-                        if let Some(name) = Path::new(program).file_name().and_then(|n| n.to_str())
-                        {
-                            programs.insert(name.to_string());
-                        }
+                if let Some(exec) = line.strip_prefix("Exec=")
+                    && let Some(program) = exec.split_whitespace().next()
+                {
+                    let program = program.trim_matches('"').trim_matches('\'');
+                    if let Some(name) = Path::new(program).file_name().and_then(|n| n.to_str()) {
+                        programs.insert(name.to_string());
                     }
                 }
             }

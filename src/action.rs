@@ -818,6 +818,12 @@ mod tests {
     fn ending_an_owned_process_signals_immediately() {
         let mut app = app();
         app.tab = Tab::Details;
+        // The fixture's uid 501 is only "us" on a default macOS account.
+        let mut snapshot = crate::model::Snapshot::fixture();
+        for p in &mut snapshot.processes {
+            p.uid = Some(crate::platform::current_uid());
+        }
+        app.apply_snapshot(snapshot);
         let row = app
             .snapshot
             .processes

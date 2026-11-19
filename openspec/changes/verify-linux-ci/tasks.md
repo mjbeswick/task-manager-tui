@@ -7,7 +7,7 @@
 
 ## 2. Real Linux host
 
-- [ ] 2.1 Build and test on the Linux server at 192.168.0.55, then render every tab with `--once`. Verify: `cargo test` passes there and every frame contains the tab strip.
+- [x] 2.1 Build and test on the Linux server at 192.168.0.55, then render every tab with `--once`. Verify: `cargo test` passes there and every frame contains the tab strip.
 
 ## 3. First CI run
 

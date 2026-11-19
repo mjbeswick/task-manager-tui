@@ -24,16 +24,15 @@ pub fn list_services(runner: &dyn Runner) -> Result<Vec<ServiceRow>, String> {
     if let Ok(out) = runner.run(
         "systemctl",
         &["--user", "show", "--all", "--type=service", SHOW_PROPS],
-    ) {
-        if out.success {
-            rows.extend(parse_systemctl_show(&out.stdout, Scope::User));
-        }
+    ) && out.success
+    {
+        rows.extend(parse_systemctl_show(&out.stdout, Scope::User));
     }
 
-    if rows.is_empty() {
-        if let Some(error) = first_error {
-            return Err(error);
-        }
+    if rows.is_empty()
+        && let Some(error) = first_error
+    {
+        return Err(error);
     }
     rows.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(rows)
