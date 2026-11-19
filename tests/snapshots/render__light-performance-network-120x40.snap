@@ -41,4 +41,4 @@ expression: "screen(&app, 120, 40)"
                     └──────────────────────────────────────────────────────────────────────────────────────────────────┘
                     Receive                  Send                     Adapter                  Link speed               
                     10.1 Mbps                2.0 Mbps                 en0                      -                        
-                                                 CPU 27.0%   Memory 62.5%   Disk 5.3 MB/s   Network 12.0 Mbps   Normal
+                                          CPU  27.0%   Memory  62.5%   Disk    5.3 MB/s   Network   12.0 Mbps   Normal

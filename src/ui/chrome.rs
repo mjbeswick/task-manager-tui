@@ -342,17 +342,18 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         _ => "Normal",
     };
 
-    // Metrics are dropped from the least important end until the bar fits.
+    // Each metric owns a fixed field, so the block never changes width as values
+    // move between units or gain a digit.
     let mut parts = vec![
-        format!("CPU {}", pct(snapshot.cpu.total)),
-        format!("Memory {memory}"),
-        format!("Disk {}", crate::ui::format::rate(disk)),
-        format!("Network {}", bit_rate(network)),
-        speed.to_string(),
+        metric("CPU", pct(snapshot.cpu.total), 6),
+        metric("Memory", memory, 6),
+        metric("Disk", crate::ui::format::rate(disk), 11),
+        metric("Network", bit_rate(network), 11),
+        format!("{speed:<6}"),
     ];
     if !snapshot.gpus.is_empty() {
         let gpu = snapshot.gpus.iter().map(|g| g.usage).fold(0.0, f32::max);
-        parts.push(format!("GPU {}", pct(gpu)));
+        parts.push(metric("GPU", pct(gpu), 6));
     }
 
     let mut show_action = !action.is_empty();
@@ -378,6 +379,12 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         break summary;
     };
 
+    // The metric block goes down first and never moves. Everything else fits
+    // into what is left of the bar.
+    let summary_width = summary.chars().count() as u16;
+    let summary_x = (area.x + area.width - 2).saturating_sub(summary_width);
+    put(buf, summary_x, area.y, &summary, bar, area);
+
     let mut x = area.x + 1;
     if show_action {
         let style = Style::default()
@@ -397,11 +404,9 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
 
     // A notice takes the middle when there is room for both without clipping.
     if let Some(notice) = app.notices.last() {
-        let room = area
-            .width
-            .saturating_sub((x - area.x) + summary.chars().count() as u16 + 3);
-        if room > 20 {
-            let text = truncate(notice, room.min(60) as usize);
+        let room = summary_x.saturating_sub(x + 2);
+        if room > 4 {
+            let text = truncate(notice, room as usize);
             put(
                 buf,
                 x,
@@ -412,8 +417,10 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
             );
         }
     }
+}
 
-    put_right(buf, area.x + area.width - 2, area.y, &summary, bar, area);
+fn metric(label: &str, value: String, width: usize) -> String {
+    format!("{label} {value:>width$}")
 }
 
 fn left_width(
@@ -433,6 +440,10 @@ fn left_width(
 }
 
 /// Where the selection sits inside the active list, when it has rows.
+fn position_text(selected: usize, len: usize) -> Option<String> {
+    (len > 1).then(|| format!("{:>4}/{:>4}", selected + 1, len))
+}
+
 fn status_position(app: &App) -> Option<String> {
     let (selected, len) = match app.tab {
         Tab::Processes => (app.process.selected, app.process.items.len()),
@@ -443,7 +454,7 @@ fn status_position(app: &App) -> Option<String> {
         Tab::AppHistory => (app.app_history.selected, app.history_rows().len()),
         Tab::Performance => return None,
     };
-    (len > 1).then(|| format!("{}/{}", selected + 1, len))
+    position_text(selected, len)
 }
 
 fn draw_menu_dropdown(
@@ -629,8 +640,77 @@ mod tests {
             screen.contains("/ Filter"),
             "list tabs show the filter field"
         );
-        assert!(screen.contains("CPU 27.0%"));
+        assert!(screen.contains("CPU  27.0%"));
         assert!(screen.contains("Fewer details"));
+    }
+
+    #[test]
+    fn metric_fields_keep_their_width() {
+        assert_eq!(metric("CPU", "9.0%".into(), 6).chars().count(), 10);
+        assert_eq!(metric("CPU", "100.0%".into(), 6).chars().count(), 10);
+        assert_eq!(metric("Disk", "1 B/s".into(), 11).chars().count(), 16);
+        assert_eq!(
+            metric("Network", "999.9 Gbps".into(), 11).chars().count(),
+            19
+        );
+    }
+
+    #[test]
+    fn position_counter_keeps_its_width() {
+        assert_eq!(position_text(0, 9).unwrap().chars().count(), 9);
+        assert_eq!(position_text(122, 4567).unwrap().chars().count(), 9);
+        assert!(position_text(0, 1).is_none());
+    }
+
+    fn app_with(cpu: f32, memory_used: u64) -> App {
+        let (mut app, _) = App::new(Settings::default(), false);
+        let mut snapshot = crate::model::Snapshot::fixture();
+        snapshot.cpu.total = cpu;
+        snapshot.memory.used = memory_used;
+        app.apply_snapshot(snapshot);
+        app
+    }
+
+    fn status_cpu_x(app: &App, width: u16) -> Option<u16> {
+        let screen = crate::ui::test_util::render(app, width, 20);
+        let line = screen.lines().last()?;
+        line.find("CPU")
+            .map(|index| line[..index].chars().count() as u16)
+    }
+
+    #[test]
+    fn status_metrics_keep_their_column() {
+        let quiet = app_with(9.0, 1024 * 1024 * 1024);
+        let busy = app_with(100.0, 15 * 1024 * 1024 * 1024);
+        assert_eq!(
+            status_cpu_x(&quiet, 120),
+            status_cpu_x(&busy, 120),
+            "the metric block moved when the values changed"
+        );
+    }
+
+    #[test]
+    fn a_notice_does_not_move_the_metrics() {
+        let mut app = app_with(27.0, 6 * 1024 * 1024 * 1024);
+        let before = status_cpu_x(&app, 120);
+        app.notice("A notice long enough to test truncation in the middle zone of the bar");
+        assert_eq!(status_cpu_x(&app, 120), before);
+    }
+
+    #[test]
+    fn narrow_status_keeps_the_same_metrics() {
+        let labels = |app: &App| {
+            let screen = crate::ui::test_util::render(app, 80, 20);
+            let line = screen.lines().last().unwrap().to_string();
+            ["CPU", "Memory", "Disk", "Network", "GPU"]
+                .into_iter()
+                .filter(|label| line.contains(label))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            labels(&app_with(9.0, 1024 * 1024 * 1024)),
+            labels(&app_with(100.0, 15 * 1024 * 1024 * 1024))
+        );
     }
 
     #[test]
