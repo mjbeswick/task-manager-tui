@@ -169,7 +169,12 @@ fn handle_mouse(
             Ok(false)
         }
         MouseEventKind::Down(MouseButton::Left) => {
-            let Some(target) = hits.hit(mouse.column, mouse.row) else {
+            let target = hits.hit(mouse.column, mouse.row);
+            if app.menu.is_some() {
+                let effects = app.mouse_click(target);
+                return apply_effects(app, sampler, effects);
+            }
+            let Some(target) = target else {
                 return Ok(false);
             };
             if let Target::ScrollbarThumb(tab) = target

@@ -13,6 +13,8 @@ pub enum Target {
     Menu(usize),
     /// A menu dropdown item, by menu and item index.
     MenuItem(usize, usize),
+    /// The dropdown panel itself, including its border and empty space.
+    MenuPanel,
     Tab(Tab),
     /// A table row, by index in the tab's visible row list.
     Row(usize),

@@ -96,6 +96,10 @@ it. Click a row twice to expand or inspect it. Dialog buttons respond to clicks.
 Click a column header to sort by it, and click it again to reverse. Click the filter
 field to type a filter, or its `×` to clear it. Every action still has a key.
 
+Clicking outside an open menu closes it, and that click is consumed, so it cannot
+select a row, switch a tab, or start a filter. Clicking the dropdown's border or empty
+space leaves the menu open.
+
 The wheel acts on what is under the pointer. Over a table it moves the viewport three
 rows without moving the selection; over the Performance rail it moves the selected
 resource; over an open menu it moves the highlight. Long lists show a one-column
@@ -138,7 +142,8 @@ easier to follow across its columns. Processes escalate cell shading through 1, 
 beyond their text: Not responding is red, Suspended and Stopped are amber, service
 Running is green, and service Stopped is muted. A selected row always uses the
 selection colour, so the stripe and the status tone never compete with it. Tab labels
-carry their digits 1 to 7, and the active tab is a filled accent block.
+carry their digits 1 to 7, and each tab has a centered line beneath it; the active
+tab's line and label use the accent colour.
 
 ## What each platform reports
 

@@ -31,7 +31,8 @@ pub fn draw(frame: &mut Frame, app: &App, hits: &mut HitMap) {
         return;
     }
 
-    let [menu_row, tab_row, content, status_row] = Layout::vertical([
+    let [menu_row, tab_row, rule_row, content, status_row] = Layout::vertical([
+        Constraint::Length(1),
         Constraint::Length(1),
         Constraint::Length(1),
         Constraint::Min(0),
@@ -40,7 +41,7 @@ pub fn draw(frame: &mut Frame, app: &App, hits: &mut HitMap) {
     .areas(area);
 
     draw_menu_bar(buf, menu_row, app, hits);
-    draw_tabs(buf, tab_row, app, hits);
+    draw_tabs(buf, tab_row, rule_row, app, hits);
 
     match app.tab {
         Tab::Processes => crate::ui::processes::draw(buf, content, app, hits),
@@ -249,21 +250,23 @@ fn draw_filter_field(buf: &mut Buffer, bar: Rect, free: u16, app: &App, hits: &m
     }
 }
 
-fn draw_tabs(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
+fn draw_tabs(buf: &mut Buffer, area: Rect, rule: Rect, app: &App, hits: &mut HitMap) {
     let theme = app.theme();
-    fill_area(buf, area, Style::default().bg(theme.chrome));
+    fill_area(buf, area, Style::default().bg(theme.bg));
+    fill_area(buf, rule, Style::default().bg(theme.bg));
     let glyphs = theme.glyphs();
     let compact = area.width < 90;
     let mut x = area.x;
+    let mut cells: Vec<(Tab, u16, u16)> = Vec::new();
     for (index, tab) in Tab::ALL.iter().copied().enumerate() {
         let active = tab == app.tab;
         let style = if active {
             Style::default()
-                .fg(theme.on_accent)
-                .bg(theme.accent)
+                .fg(theme.accent)
+                .bg(theme.bg)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(theme.muted).bg(theme.chrome)
+            Style::default().fg(theme.muted).bg(theme.bg)
         };
         let text = if compact {
             let short: String = tab.short_label().chars().take(4).collect();
@@ -277,6 +280,7 @@ fn draw_tabs(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         let width = text.chars().count() as u16;
         put(buf, x, area.y, &text, style, area);
         hits.add(Rect::new(x, area.y, width, 1), Target::Tab(tab));
+        cells.push((tab, x, width));
         x += width;
         if tab != Tab::Services {
             let separator = if compact {
@@ -289,13 +293,13 @@ fn draw_tabs(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
                 x,
                 area.y,
                 &separator,
-                Style::default().fg(theme.border).bg(theme.chrome),
+                Style::default().fg(theme.border).bg(theme.bg),
                 area,
             );
             x += separator.chars().count() as u16;
         }
     }
-    // The window title sits at the right of the chrome band.
+    // The window title sits at the right of the tab strip.
     if area.x + area.width > x + 14 {
         put_right(
             buf,
@@ -304,10 +308,25 @@ fn draw_tabs(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
             "Task Manager",
             Style::default()
                 .fg(theme.muted)
-                .bg(theme.chrome)
+                .bg(theme.bg)
                 .add_modifier(Modifier::BOLD),
             area,
         );
+    }
+    // A centred segment under each tab; the active one is the accent.
+    for (tab, start, width) in cells {
+        let segment = width.saturating_sub(2).max(1);
+        let x = start + (width - segment) / 2;
+        let style = if tab == app.tab {
+            Style::default().fg(theme.accent).bg(theme.bg)
+        } else {
+            Style::default().fg(theme.border).bg(theme.bg)
+        };
+        for dx in 0..segment {
+            buf[(x + dx, rule.y)]
+                .set_char(glyphs.hline)
+                .set_style(style);
+        }
     }
 }
 
@@ -482,6 +501,7 @@ fn draw_menu_dropdown(
     let y = area.y + 1;
     let rect = Rect::new(x, y, width, height.min(area.height.saturating_sub(y)));
     let inner = panel(buf, rect, "", theme);
+    hits.add(rect, Target::MenuPanel);
 
     for (index, (label, _)) in items.iter().enumerate() {
         let row = inner.y + index as u16;
@@ -805,7 +825,7 @@ mod tests {
     }
 
     #[test]
-    fn tabs_are_numbered_and_the_active_tab_is_filled() {
+    fn tabs_are_numbered_and_the_active_tab_is_underlined() {
         let (mut app, _) = App::new(Settings::default(), false);
         app.apply_snapshot(crate::model::Snapshot::fixture());
         let screen = crate::ui::test_util::render(&app, 120, 30);
@@ -818,8 +838,41 @@ mod tests {
         let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
         terminal.draw(|frame| draw(frame, &app, &mut hits)).unwrap();
         let buffer = terminal.backend().buffer().clone();
+        let theme = *app.theme();
         let x = line[..line.find("Processes").unwrap()].chars().count() as u16;
-        assert_eq!(buffer[(x, 1)].bg, app.theme().accent);
+        assert_eq!(
+            buffer[(x, 1)].bg,
+            theme.bg,
+            "tabs keep the window background"
+        );
+        assert_eq!(buffer[(x, 1)].fg, theme.accent, "active label is accented");
+        // The rule row carries one segment per tab; the active one is the accent.
+        let tab_width = "1 Processes ".chars().count() as u16;
+        let segment = tab_width.saturating_sub(2);
+        let active_segment = (tab_width - segment) / 2;
+        assert_eq!(
+            buffer[(active_segment, 2)].fg,
+            theme.accent,
+            "active underline"
+        );
+        let inactive = line[..line.find("2 Performance").unwrap()].chars().count() as u16;
+        let inactive_segment = inactive + 1;
+        assert_eq!(
+            buffer[(inactive_segment, 2)].fg,
+            theme.border,
+            "inactive underline"
+        );
+    }
+
+    #[test]
+    fn tab_rule_stays_readable_when_narrow() {
+        let screen = render(60, 20);
+        let rule = screen.lines().nth(2).unwrap();
+        let glyph = crate::theme::UNICODE_GLYPHS.hline;
+        assert!(
+            rule.chars().filter(|ch| *ch == glyph).count() >= 7,
+            "one segment per visible tab: {rule:?}"
+        );
     }
 
     #[test]
@@ -832,7 +885,8 @@ mod tests {
         terminal.draw(|frame| draw(frame, &app, &mut hits)).unwrap();
         let buffer = terminal.backend().buffer();
         assert_eq!(buffer[(5, 0)].bg, theme.chrome, "menu bar");
-        assert_eq!(buffer[(95, 1)].bg, theme.chrome, "tab strip");
+        assert_eq!(buffer[(95, 1)].bg, theme.bg, "tab strip");
+        assert_eq!(buffer[(95, 2)].bg, theme.bg, "tab rule");
         assert_eq!(buffer[(100, 29)].bg, theme.status, "status bar");
         assert_ne!(theme.chrome, theme.status);
     }

@@ -40,6 +40,81 @@ fn chrome_publishes_menu_tabs_and_rows() {
     assert!(found.contains(&Target::FewerDetails));
 }
 
+fn menu_app() -> App {
+    let mut app = app(Tab::Processes);
+    app.menu = Some(task_manager_tui::app::MenuState { menu: 0, item: 0 });
+    app
+}
+
+#[test]
+fn dropdown_publishes_a_panel_and_its_items() {
+    let app = menu_app();
+    let (_, hits) = render_with_hits(&app, 120, 40);
+    assert!(hits.rect_of(Target::MenuPanel).is_some(), "panel target");
+    assert!(
+        hits.rect_of(Target::MenuItem(0, 0)).is_some(),
+        "first item wins over the panel"
+    );
+    let panel = hits.rect_of(Target::MenuPanel).unwrap();
+    let item = hits.rect_of(Target::MenuItem(0, 0)).unwrap();
+    assert_eq!(hits.hit(item.x, item.y), Some(Target::MenuItem(0, 0)));
+    assert_eq!(hits.hit(panel.x, panel.y), Some(Target::MenuPanel));
+    assert_ne!(
+        hits.hit(0, 39),
+        Some(Target::MenuPanel),
+        "outside is outside"
+    );
+}
+
+#[test]
+fn click_away_closes_the_menu_without_acting() {
+    let mut app = menu_app();
+    let selected = app.process.selected;
+    let effects = app.mouse_click(Some(Target::Row(3)));
+    assert!(effects.is_empty());
+    assert!(app.menu.is_none());
+    assert_eq!(app.process.selected, selected, "row click was consumed");
+}
+
+#[test]
+fn click_away_does_not_switch_a_tab_sort_or_filter() {
+    let mut tab = menu_app();
+    tab.mouse_click(Some(Target::Tab(Tab::Performance)));
+    assert!(tab.menu.is_none());
+    assert_eq!(tab.tab, Tab::Processes);
+
+    let mut sort = menu_app();
+    let before = sort.process.sort.key;
+    sort.mouse_click(Some(Target::Header(
+        task_manager_tui::sample::group::SortKey::Memory,
+    )));
+    assert!(sort.menu.is_none());
+    assert_eq!(sort.process.sort.key, before);
+
+    let mut filter = menu_app();
+    filter.mouse_click(Some(Target::FilterField));
+    assert!(filter.menu.is_none());
+    assert!(!filter.filter_editing);
+}
+
+#[test]
+fn clicking_inside_the_panel_keeps_the_menu_open() {
+    let mut app = menu_app();
+    let effects = app.mouse_click(Some(Target::MenuPanel));
+    assert!(effects.is_empty());
+    assert_eq!(app.menu.unwrap().menu, 0);
+    app.mouse_click(Some(Target::Menu(2)));
+    assert_eq!(app.menu.unwrap().menu, 2);
+}
+
+#[test]
+fn click_with_no_target_closes_the_menu() {
+    let mut app = menu_app();
+    let effects = app.mouse_click(None);
+    assert!(effects.is_empty());
+    assert!(app.menu.is_none());
+}
+
 #[test]
 fn scrollbar_and_wheel_zones_are_published() {
     let mut app = app(Tab::Processes);

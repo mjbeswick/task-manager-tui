@@ -4,6 +4,7 @@ expression: "screen(&app, 120, 40)"
 ---
  File  Options  View  Help                                                                 / Filter                     
 1 Processes │ 2 Performance │ 3 App history │ 4 Startup │ 5 Users │ 6 Details │ 7 Services                 Task Manager 
+ ──────────    ────────────    ────────────    ────────    ──────    ────────    ─────────                              
                                                                                                         27%        62%  
 Name                                                                                                    CPU ▼   Memory  
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -16,7 +17,6 @@ Name                                                                            
 ▾ System processes (2)                                                                                                  
   ▸ WindowServer (1)                                                                                   4.8%     1.2 GB  
   ▸ launchd (1)                                                                                        0.2%    12.0 MB  
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

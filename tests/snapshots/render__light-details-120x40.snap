@@ -4,6 +4,7 @@ expression: "screen(&app(tab, \"light\"), 120, 40)"
 ---
  File  Options  View  Help                                                                 / Filter                     
 1 Processes │ 2 Performance │ 3 App history │ 4 Startup │ 5 Users │ 6 Details │ 7 Services                 Task Manager 
+ ──────────    ────────────    ────────────    ────────    ──────    ────────    ─────────                              
 Name                                             PID       Status   User name    CPU ▼ Memory       Disk  Network  GPU  
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 node                                             900      Running     michael  12.5%   512 MB  15.0 KB/s        -    -  
@@ -12,7 +13,6 @@ WindowServer                                     500      Running     michael   
 Ghostty                                         4242      Running     michael   2.1%   380 MB  15.0 KB/s        -    -  
 postgres                                         901      Running     michael   1.1%  96.0 MB  15.0 KB/s        -    -  
 launchd                                            1      Running     michael   0.2%  12.0 MB  15.0 KB/s        -    -  
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

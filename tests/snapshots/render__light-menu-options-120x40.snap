@@ -4,19 +4,19 @@ expression: "screen(&app, 120, 40)"
 ---
  File  Options  View  Help                                                                 / Filter                     
 1 Proc┌──────────────────────┐3 App history │ 4 Startup │ 5 Users │ 6 Details │ 7 Services                 Task Manager 
-      │ Next theme           │                                                  27%      62%    5.3MB/s  12.0Mbps    -  
-Name  │ Update speed: High   │                                        Status    CPU ▼ Memory       Disk   Network  GPU  
-──────│ Update speed: Normal │──────────────────────────────────────────────────────────────────────────────────────────
-▾ Apps│ Update speed: Low    │                                                                                          
-  ▸ Sa│ Update speed: Paused │                                                 6.4%   1.2 GB  15.0 KB/s                 
-  ▸ Gh└──────────────────────┘                                                 2.1%   380 MB  15.0 KB/s                 
+ ─────│ Next theme           │ ────────────    ────────    ──────    ────────    ─────────                              
+      │ Update speed: High   │                                                  27%      62%    5.3MB/s  12.0Mbps    -  
+Name  │ Update speed: Normal │                                        Status    CPU ▼ Memory       Disk   Network  GPU  
+──────│ Update speed: Low    │──────────────────────────────────────────────────────────────────────────────────────────
+▾ Apps│ Update speed: Paused │                                                                                          
+  ▸ Sa└──────────────────────┘                                                 6.4%   1.2 GB  15.0 KB/s                 
+  ▸ Ghostty (1)                                                                2.1%   380 MB  15.0 KB/s                 
 ▾ Background processes (2)                                                                                              
   ▸ node (1)                                                                  12.5%   512 MB  15.0 KB/s                 
   ▸ postgres (1)                                                               1.1%  96.0 MB  15.0 KB/s                 
 ▾ System processes (2)                                                                                                  
   ▸ WindowServer (1)                                                           4.8%   1.2 GB  15.0 KB/s                 
   ▸ launchd (1)                                                                0.2%  12.0 MB  15.0 KB/s                 
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

@@ -605,7 +605,7 @@ mod tests {
     fn rail(screen: &str) -> Vec<String> {
         screen
             .lines()
-            .skip(2)
+            .skip(3)
             .map(|line| line.chars().take(20).collect())
             .collect()
     }

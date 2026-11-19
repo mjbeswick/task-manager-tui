@@ -198,6 +198,26 @@ impl App {
         effects
     }
 
+    /// A left click, which first dismisses an open menu unless the click is
+    /// on the menu itself.
+    pub fn mouse_click(&mut self, target: Option<crate::ui::hits::Target>) -> Vec<Effect> {
+        if self.menu.is_some()
+            && !matches!(
+                target,
+                Some(crate::ui::hits::Target::Menu(_))
+                    | Some(crate::ui::hits::Target::MenuItem(..))
+                    | Some(crate::ui::hits::Target::MenuPanel)
+            )
+        {
+            self.menu = None;
+            return Vec::new();
+        }
+        match target {
+            Some(target) => self.click(target),
+            None => Vec::new(),
+        }
+    }
+
     /// Handle a click or tap on a region recorded during the last frame.
     pub fn click(&mut self, target: crate::ui::hits::Target) -> Vec<Effect> {
         use crate::ui::hits::Target;
@@ -249,9 +269,10 @@ impl App {
                 self.filter_clear();
                 Vec::new()
             }
-            Target::ScrollZone(_) | Target::ScrollbarTrack(_) | Target::ScrollbarThumb(_) => {
-                Vec::new()
-            }
+            Target::MenuPanel
+            | Target::ScrollZone(_)
+            | Target::ScrollbarTrack(_)
+            | Target::ScrollbarThumb(_) => Vec::new(),
         }
     }
 

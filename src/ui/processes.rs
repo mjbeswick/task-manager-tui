@@ -621,7 +621,7 @@ mod tests {
         let background = bg_at(&screen, &buffer, "Background", "Background");
         assert!(background == theme.surface || background == theme.surface_alt);
         // No process reports network, so no network cell is shaded.
-        let network_x = screen.lines().nth(3).unwrap().find("Network").unwrap() as u16 + 6;
+        let network_x = screen.lines().nth(4).unwrap().find("Network").unwrap() as u16 + 6;
         for y in 5..20 {
             assert!(!theme.heat.contains(&buffer[(network_x, y)].bg), "row {y}");
         }
@@ -675,17 +675,17 @@ mod tests {
         let app = app();
         let (screen, _) = frame(&app, 120, 36);
         let lines: Vec<&str> = screen.lines().collect();
-        assert!(lines[3].starts_with("Name"), "{:?}", lines[3]);
-        let cpu = lines[3].find("CPU").unwrap();
+        assert!(lines[4].starts_with("Name"), "{:?}", lines[4]);
+        let cpu = lines[4].find("CPU").unwrap();
         assert!(
-            lines[2][..cpu + 3].trim_end().ends_with("27%"),
+            lines[3][..cpu + 3].trim_end().ends_with("27%"),
             "{:?}",
-            lines[2]
+            lines[3]
         );
-        assert!(lines[2].contains("62%"));
+        assert!(lines[3].contains("62%"));
         let (short, _) = frame(&app, 80, 14);
         assert!(
-            short.lines().nth(2).unwrap().starts_with("Name"),
+            short.lines().nth(3).unwrap().starts_with("Name"),
             "one row header"
         );
     }
