@@ -144,7 +144,8 @@ easier to follow across its columns. Processes escalate cell shading through 1, 
 20, and 40 percent of the system total, ending in red. Status words carry meaning
 beyond their text: Not responding is red, Suspended and Stopped are amber, service
 Running is green, and service Stopped is muted. A selected row always uses the
-selection colour, so the stripe and the status tone never compete with it. Tab labels
+selection colour, so the stripe and the status tone never compete with it. Every tab
+names its own keys in a line at the bottom of its content. Tab labels
 carry their digits 1 to 7, and each tab has a centered line beneath it; the active
 tab's line and label use the accent colour.
 

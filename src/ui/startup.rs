@@ -2,7 +2,7 @@
 
 use crate::app::App;
 use crate::ui::chrome::{fill_area, put, put_match, put_right};
-use crate::ui::format::{DASH, pad_left, truncate};
+use crate::ui::format::{pad_left, truncate};
 use crate::ui::hits::{HitMap, Target};
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -13,6 +13,12 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     fill_area(buf, area, theme.surface_style());
     if area.height < 3 {
         return;
+    }
+    let content = area;
+    let hint = crate::ui::chrome::hint_area(area);
+    let area = crate::ui::chrome::without_hint(area, hint);
+    if let Some(hint) = hint {
+        crate::ui::chrome::draw_hint(buf, content, app, hint);
     }
 
     let rows = app.startup_rows();
@@ -155,29 +161,6 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
             },
         );
     }
-
-    if let Some(row) = rows.get(app.startup.selected) {
-        let hint = format!(
-            "{}   {}   [Space] {}",
-            row.command,
-            if row.missing_program {
-                "program missing"
-            } else {
-                DASH
-            },
-            if row.enabled { "disable" } else { "enable" }
-        );
-        let y = area.y + area.height - 1;
-        put(
-            buf,
-            area.x,
-            y,
-            &truncate(&hint, area.width as usize),
-            Style::default().fg(theme.muted).bg(theme.surface),
-            area,
-        );
-    }
-    let _ = Style::default();
 }
 
 fn empty_message() -> String {

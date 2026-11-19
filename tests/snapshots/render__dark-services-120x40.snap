@@ -40,5 +40,5 @@ homebrew.mxcl.nginx                                                 - nginx web 
                                                                                                                         
                                                                                                                         
                                                                                                                         
-[s] start   [S] stop   [R] restart   system scope needs administrator rights                                            
+[s] Start   [S] Stop   [R] Restart   system scope needs administrator rights                                            
     1/   2                                CPU  27.0%   Memory  62.5%   Disk    5.3 MB/s   Network   12.0 Mbps   Normal

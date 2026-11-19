@@ -71,6 +71,12 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     if area.height < 3 {
         return;
     }
+    let content = area;
+    let hint = crate::ui::chrome::hint_area(area);
+    let area = crate::ui::chrome::without_hint(area, hint);
+    if let Some(hint) = hint {
+        crate::ui::chrome::draw_hint(buf, content, app, hint);
+    }
 
     let (table_area, panel_area) = if app.details.panel && area.height >= 18 {
         let [table, panel] =

@@ -12,6 +12,12 @@ use ratatui::style::{Modifier, Style};
 pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     let theme = app.theme();
     fill_area(buf, area, theme.surface_style());
+    let content = area;
+    let hint = crate::ui::chrome::hint_area(area);
+    let area = crate::ui::chrome::without_hint(area, hint);
+    if let Some(hint) = hint {
+        crate::ui::chrome::draw_hint(buf, content, app, hint);
+    }
     let narrow = area.width < 70;
 
     let (rail, body) = if narrow {

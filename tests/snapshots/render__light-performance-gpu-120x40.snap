@@ -22,8 +22,8 @@ expression: "screen(&app, 120, 40)"
   12.0 Mbps                                                                                                             
                                                                                                                         
 ▌ GPU                                                                                                                   
-▌                                                                                                                       
-▌ -                                                     Not available on this system                                    
+▌                                                       Not available on this system                                    
+▌ -                                                                                                                     
                                                                                                                         
                                                                                                                         
                                                                                                                         
@@ -40,5 +40,5 @@ expression: "screen(&app, 120, 40)"
                                                                                                                         
                                                                                                                         
                                                                                                                         
-                                                                                                                        
+[Up/Down] Resource   [F2] Appearance                                                                                    
                                           CPU  27.0%   Memory  62.5%   Disk    5.3 MB/s   Network   12.0 Mbps   Normal

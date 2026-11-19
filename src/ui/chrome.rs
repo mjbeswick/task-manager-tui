@@ -525,6 +525,86 @@ fn draw_menu_dropdown(
     }
 }
 
+/// The contextual line for the active tab, keys in brackets.
+fn tab_hints(app: &App) -> String {
+    match app.tab {
+        Tab::Processes => format!(
+            "[e] End task   [K] Signal   [p] Priority   [f] {}",
+            if app.process.more_details {
+                "Fewer details"
+            } else {
+                "More details"
+            }
+        ),
+        Tab::Details => format!(
+            "[Enter] {}   [e] End task   [K] Signal   [p] Priority",
+            if app.details.panel {
+                "Hide panel"
+            } else {
+                "Show panel"
+            }
+        ),
+        Tab::Services => {
+            let scope = app
+                .selected_service()
+                .map(|row| {
+                    if row.scope == crate::model::Scope::System {
+                        "system scope needs administrator rights"
+                    } else {
+                        "user scope"
+                    }
+                })
+                .unwrap_or("no service selected");
+            format!("[s] Start   [S] Stop   [R] Restart   {scope}")
+        }
+        Tab::Startup => match app.selected_startup() {
+            Some(row) => format!(
+                "[Space] {}   {}{}",
+                if row.enabled { "Disable" } else { "Enable" },
+                row.command,
+                if row.missing_program {
+                    "  (program missing)"
+                } else {
+                    ""
+                }
+            ),
+            None => "[Space] Enable".to_string(),
+        },
+        Tab::Users => format!(
+            "[Enter] {} details",
+            if app.users.panel { "Hide" } else { "Show" }
+        ),
+        Tab::AppHistory => "[Enter] Properties".to_string(),
+        Tab::Performance => "[Up/Down] Resource   [F2] Appearance".to_string(),
+    }
+}
+
+/// The row reserved for hints, when the content is tall enough to spare one.
+pub fn hint_area(area: Rect) -> Option<Rect> {
+    (area.height >= 4).then(|| Rect::new(area.x, area.y + area.height - 1, area.width, 1))
+}
+
+/// The content area above the hint row.
+pub fn without_hint(area: Rect, hint: Option<Rect>) -> Rect {
+    match hint {
+        Some(_) => Rect::new(area.x, area.y, area.width, area.height.saturating_sub(1)),
+        None => area,
+    }
+}
+
+pub fn draw_hint(buf: &mut Buffer, area: Rect, app: &App, hint: Rect) {
+    let theme = app.theme();
+    let text = tab_hints(app);
+    put(
+        buf,
+        hint.x,
+        hint.y,
+        &truncate(&text, hint.width as usize),
+        Style::default().fg(theme.muted).bg(theme.surface),
+        area,
+    );
+}
+
 /// Width below which the scrollbar is dropped in favour of the counter.
 pub const MIN_SCROLLBAR_COLUMNS: u16 = 60;
 
@@ -819,6 +899,72 @@ mod tests {
         let wide = render(120, 20);
         assert!(wide.contains("Performance"));
         assert!(wide.contains("App history"));
+    }
+
+    #[test]
+    fn hints_name_each_tabs_keys() {
+        let mut app = App::new(Settings::default(), false).0;
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        app.tab = crate::app::Tab::Processes;
+        assert!(tab_hints(&app).contains("[e] End task"));
+        assert!(tab_hints(&app).contains("Fewer details"));
+        app.process.more_details = false;
+        assert!(tab_hints(&app).contains("More details"));
+
+        app.tab = crate::app::Tab::Details;
+        assert!(tab_hints(&app).contains("Show panel"));
+        app.details.panel = true;
+        assert!(tab_hints(&app).contains("Hide panel"));
+        assert!(tab_hints(&app).contains("[K] Signal"));
+
+        app.tab = crate::app::Tab::Services;
+        let services = tab_hints(&app);
+        assert!(services.contains("[s] Start"));
+        assert!(services.contains("[R] Restart"));
+        assert!(services.contains("scope"));
+
+        app.tab = crate::app::Tab::Startup;
+        assert!(tab_hints(&app).contains("[Space] Disable"));
+        assert!(tab_hints(&app).contains("Rectangle"));
+
+        app.tab = crate::app::Tab::Users;
+        assert!(tab_hints(&app).contains("Show details"));
+
+        app.tab = crate::app::Tab::AppHistory;
+        assert!(tab_hints(&app).contains("[Enter] Properties"));
+
+        app.tab = crate::app::Tab::Performance;
+        assert!(tab_hints(&app).contains("[Up/Down] Resource"));
+    }
+
+    #[test]
+    fn hint_room_and_reservation() {
+        assert!(hint_area(Rect::new(0, 0, 80, 3)).is_none());
+        let hint = hint_area(Rect::new(0, 0, 80, 12)).unwrap();
+        assert_eq!(hint.y, 11);
+        let body = without_hint(Rect::new(0, 0, 80, 12), Some(hint));
+        assert_eq!(body.height, 11);
+        assert_eq!(without_hint(Rect::new(0, 0, 80, 12), None).height, 12);
+    }
+
+    #[test]
+    fn every_tab_draws_its_hint_on_the_last_content_row() {
+        for (tab, needle) in [
+            (crate::app::Tab::Processes, "[e] End task"),
+            (crate::app::Tab::Details, "Show panel"),
+            (crate::app::Tab::Services, "[s] Start"),
+            (crate::app::Tab::Startup, "[Space]"),
+            (crate::app::Tab::Users, "Show details"),
+            (crate::app::Tab::AppHistory, "[Enter] Properties"),
+            (crate::app::Tab::Performance, "[Up/Down] Resource"),
+        ] {
+            let (mut app, _) = App::new(Settings::default(), false);
+            app.apply_snapshot(crate::model::Snapshot::fixture());
+            app.tab = tab;
+            let screen = crate::ui::test_util::render(&app, 120, 30);
+            let hint = screen.lines().nth(28).unwrap_or("");
+            assert!(hint.contains(needle), "{tab:?}: {hint:?}");
+        }
     }
 
     #[test]

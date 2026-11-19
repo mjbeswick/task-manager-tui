@@ -14,6 +14,12 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     if area.height < 3 {
         return;
     }
+    let content = area;
+    let hint = crate::ui::chrome::hint_area(area);
+    let area = crate::ui::chrome::without_hint(area, hint);
+    if let Some(hint) = hint {
+        crate::ui::chrome::draw_hint(buf, content, app, hint);
+    }
 
     let rows = app.service_rows();
     let body_height = area.height.saturating_sub(2);
@@ -173,25 +179,6 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
                 viewport: scroll,
                 tab: crate::app::Tab::Services,
             },
-        );
-    }
-
-    if let Some(row) = rows.get(selected) {
-        let hint = format!(
-            "[s] start   [S] stop   [R] restart   {}",
-            if row.scope == crate::model::Scope::System {
-                "system scope needs administrator rights"
-            } else {
-                "user scope"
-            }
-        );
-        put(
-            buf,
-            area.x,
-            area.y + area.height - 1,
-            &truncate(&hint, area.width as usize),
-            Style::default().fg(theme.muted).bg(theme.surface),
-            area,
         );
     }
 }
