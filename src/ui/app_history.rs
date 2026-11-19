@@ -17,8 +17,8 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
 
     // Title, width, right-aligned.
     let columns: [(&str, u16, bool); 5] = [
-        ("CPU time", 10, true),
-        ("Peak memory", 12, true),
+        ("CPU time", 11, true),
+        ("Peak memory", 14, true),
         ("Disk", 21, true),
         ("Last seen", 10, true),
         ("Network", 9, true),
@@ -47,7 +47,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         None,
     ];
     let marked = |title: &str, key: Option<SortKey>| match key {
-        Some(key) if key == sort.key => format!("{title} {arrow}"),
+        Some(key) if key == sort.key => format!("{arrow} {title}"),
         _ => title.to_string(),
     };
     let mut x = area.x;
@@ -135,22 +135,24 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         let mut x = body.x;
         put(buf, x, y, &truncate(&row.name, name as usize), base, body);
         x += name;
-        put_right(buf, x + 8, y, &cpu_time(row.cpu_ms), base, body);
-        x += 10;
-        put_right(buf, x + 10, y, &bytes(row.peak_memory), base, body);
-        x += 12;
+        // Figures end where their right-aligned titles end: one cell short of
+        // the column edge.
+        put_right(buf, x + 10, y, &cpu_time(row.cpu_ms), base, body);
+        x += 11;
+        put_right(buf, x + 13, y, &bytes(row.peak_memory), base, body);
+        x += 14;
         let disk = format!("{} / {}", bytes(row.disk_read), bytes(row.disk_written));
-        put_right(buf, x + 19, y, &disk, base, body);
+        put_right(buf, x + 20, y, &disk, base, body);
         x += 21;
         let last_seen = if row.last_seen == 0 {
             DASH.to_string()
         } else {
             ago(now.saturating_sub(row.last_seen))
         };
-        put_right(buf, x + 8, y, &last_seen, base, body);
+        put_right(buf, x + 9, y, &last_seen, base, body);
         x += 10;
         let network = row.network.map(bytes).unwrap_or_else(|| DASH.to_string());
-        put_right(buf, x + 7, y, &network, base, body);
+        put_right(buf, x + 8, y, &network, base, body);
     }
 }
 
