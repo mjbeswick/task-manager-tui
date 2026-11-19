@@ -146,8 +146,8 @@ beyond their text: Not responding is red, Suspended and Stopped are amber, servi
 Running is green, and service Stopped is muted. A selected row always uses the
 selection colour, so the stripe and the status tone never compete with it. Every tab
 names its own keys in a line at the bottom of its content. Tab labels
-carry their digits 1 to 7, and each tab has a centered line beneath it; the active
-tab's line and label use the accent colour.
+carry their digits 1 to 7. One continuous line runs beneath the tabs, and the span
+under the active tab, like its label, uses the accent colour.
 
 ## What each platform reports
 

@@ -3,8 +3,8 @@ source: tests/render.rs
 expression: "screen(&app, 120, 40)"
 ---
  File  Options  View  Help                                                                 / Filter                     
-1 Proc┌──────────────────────┐3 App history │ 4 Startup │ 5 Users │ 6 Details │ 7 Services                 Task Manager 
- ─────│ Next theme           │ ────────────    ────────    ──────    ────────    ─────────                              
+1 Proc┌──────────────────────┐App history  4 Startup  5 Users  6 Details  7 Services                       Task Manager 
+──────│ Next theme           │──────────────────────────────────────────────────────────────────────────────────────────
       │ Update speed: High   │                                                  27%      62%    5.3MB/s  12.0Mbps    -  
 Name  │ Update speed: Normal │                                        Status    CPU ▼ Memory       Disk   Network  GPU  
 ──────│ Update speed: Low    │──────────────────────────────────────────────────────────────────────────────────────────

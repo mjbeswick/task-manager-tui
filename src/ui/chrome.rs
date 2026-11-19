@@ -283,20 +283,8 @@ fn draw_tabs(buf: &mut Buffer, area: Rect, rule: Rect, app: &App, hits: &mut Hit
         cells.push((tab, x, width));
         x += width;
         if tab != Tab::Services {
-            let separator = if compact {
-                " ".to_string()
-            } else {
-                format!("{} ", glyphs.vline)
-            };
-            put(
-                buf,
-                x,
-                area.y,
-                &separator,
-                Style::default().fg(theme.border).bg(theme.bg),
-                area,
-            );
-            x += separator.chars().count() as u16;
+            // One empty cell separates the labels; no rule glyph between them.
+            x += 1;
         }
     }
     // The window title sits at the right of the tab strip.
@@ -313,19 +301,17 @@ fn draw_tabs(buf: &mut Buffer, area: Rect, rule: Rect, app: &App, hits: &mut Hit
             area,
         );
     }
-    // A centred segment under each tab; the active one is the accent.
-    for (tab, start, width) in cells {
-        let segment = width.saturating_sub(2).max(1);
-        let x = start + (width - segment) / 2;
-        let style = if tab == app.tab {
-            Style::default().fg(theme.accent).bg(theme.bg)
-        } else {
-            Style::default().fg(theme.border).bg(theme.bg)
-        };
-        for dx in 0..segment {
-            buf[(x + dx, rule.y)]
+    // One continuous rule; the active tab's span is the accent.
+    let border = Style::default().fg(theme.border).bg(theme.bg);
+    for x in area.x..area.x + area.width {
+        buf[(x, rule.y)].set_char(glyphs.hline).set_style(border);
+    }
+    if let Some((_, start, width)) = cells.iter().find(|(tab, _, _)| *tab == app.tab) {
+        let accent = Style::default().fg(theme.accent).bg(theme.bg);
+        for dx in 0..*width {
+            buf[(*start + dx, rule.y)]
                 .set_char(glyphs.hline)
-                .set_style(style);
+                .set_style(accent);
         }
     }
 }
@@ -977,6 +963,7 @@ mod tests {
         assert!(line.trim_end().ends_with("Task Manager"), "{line:?}");
         assert!(line.contains("2 Performance"));
         assert!(line.contains("7 Services"));
+        assert!(!line.contains('│'), "no separators between tabs: {line:?}");
         let mut hits = crate::ui::hits::HitMap::default();
         let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
         terminal.draw(|frame| draw(frame, &app, &mut hits)).unwrap();
@@ -1012,9 +999,11 @@ mod tests {
         let screen = render(60, 20);
         let rule = screen.lines().nth(2).unwrap();
         let glyph = crate::theme::UNICODE_GLYPHS.hline;
-        assert!(
-            rule.chars().filter(|ch| *ch == glyph).count() >= 7,
-            "one segment per visible tab: {rule:?}"
+        assert!(!rule.contains('│'), "no separators: {rule:?}");
+        assert_eq!(
+            rule.chars().filter(|ch| *ch == glyph).count(),
+            60,
+            "one continuous rule: {rule:?}"
         );
     }
 
