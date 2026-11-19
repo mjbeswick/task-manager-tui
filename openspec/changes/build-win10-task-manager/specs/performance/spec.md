@@ -45,8 +45,48 @@ overflowing its panel.
 
 ### Requirement: Graphs share one shape
 
-Every graph SHALL draw a filled area rising from the bottom over the last 60 samples,
-with a subtle grid, a right-edge value label, and a bottom axis labelled in seconds.
+Every graph SHALL draw the last 60 samples spread across the full plot width, with a
+subtle grid, a right-edge value label, and a bottom axis labelled in seconds. A full
+history MUST fill the width at any terminal size.
+
+#### Scenario: Wide terminal
+- **WHEN** 60 samples exist in a plot wider than 60 columns
+- **THEN** the history covers every column and the left edge is drawn
+
+#### Scenario: Narrow terminal
+- **WHEN** the plot is narrower than 60 columns
+- **THEN** several samples share a column and the full history still covers the width
+
+### Requirement: Chart appearance is adjustable
+
+The user SHALL choose between Filled, Line, and Dots rendering and between Teal, Blue,
+Orange, Magenta, and Mono colours at View > Appearance or F2. The chosen style and
+colour MUST persist across restarts.
+
+#### Scenario: Change the style
+- **WHEN** the user selects Line in the Appearance dialog
+- **THEN** every chart draws points joined by vertical segments instead of a filled area, and the choice is saved
+
+#### Scenario: Change the colour
+- **WHEN** the user selects Orange
+- **THEN** chart fills, points, and per-core graphs use the orange colour immediately
+
+#### Scenario: Persist
+- **WHEN** the application restarts after an appearance change
+- **THEN** the same theme, chart style, and chart colour are used
+
+#### Scenario: Readable on both themes
+- **WHEN** the window theme is light or dark
+- **THEN** the chosen chart colour stays visible against the chart background
+
+### Requirement: One chart label
+
+A resource chart SHALL be labelled once. The Performance rail names the selected
+resource and the chart frame MUST NOT repeat it.
+
+#### Scenario: CPU selected
+- **WHEN** CPU is the selected resource
+- **THEN** the rail reads CPU and the chart frame carries no title
 
 #### Scenario: History
 - **WHEN** fewer than 60 samples have been collected

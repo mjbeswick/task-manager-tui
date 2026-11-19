@@ -20,6 +20,7 @@ pub enum Target {
     DialogConfirm,
     DialogCancel,
     DialogPriority(usize),
+    AppearanceRow(usize),
     DialogClose,
 }
 

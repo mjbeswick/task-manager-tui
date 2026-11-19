@@ -23,6 +23,8 @@ pub enum Action {
     ToggleDetails,
     ToggleOptionalColumns,
     ToggleTheme,
+    Appearance,
+    CycleBack,
     SpeedFaster,
     SpeedSlower,
     Refresh,
@@ -119,6 +121,7 @@ pub fn translate(app: &App, key: KeyEvent) -> Option<Action> {
         KeyCode::Char('q') if !ctrl => Action::Quit,
         KeyCode::F(10) => Action::MenuOpen,
         KeyCode::F(1) => Action::Help,
+        KeyCode::F(2) => Action::Appearance,
         KeyCode::F(5) => Action::Refresh,
         KeyCode::Tab => Action::NextTab,
         KeyCode::BackTab => Action::PreviousTab,
@@ -183,6 +186,14 @@ fn translate_dialog(dialog: &Dialog, key: KeyEvent) -> Option<Action> {
             KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') | KeyCode::F(1) => {
                 Some(Action::Cancel)
             }
+            _ => None,
+        },
+        Dialog::Appearance { .. } => match key.code {
+            KeyCode::Up => Some(Action::MoveUp),
+            KeyCode::Down => Some(Action::MoveDown),
+            KeyCode::Left => Some(Action::CycleBack),
+            KeyCode::Right | KeyCode::Enter => Some(Action::Confirm),
+            KeyCode::Esc => Some(Action::Cancel),
             _ => None,
         },
         Dialog::Priority { .. } => match key.code {
@@ -386,6 +397,16 @@ mod tests {
             ),
             Some(Action::PageUp)
         );
+    }
+
+    #[test]
+    fn appearance_dialog_keys() {
+        let mut app = app();
+        app.dialog = Some(Dialog::Appearance { selected: 0 });
+        assert_eq!(translate(&app, key(KeyCode::Down)), Some(Action::MoveDown));
+        assert_eq!(translate(&app, key(KeyCode::Left)), Some(Action::CycleBack));
+        assert_eq!(translate(&app, key(KeyCode::Right)), Some(Action::Confirm));
+        assert_eq!(translate(&app, key(KeyCode::Esc)), Some(Action::Cancel));
     }
 
     #[test]

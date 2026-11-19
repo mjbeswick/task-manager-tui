@@ -50,6 +50,7 @@ taskmgr
 | `q`, `Ctrl+C` | Quit |
 | `F10`, `Alt+F`/`Alt+O`/`Alt+V`/`Alt+H` | Menu bar, arrows navigate, Enter activates |
 | `F1` | Keyboard help |
+| `F2` | Appearance: theme, chart style, chart colour |
 | `F5` | Refresh now |
 | `1`-`7`, `Tab`, `Shift+Tab` | Switch tabs |
 | `Up`/`Down` or `j`/`k`, `PgUp`/`PgDn`, `Ctrl+d`/`Ctrl+u` | Move and scroll |
@@ -84,9 +85,11 @@ rows. Dialog buttons respond to clicks. Every action still has a key.
   process or another user's process.
 - **Performance** - CPU, Memory, Disk, Network, and GPU panels with a bordered
   60 second graph, stat boxes, and one bordered graph per logical processor.
+  A full history always spans the whole plot, whatever the terminal width.
   Percentage graphs keep a fixed 0-100 scale, so a quiet graph looks quiet. Disk
   and network graphs scale to the largest value in the window and label that
-  maximum.
+  maximum. View > Appearance, or F2, switches between Filled, Line, and Dots
+  rendering and five chart colours: Teal, Blue, Orange, Magenta, or Mono.
 - **App history** - CPU time, peak memory, and disk totals per application,
   accumulated across restarts.
 - **Startup** - login agents from launchd or XDG autostart, with their real

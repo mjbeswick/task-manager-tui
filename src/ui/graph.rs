@@ -1,6 +1,6 @@
 //! The 60 second area graphs. Half blocks give two levels per cell.
 
-use crate::model::Snapshot;
+use crate::model::{ChartStyle, Snapshot};
 use crate::theme::Theme;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -77,15 +77,22 @@ impl GraphStore {
 }
 
 /// Draw one graph into `area`. `max` of 0 means autoscale; percentage graphs pass 100.
-pub fn draw(
-    buf: &mut Buffer,
-    area: Rect,
-    series: &Series,
-    max: f32,
-    theme: &Theme,
-    value_label: &str,
-    footnote: &str,
-) {
+pub struct GraphSpec<'a> {
+    pub max: f32,
+    pub value_label: &'a str,
+    pub footnote: &'a str,
+    pub style: ChartStyle,
+    pub color: ratatui::style::Color,
+}
+
+pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: GraphSpec<'_>) {
+    let GraphSpec {
+        max,
+        value_label,
+        footnote,
+        style,
+        color,
+    } = spec;
     if area.width < 4 || area.height < 2 {
         return;
     }
@@ -133,26 +140,56 @@ pub fn draw(
     };
 
     let glyphs = theme.glyphs();
-    let fill = ratatui::style::Style::default()
-        .fg(theme.graph_fill)
-        .bg(theme.surface);
+    let fill = ratatui::style::Style::default().fg(color).bg(theme.surface);
     let count = series.values.len();
     let width = plot.width as usize;
     let height = plot.height as usize;
+    let mut previous: Option<usize> = None;
 
-    for column in 0..width.min(count) {
-        let value = series.values[count - 1 - column];
+    // The time axis is always the last 60 samples spread over the plot width, so
+    // a full history fills the chart on any terminal size.
+    for column in 0..width {
+        let slot = (column as u64 * HISTORY as u64) / width as u64;
+        if slot as usize >= count {
+            previous = None;
+            continue;
+        }
+        let value = series.values[count - 1 - slot as usize];
         let x = plot.x + plot.width - 1 - column as u16;
         let halves = ((value / maximum).clamp(0.0, 1.0) * (height * 2) as f32).round() as usize;
-        for offset in 0..height {
-            let units = halves.saturating_sub(offset * 2);
-            let row = plot.y + plot.height - 1 - offset as u16;
-            if units >= 2 {
-                buf[(x, row)].set_char(glyphs.block_full).set_style(fill);
-            } else if units == 1 {
-                buf[(x, row)].set_char(glyphs.block_upper).set_style(fill);
+        let level = halves.div_ceil(2).clamp(0, height);
+
+        match style {
+            ChartStyle::Filled => {
+                for offset in 0..height {
+                    let units = halves.saturating_sub(offset * 2);
+                    let row = plot.y + plot.height - 1 - offset as u16;
+                    if units >= 2 {
+                        buf[(x, row)].set_char(glyphs.block_full).set_style(fill);
+                    } else if units == 1 {
+                        buf[(x, row)].set_char(glyphs.block_upper).set_style(fill);
+                    }
+                }
+            }
+            ChartStyle::Line | ChartStyle::Dots => {
+                let marker_row = plot.y + plot.height - level.clamp(1, height) as u16;
+                buf[(x, marker_row)].set_char(glyphs.bullet).set_style(fill);
+                if style == ChartStyle::Line
+                    && let Some(previous) = previous
+                {
+                    let (low, high) = if previous < level {
+                        (previous, level)
+                    } else {
+                        (level, previous)
+                    };
+                    for step in low + 1..high {
+                        let row = plot.y + plot.height - step.clamp(1, height) as u16;
+                        buf[(x, row)].set_char(glyphs.vline).set_style(fill);
+                    }
+                }
             }
         }
+        previous = Some(level);
     }
 
     let label_style = ratatui::style::Style::default()
@@ -206,7 +243,19 @@ mod tests {
         let mut buffer = Buffer::empty(area);
         let mut series = Series::default();
         series.push(100.0);
-        draw(&mut buffer, area, &series, 100.0, &theme, "", "");
+        draw(
+            &mut buffer,
+            area,
+            &series,
+            &theme,
+            GraphSpec {
+                max: 100.0,
+                value_label: "",
+                footnote: "",
+                style: ChartStyle::Filled,
+                color: theme.graph_fill,
+            },
+        );
         let bottom = buffer[(9, 3)].symbol().to_string();
         let top = buffer[(9, 0)].symbol().to_string();
         assert_eq!(bottom, "█");
@@ -220,10 +269,98 @@ mod tests {
         let mut buffer = Buffer::empty(area);
         let mut series = Series::default();
         series.push(50.0);
-        draw(&mut buffer, area, &series, 100.0, &theme, "", "");
+        draw(
+            &mut buffer,
+            area,
+            &series,
+            &theme,
+            GraphSpec {
+                max: 100.0,
+                value_label: "",
+                footnote: "",
+                style: ChartStyle::Filled,
+                color: theme.graph_fill,
+            },
+        );
         // The newest sample sits at the right edge, the left is untouched grid.
         assert_eq!(buffer[(19, 5)].symbol().to_string(), "█");
         assert_ne!(buffer[(0, 5)].symbol().to_string(), "█");
+    }
+
+    #[test]
+    fn a_full_history_fills_the_whole_width() {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        let area = Rect::new(0, 0, 100, 10);
+        let mut buffer = Buffer::empty(area);
+        let mut series = Series::default();
+        for _ in 0..HISTORY {
+            series.push(50.0);
+        }
+        draw(
+            &mut buffer,
+            area,
+            &series,
+            &theme,
+            GraphSpec {
+                max: 100.0,
+                value_label: "",
+                footnote: "",
+                style: ChartStyle::Filled,
+                color: theme.graph_fill,
+            },
+        );
+        assert_eq!(buffer[(0, 9)].symbol(), "█", "left edge is drawn");
+        assert_eq!(buffer[(99, 9)].symbol(), "█", "right edge is drawn");
+    }
+
+    #[test]
+    fn a_short_history_only_fills_the_right_side() {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        let area = Rect::new(0, 0, 100, 10);
+        let mut buffer = Buffer::empty(area);
+        let mut series = Series::default();
+        for _ in 0..(HISTORY / 2) {
+            series.push(50.0);
+        }
+        draw(
+            &mut buffer,
+            area,
+            &series,
+            &theme,
+            GraphSpec {
+                max: 100.0,
+                value_label: "",
+                footnote: "",
+                style: ChartStyle::Filled,
+                color: theme.graph_fill,
+            },
+        );
+        assert_eq!(buffer[(99, 9)].symbol(), "█");
+        assert_ne!(buffer[(0, 9)].symbol(), "█");
+    }
+
+    #[test]
+    fn line_style_marks_the_point_without_filling_below() {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        let area = Rect::new(0, 0, 60, 10);
+        let mut buffer = Buffer::empty(area);
+        let mut series = Series::default();
+        series.push(100.0);
+        draw(
+            &mut buffer,
+            area,
+            &series,
+            &theme,
+            GraphSpec {
+                max: 100.0,
+                value_label: "",
+                footnote: "",
+                style: ChartStyle::Line,
+                color: theme.graph_fill,
+            },
+        );
+        assert_eq!(buffer[(59, 0)].symbol(), theme.glyphs().bullet.to_string());
+        assert_ne!(buffer[(59, 9)].symbol(), "█");
     }
 
     #[test]
@@ -233,7 +370,19 @@ mod tests {
         let mut buffer = Buffer::empty(area);
         let mut series = Series::default();
         series.push(0.0);
-        draw(&mut buffer, area, &series, 100.0, &theme, "", "");
+        draw(
+            &mut buffer,
+            area,
+            &series,
+            &theme,
+            GraphSpec {
+                max: 100.0,
+                value_label: "",
+                footnote: "",
+                style: ChartStyle::Filled,
+                color: theme.graph_fill,
+            },
+        );
         assert_ne!(buffer[(9, 3)].symbol().to_string(), "█");
     }
 }

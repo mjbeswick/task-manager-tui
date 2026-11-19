@@ -1,7 +1,8 @@
 //! Application state. View state only, plus the last snapshot.
 
 use crate::model::{
-    AppUsage, ProcKey, ProcRow, ProcSel, ServiceRow, SessionRow, Snapshot, StartupRow,
+    AppUsage, ChartColor, ChartStyle, ProcKey, ProcRow, ProcSel, ServiceRow, SessionRow, Snapshot,
+    StartupRow,
 };
 use crate::platform::ServiceAction;
 use crate::sample::group::{self, ProcItem, SortDir, SortKey};
@@ -355,6 +356,9 @@ pub enum Dialog {
         name: String,
         selected: usize,
     },
+    Appearance {
+        selected: usize,
+    },
     Properties {
         title: String,
         lines: Vec<String>,
@@ -369,6 +373,7 @@ impl Dialog {
             Dialog::Help => "Keyboard shortcuts",
             Dialog::Run { .. } => "Run a new task",
             Dialog::Priority { .. } => "Set priority",
+            Dialog::Appearance { .. } => "Appearance",
             Dialog::Properties { title, .. } => title,
         }
     }
@@ -386,6 +391,7 @@ pub enum MenuItem {
     Refresh,
     ToggleDetails,
     OptionalColumns,
+    Appearance,
     SortNext,
     SortReverse,
     ExpandAll,
@@ -416,6 +422,7 @@ pub const MENUS: [(&str, &[(&str, MenuItem)]); 4] = [
             ("Refresh now", MenuItem::Refresh),
             ("Fewer details", MenuItem::ToggleDetails),
             ("Optional columns", MenuItem::OptionalColumns),
+            ("Appearance...", MenuItem::Appearance),
             ("Sort by next column", MenuItem::SortNext),
             ("Reverse sort", MenuItem::SortReverse),
             ("Expand all", MenuItem::ExpandAll),
@@ -465,6 +472,8 @@ pub enum Effect {
 pub struct App {
     pub tab: Tab,
     pub theme_name: ThemeName,
+    pub chart_style: ChartStyle,
+    pub chart_color: ChartColor,
     pub ascii: bool,
     pub theme: Theme,
     pub settings: Settings,
@@ -491,9 +500,13 @@ impl App {
         let mut notices = Vec::new();
         let ascii = ascii_flag || settings.ascii;
         let theme_name = ThemeName::parse(&settings.theme).unwrap_or(ThemeName::Light);
+        let chart_style = ChartStyle::parse(&settings.chart_style).unwrap_or(ChartStyle::Filled);
+        let chart_color = ChartColor::parse(&settings.chart_color).unwrap_or(ChartColor::Teal);
         let mut app = Self {
             tab: Tab::from_index(settings.last_tab),
             theme_name,
+            chart_style,
+            chart_color,
             ascii,
             theme: Theme::from_name(theme_name, ascii),
             settings,
@@ -547,6 +560,16 @@ impl App {
 
     pub fn toggle_theme(&mut self) {
         self.set_theme(self.theme_name.toggle());
+    }
+
+    pub fn set_chart_style(&mut self, style: ChartStyle) {
+        self.chart_style = style;
+        self.settings.chart_style = style.key().to_string();
+    }
+
+    pub fn set_chart_color(&mut self, color: ChartColor) {
+        self.chart_color = color;
+        self.settings.chart_color = color.key().to_string();
     }
 
     pub fn apply_snapshot(&mut self, snapshot: Snapshot) {

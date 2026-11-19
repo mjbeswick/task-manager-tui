@@ -83,6 +83,9 @@ impl App {
                 self.toggle_theme();
                 effects.push(Effect::PersistSettings);
             }
+            Action::Appearance => {
+                self.dialog = Some(Dialog::Appearance { selected: 0 });
+            }
             Action::SpeedFaster => {
                 let next = self.settings.faster_speed();
                 self.set_speed(next, &mut effects);
@@ -181,7 +184,11 @@ impl App {
                     self.filter_clear();
                 }
             }
-            Action::Confirm | Action::RunSubmit | Action::RunChar(_) | Action::RunBackspace => {}
+            Action::CycleBack
+            | Action::Confirm
+            | Action::RunSubmit
+            | Action::RunChar(_)
+            | Action::RunBackspace => {}
         }
         effects
     }
@@ -219,6 +226,12 @@ impl App {
             Target::DialogPriority(index) => {
                 if let Some(Dialog::Priority { selected, .. }) = &mut self.dialog {
                     *selected = index;
+                }
+                Vec::new()
+            }
+            Target::AppearanceRow(index) => {
+                if let Some(Dialog::Appearance { selected }) = &mut self.dialog {
+                    *selected = index.min(2);
                 }
                 Vec::new()
             }
@@ -486,10 +499,60 @@ impl App {
             }
             Action::MoveUp | Action::MoveDown => {
                 let delta = if action == Action::MoveUp { -1 } else { 1 };
-                if let Some(Dialog::Priority { selected, .. }) = &mut self.dialog {
-                    let count = crate::model::Priority::LEVELS.len() as isize;
-                    *selected = (*selected as isize + delta).rem_euclid(count) as usize;
+                match &mut self.dialog {
+                    Some(Dialog::Priority { selected, .. }) => {
+                        let count = crate::model::Priority::LEVELS.len() as isize;
+                        *selected = (*selected as isize + delta).rem_euclid(count) as usize;
+                    }
+                    Some(Dialog::Appearance { selected }) => {
+                        *selected = (*selected as isize + delta).rem_euclid(3) as usize;
+                    }
+                    _ => {}
                 }
+            }
+            Action::Confirm | Action::CycleBack
+                if matches!(self.dialog, Some(Dialog::Appearance { .. })) =>
+            {
+                let forward = action == Action::Confirm;
+                let selected = match &self.dialog {
+                    Some(Dialog::Appearance { selected }) => *selected,
+                    _ => 0,
+                };
+                match selected {
+                    0 => {
+                        self.toggle_theme();
+                        effects.push(Effect::PersistSettings);
+                    }
+                    1 => {
+                        let style = if forward {
+                            self.chart_style.next()
+                        } else {
+                            crate::model::ChartStyle::ALL[(crate::model::ChartStyle::ALL
+                                .iter()
+                                .position(|s| *s == self.chart_style)
+                                .unwrap_or(0)
+                                + 2)
+                                % 3]
+                        };
+                        self.set_chart_style(style);
+                        effects.push(Effect::PersistSettings);
+                    }
+                    _ => {
+                        let colors = crate::model::ChartColor::ALL;
+                        let index = colors
+                            .iter()
+                            .position(|c| *c == self.chart_color)
+                            .unwrap_or(0);
+                        let next = if forward {
+                            (index + 1) % colors.len()
+                        } else {
+                            (index + colors.len() - 1) % colors.len()
+                        };
+                        self.set_chart_color(colors[next]);
+                        effects.push(Effect::PersistSettings);
+                    }
+                }
+                return effects;
             }
             Action::Confirm => {
                 if let Some(Dialog::Priority { key, selected, .. }) = &self.dialog {
@@ -607,6 +670,10 @@ impl App {
             MenuItem::Refresh => Action::Refresh,
             MenuItem::ToggleDetails => Action::ToggleDetails,
             MenuItem::OptionalColumns => Action::ToggleOptionalColumns,
+            MenuItem::Appearance => {
+                self.dialog = Some(Dialog::Appearance { selected: 0 });
+                return effects;
+            }
             MenuItem::SortNext => Action::SortNext,
             MenuItem::SortReverse => Action::SortFlip,
             MenuItem::ExpandAll => {
@@ -1004,6 +1071,37 @@ mod tests {
         let effects = app.click(crate::ui::hits::Target::DialogClose);
         assert!(effects.is_empty());
         assert!(app.dialog.is_none());
+    }
+
+    #[test]
+    fn appearance_dialog_changes_style_colour_and_theme() {
+        let mut app = app();
+        app.dialog = Some(Dialog::Appearance { selected: 1 });
+        let effects = app.dispatch(Action::Confirm);
+        assert!(effects.contains(&Effect::PersistSettings));
+        assert_eq!(app.chart_style, crate::model::ChartStyle::Line);
+        assert_eq!(app.settings.chart_style, "line");
+        app.dialog = Some(Dialog::Appearance { selected: 2 });
+        app.dispatch(Action::Confirm);
+        assert_eq!(app.chart_color, crate::model::ChartColor::Blue);
+        assert_eq!(app.settings.chart_color, "blue");
+        app.dialog = Some(Dialog::Appearance { selected: 2 });
+        app.dispatch(Action::CycleBack);
+        assert_eq!(app.chart_color, crate::model::ChartColor::Teal);
+        app.dialog = Some(Dialog::Appearance { selected: 0 });
+        app.dispatch(Action::Confirm);
+        assert_eq!(app.theme_name, crate::theme::ThemeName::Dark);
+    }
+
+    #[test]
+    fn view_menu_offers_appearance() {
+        let view = crate::app::MENUS
+            .iter()
+            .find(|(label, _)| *label == "View")
+            .unwrap();
+        assert!(view.1.iter().any(|(label, item)| {
+            *label == "Appearance..." && *item == crate::app::MenuItem::Appearance
+        }));
     }
 
     #[test]

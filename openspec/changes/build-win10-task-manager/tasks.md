@@ -119,6 +119,14 @@
 - [x] 13.5 Compact the Performance stat boxes to two rows and remove the duplicate outer frame. Verify: the Performance golden has a single chart frame and denser boxes.
 - [x] 13.6 Mark startup entries whose program is missing. Verify: the Startup golden shows `(missing)` for that entry.
 
+## 14. Chart width, single label, and appearance settings
+
+- [x] 14.1 Map the 60 sample slots across the whole plot width so a full history never stops halfway. Verify: `a_full_history_fills_the_whole_width` checks both edges at 100 columns.
+- [x] 14.2 Drop the chart frame title so the resource is named once. Verify: the Performance goldens show the rail label and an untitled frame.
+- [x] 14.3 Add View > Appearance and F2 with theme, chart style, and chart colour, persisted in settings. Verify: appearance dialog tests cover cycling, clicking a row, and saved keys.
+- [x] 14.4 Render Filled, Line, and Dots charts in five colours. Verify: goldens for line rendering, and unit tests for point placement.
+- [x] 14.5 Keep old settings files loading. Verify: a settings file without the chart keys loads with Filled and Teal.
+
 ## Workflow follow-up
 
 - Archive the change after the release checks pass and the goldens are reviewed.

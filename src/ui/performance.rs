@@ -1,7 +1,6 @@
 //! Performance tab: resource rail, 60 second graphs, and Windows 10 stat boxes.
 
 use crate::app::{App, ResourceChoice};
-use crate::theme::Theme;
 use crate::ui::chrome::{fill_area, panel, put};
 use crate::ui::format::{DASH, bit_rate, bytes, bytes_opt, duration, mhz, pct, rate, truncate};
 use crate::ui::graph::{self, Series};
@@ -100,17 +99,22 @@ fn draw_panel(buf: &mut Buffer, area: Rect, app: &App) {
 }
 
 /// A bordered chart. The graph itself keeps its own grid, scale, and footnote.
-fn chart(
-    buf: &mut Buffer,
-    area: Rect,
-    app: &App,
-    title: &str,
-    series: &Series,
-    max: f32,
-    label: &str,
-) {
-    let inner = panel(buf, area, title, app.theme());
-    graph::draw(buf, inner, series, max, app.theme(), label, "60 seconds");
+fn chart(buf: &mut Buffer, area: Rect, app: &App, series: &Series, max: f32, label: &str) {
+    let theme = app.theme();
+    let inner = panel(buf, area, "", theme);
+    graph::draw(
+        buf,
+        inner,
+        series,
+        theme,
+        graph::GraphSpec {
+            max,
+            value_label: label,
+            footnote: "60 seconds",
+            style: app.chart_style,
+            color: app.chart_color.color(theme),
+        },
+    );
 }
 
 fn draw_cpu(buf: &mut Buffer, inner: Rect, app: &App) {
@@ -132,7 +136,7 @@ fn draw_cpu(buf: &mut Buffer, inner: Rect, app: &App) {
     };
 
     let label = pct(app.graphs.cpu.last());
-    chart(buf, graph_area, app, "CPU", &app.graphs.cpu, 100.0, &label);
+    chart(buf, graph_area, app, &app.graphs.cpu, 100.0, &label);
 
     let cpu = &snapshot.cpu;
     let boxes = [
@@ -194,7 +198,7 @@ fn draw_cores(buf: &mut Buffer, area: Rect, app: &App) {
         if cell.height >= 3 && cell.width >= 8 {
             let title = format!("CPU {index}");
             let graph_cell = panel(buf, cell, &title, theme);
-            draw_mini(buf, graph_cell, series, theme);
+            draw_mini(buf, graph_cell, series, app);
         } else {
             let mut graph_cell = cell;
             if cell.height >= 2 {
@@ -209,14 +213,17 @@ fn draw_cores(buf: &mut Buffer, area: Rect, app: &App) {
                 );
                 graph_cell = Rect::new(cell.x, cell.y + 1, cell.width, cell.height - 1);
             }
-            draw_mini(buf, graph_cell, series, theme);
+            draw_mini(buf, graph_cell, series, app);
         }
     }
 }
 
-fn draw_mini(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme) {
+fn draw_mini(buf: &mut Buffer, area: Rect, series: &Series, app: &App) {
+    let theme = app.theme();
     let glyphs = theme.glyphs();
-    let style = Style::default().fg(theme.graph_fill).bg(theme.surface);
+    let style = Style::default()
+        .fg(app.chart_color.color(theme))
+        .bg(theme.surface);
     let count = series.values.len();
     let width = area.width as usize;
     for column in 0..width.min(count) {
@@ -252,7 +259,6 @@ fn draw_memory(buf: &mut Buffer, inner: Rect, app: &App) {
         buf,
         graph_area,
         app,
-        "Memory",
         &app.graphs.memory,
         100.0,
         &pct(used_pct),
@@ -297,15 +303,7 @@ fn draw_disk(buf: &mut Buffer, inner: Rect, app: &App) {
     let label = busiest
         .map(|d| rate(d.io_bps()))
         .unwrap_or_else(|| DASH.into());
-    graph::draw(
-        buf,
-        graph_area,
-        &app.graphs.disk,
-        0.0,
-        theme,
-        &label,
-        "60 seconds",
-    );
+    chart(buf, graph_area, app, &app.graphs.disk, 0.0, &label);
 
     let boxes = [
         ("Active time", DASH.to_string(), ""),
@@ -372,15 +370,7 @@ fn draw_network(buf: &mut Buffer, inner: Rect, app: &App) {
     let label = adapter
         .map(|a| bit_rate(a.rx_bps + a.tx_bps))
         .unwrap_or_else(|| DASH.into());
-    chart(
-        buf,
-        graph_area,
-        app,
-        "Network",
-        &app.graphs.network,
-        0.0,
-        &label,
-    );
+    chart(buf, graph_area, app, &app.graphs.network, 0.0, &label);
 
     let boxes = [
         (
@@ -447,7 +437,7 @@ fn draw_gpu(buf: &mut Buffer, inner: Rect, app: &App) {
         .iter()
         .max_by(|a, b| a.usage.total_cmp(&b.usage));
     let label = gpu.map(|g| pct(g.usage)).unwrap_or_else(|| DASH.into());
-    chart(buf, graph_area, app, "GPU", &app.graphs.gpu, 100.0, &label);
+    chart(buf, graph_area, app, &app.graphs.gpu, 100.0, &label);
     let boxes = [
         ("Utilization", label, ""),
         (

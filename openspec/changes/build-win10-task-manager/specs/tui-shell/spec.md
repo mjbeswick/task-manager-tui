@@ -101,8 +101,9 @@ closes.
 ### Requirement: Every action is reachable from the keyboard
 
 Every action the application offers SHALL be reachable from the keyboard, including
-arrow and vim-style movement, half-page jumps, first and last row, and menu access
-with Alt plus the menu's first letter. No feature MUST require a pointer.
+arrow and vim-style movement, half-page jumps, first and last row, F2 for Appearance,
+and menu access with Alt plus the menu's first letter. No feature MUST require a
+pointer.
 
 #### Scenario: No pointer
 - **WHEN** the user completes all seven tabs, every menu item, and every dialog using only the keyboard

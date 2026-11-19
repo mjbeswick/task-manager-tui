@@ -11,6 +11,8 @@ pub struct Settings {
     pub update_speed: String,
     pub last_tab: usize,
     pub ascii: bool,
+    pub chart_style: String,
+    pub chart_color: String,
 }
 
 impl Default for Settings {
@@ -20,6 +22,8 @@ impl Default for Settings {
             update_speed: "normal".to_string(),
             last_tab: 0,
             ascii: false,
+            chart_style: "filled".to_string(),
+            chart_color: "teal".to_string(),
         }
     }
 }
@@ -127,6 +131,8 @@ mod tests {
             update_speed: "high".into(),
             last_tab: 3,
             ascii: true,
+            chart_style: "line".into(),
+            chart_color: "orange".into(),
         };
         save_to(&settings, &path).unwrap();
         let (loaded, warning) = load_from(&path);
@@ -142,6 +148,20 @@ mod tests {
         let (settings, warning) = load_from(&path);
         assert_eq!(settings, Settings::default());
         assert!(warning.unwrap().contains("invalid"));
+    }
+
+    #[test]
+    fn chart_settings_default_and_survive_old_files() {
+        assert_eq!(Settings::default().chart_style, "filled");
+        assert_eq!(Settings::default().chart_color, "teal");
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.toml");
+        // A file written before chart settings existed.
+        std::fs::write(&path, "theme = \"dark\"\nupdate_speed = \"low\"\n").unwrap();
+        let (settings, warning) = load_from(&path);
+        assert!(warning.is_none());
+        assert_eq!(settings.chart_style, "filled");
+        assert_eq!(settings.chart_color, "teal");
     }
 
     #[test]

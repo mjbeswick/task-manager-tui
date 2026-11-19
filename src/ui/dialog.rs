@@ -12,6 +12,7 @@ const HELP: &[(&str, &str)] = &[
     ("q, Ctrl+C", "Quit"),
     ("F10, Alt+F/O/V/H", "Menu bar"),
     ("F1", "This help"),
+    ("F2", "Appearance: theme, style, colour"),
     ("F5", "Refresh now"),
     ("1-7, Tab", "Switch tabs"),
     ("Up/Down, j/k, PgUp/PgDn", "Move and scroll"),
@@ -47,6 +48,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
         Dialog::Help => (max_width.min(56), HELP.len() as u16 + 4),
         Dialog::Run { .. } => (max_width.min(52), 9),
         Dialog::Priority { .. } => (max_width.min(40), 12),
+        Dialog::Appearance { .. } => (max_width.min(46), 9),
         Dialog::Properties { lines, .. } => (
             max_width,
             (lines.len() as u16 + 5).min(area.height.saturating_sub(2)),
@@ -208,6 +210,53 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
             );
             hits.add(Rect::new(inner.x + 2, y, 11, 1), Target::DialogConfirm);
             hits.add(Rect::new(inner.x + 19, y, 12, 1), Target::DialogCancel);
+        }
+        Dialog::Appearance { selected } => {
+            let rows = [
+                ("Theme", app.theme_name.label().to_string()),
+                ("Chart style", app.chart_style.label().to_string()),
+                ("Chart colour", app.chart_color.label().to_string()),
+            ];
+            for (index, (label, value)) in rows.iter().enumerate() {
+                let row = inner.y + 1 + index as u16;
+                let active = index == *selected;
+                let style = if active {
+                    Style::default()
+                        .fg(ratatui::style::Color::White)
+                        .bg(theme.accent)
+                } else {
+                    Style::default().fg(theme.text).bg(theme.surface)
+                };
+                if active {
+                    for x in inner.x + 1..inner.x + inner.width - 1 {
+                        buf[(x, row)].set_symbol(" ");
+                        buf[(x, row)].set_style(style);
+                    }
+                }
+                put(
+                    buf,
+                    inner.x + 2,
+                    row,
+                    &format!("{label:<14}{value}"),
+                    style,
+                    inner,
+                );
+                hits.add(
+                    Rect::new(inner.x + 1, row, inner.width.saturating_sub(2), 1),
+                    Target::AppearanceRow(index),
+                );
+            }
+            let y = inner.y + inner.height.saturating_sub(1);
+            put(
+                buf,
+                inner.x + 2,
+                y,
+                "[←/→] Change      [Esc] Close",
+                Style::default().fg(theme.accent).bg(theme.surface),
+                inner,
+            );
+            hits.add(Rect::new(inner.x + 2, y, 18, 1), Target::DialogConfirm);
+            hits.add(Rect::new(inner.x + 22, y, 11, 1), Target::DialogCancel);
         }
         Dialog::Priority { name, selected, .. } => {
             put(

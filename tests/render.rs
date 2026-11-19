@@ -20,7 +20,8 @@ fn app(tab: Tab, theme: &str) -> App {
         ..Settings::default()
     };
     let (mut app, _) = App::new(settings, false);
-    for _ in 0..3 {
+    // A full history so the charts span their plot.
+    for _ in 0..60 {
         app.apply_snapshot(fixture());
     }
     app.tab = tab;
@@ -90,6 +91,21 @@ fn golden_performance_resources() {
             screen(&app, 120, 40)
         );
     }
+}
+
+#[test]
+fn golden_chart_style_and_colour() {
+    let mut app = app(Tab::Performance, "light");
+    app.set_chart_style(task_manager_tui::model::ChartStyle::Line);
+    app.set_chart_color(task_manager_tui::model::ChartColor::Blue);
+    insta::assert_snapshot!("light-performance-line-120x40", screen(&app, 120, 40));
+}
+
+#[test]
+fn golden_appearance_dialog() {
+    let mut app = app(Tab::Performance, "light");
+    app.dialog = Some(Dialog::Appearance { selected: 1 });
+    insta::assert_snapshot!("dialog-appearance-120x40", screen(&app, 120, 40));
 }
 
 #[test]

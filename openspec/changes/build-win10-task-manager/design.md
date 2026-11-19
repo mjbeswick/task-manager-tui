@@ -129,8 +129,11 @@ formatter renders `None` as `-`. Tabs consult `Capabilities` for actions, so cho
 
 ### Graphs use half blocks over a grid
 
-A graph is `VecDeque<f32>` of 60 samples. Rows are drawn bottom-up with `▀`, `▄`, and
-`█`, giving two vertical levels per cell. A dim grid is written first, then the filled
+A graph is `VecDeque<f32>` of 60 samples. Columns map to the 60 sample slots against
+the plot width, so a full history always spans the whole plot instead of stopping at
+60 columns. Rows are drawn bottom-up with `▀`, `▄`, and `█`, giving two vertical levels
+per cell. The style and colour come from settings, so Filled, Line, and Dots share one
+renderer rather than three. A dim grid is written first, then the filled
 area over it, so the area reads like the Windows 10 graph rather than a bar chart.
 Percentage graphs fix the scale at 100; throughput graphs scale to the window maximum
 with the maximum labelled.
@@ -206,6 +209,7 @@ blocks for `-`, `+`, `v`, `>`, and `#`, for terminals with unreliable fonts.
 | `q`, `Ctrl+C` | Quit |
 | `F10`, `Alt+F/O/V/H` | Menu bar |
 | `F1` | Help |
+| `F2` | Appearance |
 | `F5` | Refresh now |
 | `1`-`7`, `Tab`, `Shift+Tab` | Tabs |
 | `Up`/`Down`, `j`/`k`, `PgUp`/`PgDn`, `Ctrl+d`/`Ctrl+u`, `Home`/`End`, `g`/`G` | Move and scroll |

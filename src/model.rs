@@ -66,6 +66,119 @@ impl Status {
     }
 }
 
+/// How charts are drawn.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChartStyle {
+    Filled,
+    Line,
+    Dots,
+}
+
+impl ChartStyle {
+    pub const ALL: [ChartStyle; 3] = [ChartStyle::Filled, ChartStyle::Line, ChartStyle::Dots];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            ChartStyle::Filled => "Filled",
+            ChartStyle::Line => "Line",
+            ChartStyle::Dots => "Dots",
+        }
+    }
+
+    pub fn next(self) -> Self {
+        match self {
+            ChartStyle::Filled => ChartStyle::Line,
+            ChartStyle::Line => ChartStyle::Dots,
+            ChartStyle::Dots => ChartStyle::Filled,
+        }
+    }
+
+    pub fn key(self) -> &'static str {
+        match self {
+            ChartStyle::Filled => "filled",
+            ChartStyle::Line => "line",
+            ChartStyle::Dots => "dots",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.to_ascii_lowercase().as_str() {
+            "filled" => Some(ChartStyle::Filled),
+            "line" => Some(ChartStyle::Line),
+            "dots" => Some(ChartStyle::Dots),
+            _ => None,
+        }
+    }
+}
+
+/// Chart colours, independent of the light or dark window theme.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChartColor {
+    Teal,
+    Blue,
+    Orange,
+    Magenta,
+    Mono,
+}
+
+impl ChartColor {
+    pub const ALL: [ChartColor; 5] = [
+        ChartColor::Teal,
+        ChartColor::Blue,
+        ChartColor::Orange,
+        ChartColor::Magenta,
+        ChartColor::Mono,
+    ];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            ChartColor::Teal => "Teal",
+            ChartColor::Blue => "Blue",
+            ChartColor::Orange => "Orange",
+            ChartColor::Magenta => "Magenta",
+            ChartColor::Mono => "Mono",
+        }
+    }
+
+    pub fn next(self) -> Self {
+        let index = Self::ALL.iter().position(|c| *c == self).unwrap_or(0);
+        Self::ALL[(index + 1) % Self::ALL.len()]
+    }
+
+    pub fn key(self) -> &'static str {
+        match self {
+            ChartColor::Teal => "teal",
+            ChartColor::Blue => "blue",
+            ChartColor::Orange => "orange",
+            ChartColor::Magenta => "magenta",
+            ChartColor::Mono => "mono",
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.to_ascii_lowercase().as_str() {
+            "teal" => Some(ChartColor::Teal),
+            "blue" => Some(ChartColor::Blue),
+            "orange" => Some(ChartColor::Orange),
+            "magenta" => Some(ChartColor::Magenta),
+            "mono" => Some(ChartColor::Mono),
+            _ => None,
+        }
+    }
+
+    /// Resolve against the active theme, so dark mode keeps contrast.
+    pub fn color(self, theme: &crate::theme::Theme) -> ratatui::style::Color {
+        use ratatui::style::Color;
+        match self {
+            ChartColor::Teal => theme.graph_fill,
+            ChartColor::Blue => Color::Rgb(0x2B, 0x88, 0xC4),
+            ChartColor::Orange => Color::Rgb(0xD1, 0x6B, 0x1F),
+            ChartColor::Magenta => Color::Rgb(0xB0, 0x4A, 0xA8),
+            ChartColor::Mono => theme.text,
+        }
+    }
+}
+
 /// What each platform can actually report. Drives dashes and disabled actions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Capabilities {
@@ -589,6 +702,23 @@ mod tests {
             );
         }
         assert_eq!(snap.thread_count, Some(24));
+    }
+
+    #[test]
+    fn chart_choices_cycle_and_parse() {
+        assert_eq!(ChartStyle::Filled.next(), ChartStyle::Line);
+        assert_eq!(ChartStyle::Dots.next(), ChartStyle::Filled);
+        assert_eq!(ChartStyle::parse("dots"), Some(ChartStyle::Dots));
+        assert_eq!(ChartStyle::parse("nope"), None);
+        assert_eq!(ChartColor::Mono.next(), ChartColor::Teal);
+        assert_eq!(ChartColor::parse("orange"), Some(ChartColor::Orange));
+        assert_eq!(ChartColor::parse("nope"), None);
+        for colour in ChartColor::ALL {
+            assert_eq!(ChartColor::parse(colour.key()), Some(colour));
+        }
+        for style in ChartStyle::ALL {
+            assert_eq!(ChartStyle::parse(style.key()), Some(style));
+        }
     }
 
     #[test]
