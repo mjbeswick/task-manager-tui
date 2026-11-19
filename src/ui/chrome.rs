@@ -369,7 +369,7 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App) {
         metric("Memory", memory, 6),
         metric("Disk", crate::ui::format::rate(disk), 11),
         metric("Network", bit_rate(network), 11),
-        format!("{speed:<6}"),
+        speed_metric(speed),
     ];
     if !snapshot.gpus.is_empty() {
         let gpu = snapshot.gpus.iter().map(|g| g.usage).fold(0.0, f32::max);
@@ -377,11 +377,11 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App) {
     }
 
     let mut show_position = position.is_some();
-    let summary = loop {
-        let summary = parts.join("   ");
+    let summary_width = loop {
+        let width = summary_width(&parts);
         let left = left_width(&position, show_position);
-        if left + summary.chars().count() as u16 + 2 <= area.width {
-            break summary;
+        if left + width as u16 + 2 <= area.width {
+            break width as u16;
         }
         if parts.len() > 2 {
             parts.pop();
@@ -391,14 +391,13 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App) {
             show_position = false;
             continue;
         }
-        break summary;
+        break width as u16;
     };
 
     // The metric block goes down first and never moves. Everything else fits
     // into what is left of the bar.
-    let summary_width = summary.chars().count() as u16;
     let summary_x = (area.x + area.width - 2).saturating_sub(summary_width);
-    put(buf, summary_x, area.y, &summary, bar, area);
+    draw_metrics(buf, summary_x, area.y, &parts, theme, area);
 
     let mut x = area.x + 1;
     if show_position && let Some(position) = &position {
@@ -424,8 +423,73 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App) {
     }
 }
 
-fn metric(label: &str, value: String, width: usize) -> String {
-    format!("{label} {value:>width$}")
+struct Metric<'a> {
+    label: &'a str,
+    value: String,
+    width: usize,
+    accent: bool,
+}
+
+impl Metric<'_> {
+    fn text_len(&self) -> usize {
+        if self.label.is_empty() {
+            self.width
+        } else {
+            self.label.chars().count() + 1 + self.width
+        }
+    }
+}
+
+fn metric(label: &'static str, value: String, width: usize) -> Metric<'static> {
+    Metric {
+        label,
+        value,
+        width,
+        accent: false,
+    }
+}
+
+fn speed_metric(value: &str) -> Metric<'static> {
+    Metric {
+        label: "",
+        value: value.to_string(),
+        width: 6,
+        accent: true,
+    }
+}
+
+fn summary_width(parts: &[Metric<'_>]) -> usize {
+    parts.iter().map(Metric::text_len).sum::<usize>() + parts.len().saturating_sub(1) * 3
+}
+
+fn draw_metrics(buf: &mut Buffer, x: u16, y: u16, parts: &[Metric<'_>], theme: &Theme, area: Rect) {
+    let label_style = Style::default().fg(theme.muted).bg(theme.status);
+    let value_style = Style::default().fg(theme.text).bg(theme.status);
+    let accent_style = Style::default()
+        .fg(theme.accent)
+        .bg(theme.status)
+        .add_modifier(Modifier::BOLD);
+    let mut cx = x;
+    for (index, part) in parts.iter().enumerate() {
+        if index > 0 {
+            cx += 3;
+        }
+        if part.accent {
+            put(
+                buf,
+                cx,
+                y,
+                &format!("{:<width$}", part.value, width = part.width),
+                accent_style,
+                area,
+            );
+        } else {
+            put(buf, cx, y, part.label, label_style, area);
+            let right = cx + part.label.chars().count() as u16 + 1 + part.width as u16;
+            put_right(buf, right, y, &part.value, value_style, area);
+        }
+        cx += part.text_len() as u16;
+    }
 }
 
 fn left_width(position: &Option<String>, show_position: bool) -> u16 {
@@ -572,15 +636,25 @@ pub fn without_hint(area: Rect, hint: Option<Rect>) -> Rect {
 
 pub fn draw_hint(buf: &mut Buffer, area: Rect, app: &App, hint: Rect) {
     let theme = app.theme();
-    let text = tab_hints(app);
-    put(
-        buf,
-        hint.x,
-        hint.y,
-        &truncate(&text, hint.width as usize),
-        Style::default().fg(theme.muted).bg(theme.surface),
-        area,
-    );
+    let text = truncate(&tab_hints(app), hint.width as usize);
+    let action = Style::default().fg(theme.muted).bg(theme.surface);
+    let key = Style::default()
+        .fg(theme.accent)
+        .bg(theme.surface)
+        .add_modifier(Modifier::BOLD);
+    let mut in_key = false;
+    for (x, ch) in (hint.x..).zip(text.chars()) {
+        if ch == '[' {
+            in_key = true;
+        }
+        let style = if in_key { key } else { action };
+        if x < area.x + area.width && hint.y < area.y + area.height {
+            buf[(x, hint.y)].set_char(ch).set_style(style);
+        }
+        if ch == ']' {
+            in_key = false;
+        }
+    }
 }
 
 /// Width below which the scrollbar is dropped in favour of the counter.
@@ -800,6 +874,43 @@ mod tests {
         assert!(screen.contains("Fewer details"));
     }
 
+    fn buffer_for(app: &App, width: u16, height: u16) -> ratatui::buffer::Buffer {
+        let mut hits = crate::ui::hits::HitMap::default();
+        let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+        terminal.draw(|frame| draw(frame, app, &mut hits)).unwrap();
+        terminal.backend().buffer().clone()
+    }
+
+    #[test]
+    fn hint_keys_are_accented_and_actions_muted() {
+        let (mut app, _) = App::new(Settings::default(), false);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        let theme = *app.theme();
+        let buffer = buffer_for(&app, 120, 30);
+        let screen = crate::ui::test_util::render(&app, 120, 30);
+        let line = screen.lines().nth(28).unwrap();
+        let key_x = line.find("[e]").unwrap() as u16;
+        assert_eq!(buffer[(key_x, 28)].fg, theme.accent, "key");
+        let action_x = line.find("End").unwrap() as u16;
+        assert_eq!(buffer[(action_x, 28)].fg, theme.muted, "action");
+    }
+
+    #[test]
+    fn status_labels_and_values_use_different_colours() {
+        let (mut app, _) = App::new(Settings::default(), false);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        let theme = *app.theme();
+        let buffer = buffer_for(&app, 120, 30);
+        let screen = crate::ui::test_util::render(&app, 120, 30);
+        let line = screen.lines().last().unwrap();
+        let label_x = line.find("CPU").unwrap() as u16;
+        assert_eq!(buffer[(label_x, 29)].fg, theme.muted, "label");
+        let value_x = line.find("27.0%").unwrap() as u16;
+        assert_eq!(buffer[(value_x, 29)].fg, theme.text, "value");
+        let speed_x = line.find("Normal").unwrap() as u16;
+        assert_eq!(buffer[(speed_x, 29)].fg, theme.accent, "speed");
+    }
+
     #[test]
     fn status_bar_starts_with_the_position_not_a_details_link() {
         let (mut app, _) = App::new(Settings::default(), false);
@@ -817,13 +928,11 @@ mod tests {
 
     #[test]
     fn metric_fields_keep_their_width() {
-        assert_eq!(metric("CPU", "9.0%".into(), 6).chars().count(), 10);
-        assert_eq!(metric("CPU", "100.0%".into(), 6).chars().count(), 10);
-        assert_eq!(metric("Disk", "1 B/s".into(), 11).chars().count(), 16);
-        assert_eq!(
-            metric("Network", "999.9 Gbps".into(), 11).chars().count(),
-            19
-        );
+        assert_eq!(metric("CPU", "9.0%".into(), 6).text_len(), 10);
+        assert_eq!(metric("CPU", "100.0%".into(), 6).text_len(), 10);
+        assert_eq!(metric("Disk", "1 B/s".into(), 11).text_len(), 16);
+        assert_eq!(metric("Network", "999.9 Gbps".into(), 11).text_len(), 19);
+        assert_eq!(speed_metric("High").text_len(), 6);
     }
 
     #[test]
