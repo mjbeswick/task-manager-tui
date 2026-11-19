@@ -13,5 +13,5 @@
 
 ## 3. First CI run
 
-- [ ] 3.1 Create a private GitHub repo and push main. Verify: `gh run list` shows a run for the pushed commit.
-- [ ] 3.2 Fix every failure the first run shows on either platform, each as its own commit. Verify: `gh run view` reports every job green.
+- [x] 3.1 Create a private GitHub repo and push main. Verify: `gh run list` shows a run for the pushed commit.
+- [x] 3.2 Fix every failure the first run shows on either platform, each as its own commit. Verify: `gh run view` reports every job green.
