@@ -15,9 +15,9 @@
 
 ## 3. Performance rail
 
-- [ ] 3.1 Draw each rail entry as name, one row sparkline, and value line, using the series colour. Verify: a render test at 120x36 shows a sparkline and `GHz` under CPU in the rail.
-- [ ] 3.2 Fall back to one row per entry with name and value when the rail is shorter than fifteen rows. Verify: a render test at 80x14 shows every resource name with its value and no sparkline.
-- [ ] 3.3 Keep rail click targets on the whole entry height. Verify: a `tests/mouse.rs` case clicks a sparkline row and selects that resource.
+- [x] 3.1 Draw each rail entry as name, one row sparkline, and value line, using the series colour. Verify: a render test at 120x36 shows a sparkline and `GHz` under CPU in the rail.
+- [x] 3.2 Fall back to one row per entry with name and value when the rail is shorter than fifteen rows. Verify: a render test at 80x14 shows every resource name with its value and no sparkline.
+- [x] 3.3 Keep rail click targets on the whole entry height. Verify: a `tests/mouse.rs` case clicks a sparkline row and selects that resource.
 
 ## 4. Processes table
 

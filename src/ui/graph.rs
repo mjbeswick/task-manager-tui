@@ -88,25 +88,52 @@ pub fn mix(a: Color, b: Color, toward_b: f32) -> Color {
     }
 }
 
+/// Draw the newest samples of `series` as a sparkline across `area`.
+/// `max` of 0 autoscales like the main graph, with 10% headroom.
+pub fn sparkline(
+    buf: &mut Buffer,
+    area: Rect,
+    series: &Series,
+    max: f32,
+    color: Color,
+    bg: Color,
+    theme: &Theme,
+) {
+    let maximum = if max > 0.0 {
+        max
+    } else {
+        (series.max() * 1.1).max(f32::EPSILON)
+    };
+    let count = series.values.len();
+    for column in 0..(area.width as usize).min(count) {
+        let value = series.values[count - 1 - column];
+        let x = area.x + area.width - 1 - column as u16;
+        fill_column(
+            buf,
+            Rect::new(x, area.y, 1, area.height),
+            value / maximum,
+            color,
+            bg,
+            theme,
+        );
+    }
+}
+
 /// Paint one filled column, `fraction` of `height` rows tall, bottom-anchored.
 /// The top cell resolves to an eighth in the edge colour; cells under it use a
 /// lighter fill. ASCII and 16 colour modes round to half cells and skip the mix.
 pub fn fill_column(
     buf: &mut Buffer,
-    x: u16,
-    top: u16,
-    height: u16,
+    column: Rect,
     fraction: f32,
     edge: Color,
+    bg: Color,
     theme: &Theme,
 ) {
+    let (x, top, height) = (column.x, column.y, column.height);
     let glyphs = theme.glyphs();
     let coarse = theme.ascii || theme.coarse;
-    let fill = if coarse {
-        edge
-    } else {
-        mix(edge, theme.surface, 0.55)
-    };
+    let fill = if coarse { edge } else { mix(edge, bg, 0.55) };
     let mut total = (fraction.clamp(0.0, 1.0) * height as f32 * 8.0).round() as usize;
     if coarse {
         total = (total + 2) / 4 * 4;
@@ -119,7 +146,7 @@ pub fn fill_column(
         let is_top = total <= (offset + 1) * 8;
         let style = ratatui::style::Style::default()
             .fg(if is_top { edge } else { fill })
-            .bg(theme.surface);
+            .bg(bg);
         let row = top + height - 1 - offset as u16;
         buf[(x, row)]
             .set_char(glyphs.eighths[units - 1])
@@ -215,11 +242,10 @@ pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: 
             ChartStyle::Filled => {
                 fill_column(
                     buf,
-                    x,
-                    column_top,
-                    plot.height,
+                    Rect::new(x, column_top, 1, plot.height),
                     value / maximum,
                     color,
+                    theme.surface,
                     theme,
                 );
             }
@@ -441,7 +467,14 @@ mod tests {
     fn one_column(theme: &crate::theme::Theme, fraction: f32) -> Buffer {
         let area = Rect::new(0, 0, 1, 2);
         let mut buffer = Buffer::empty(area);
-        fill_column(&mut buffer, 0, 0, 2, fraction, theme.graph_fill, theme);
+        fill_column(
+            &mut buffer,
+            Rect::new(0, 0, 1, 2),
+            fraction,
+            theme.graph_fill,
+            theme.surface,
+            theme,
+        );
         buffer
     }
 

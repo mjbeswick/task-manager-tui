@@ -59,28 +59,95 @@ fn draw_rail(buf: &mut Buffer, area: Rect, app: &App, narrow: bool, hits: &mut H
         return;
     }
 
+    // Three rows per entry (name, sparkline, value) when the rail has room,
+    // plus a gap row between entries when there is more.
+    let count = resources.len() as u16;
+    let tall = area.height >= 3 * count;
+    let rows = if tall { 3 } else { 1 };
+    let pitch = if area.height >= 4 * count { 4 } else { rows };
     for (index, resource) in resources.iter().enumerate() {
         let active = *resource == app.performance.resource;
-        let y = area.y + index as u16;
-        let style = if active {
-            Style::default()
-                .fg(theme.text)
-                .bg(theme.selection)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(theme.text).bg(theme.bg)
-        };
-        if active {
-            fill_area(buf, Rect::new(area.x, y, area.width, 1), style);
-            buf[(area.x, y)]
-                .set_char('▌')
-                .set_style(Style::default().fg(theme.accent).bg(theme.selection));
+        let y = area.y + index as u16 * pitch;
+        if y + rows > area.y + area.height {
+            break;
         }
-        put(buf, area.x + 2, y, resource.label(), style, area);
-        hits.add(
-            Rect::new(area.x, y, area.width, 1),
-            Target::Resource(*resource),
-        );
+        let bg = if active { theme.selection } else { theme.bg };
+        let name_style = Style::default()
+            .fg(theme.text)
+            .bg(bg)
+            .add_modifier(Modifier::BOLD);
+        let value_style = Style::default()
+            .fg(if active { theme.text } else { theme.muted })
+            .bg(bg);
+        let entry = Rect::new(area.x, y, area.width, rows);
+        fill_area(buf, entry, Style::default().bg(bg));
+        if active {
+            for row in y..y + rows {
+                buf[(area.x, row)]
+                    .set_char('▌')
+                    .set_style(Style::default().fg(theme.accent).bg(bg));
+            }
+        }
+        let value = rail_value(app, *resource, !tall);
+        put(buf, area.x + 2, y, resource.label(), name_style, area);
+        if tall {
+            let (series, max) = rail_series(app, *resource);
+            let color = app.chart_color.color(theme, *resource);
+            let spark = Rect::new(area.x + 2, y + 1, area.width.saturating_sub(3), 1);
+            graph::sparkline(buf, spark, series, max, color, bg, theme);
+            put(buf, area.x + 2, y + 2, &value, value_style, area);
+        } else {
+            let right = area.x + area.width - 1;
+            let width = value.chars().count() as u16;
+            let x = right
+                .saturating_sub(width)
+                .max(area.x + 3 + resource.label().len() as u16);
+            put(buf, x, y, &value, value_style, entry);
+        }
+        hits.add(entry, Target::Resource(*resource));
+    }
+}
+
+/// The history and scale a rail entry draws. `0` autoscales.
+fn rail_series(app: &App, resource: ResourceChoice) -> (&Series, f32) {
+    let graphs = &app.graphs;
+    match resource {
+        ResourceChoice::Cpu => (&graphs.cpu, 100.0),
+        ResourceChoice::Memory => (&graphs.memory, 100.0),
+        ResourceChoice::Disk => (&graphs.disk, 0.0),
+        ResourceChoice::Network => (&graphs.network, 0.0),
+        ResourceChoice::Gpu => (&graphs.gpu, 100.0),
+    }
+}
+
+/// The short figure under each rail entry, as Windows 10 shows it.
+/// `compact` drops the detail so the value fits beside the name on one row.
+fn rail_value(app: &App, resource: ResourceChoice, compact: bool) -> String {
+    let s = &app.snapshot;
+    match resource {
+        ResourceChoice::Cpu if compact => format!("{:.0}%", s.cpu.total),
+        ResourceChoice::Cpu => format!("{:.0}% {}", s.cpu.total, mhz(s.cpu.speed_mhz)),
+        ResourceChoice::Memory if compact && s.memory.total > 0 => format!(
+            "{:.0}%",
+            s.memory.used as f64 * 100.0 / s.memory.total as f64
+        ),
+        ResourceChoice::Memory if s.memory.total > 0 => {
+            let gb = |v: u64| v as f64 / (1024.0 * 1024.0 * 1024.0);
+            format!(
+                "{:.1}/{:.1} GB ({:.0}%)",
+                gb(s.memory.used),
+                gb(s.memory.total),
+                s.memory.used as f64 * 100.0 / s.memory.total as f64
+            )
+        }
+        ResourceChoice::Memory => DASH.to_string(),
+        ResourceChoice::Disk => rate(s.disks.iter().map(|d| d.read_bps + d.write_bps).sum()),
+        ResourceChoice::Network => bit_rate(s.networks.iter().map(|n| n.rx_bps + n.tx_bps).sum()),
+        ResourceChoice::Gpu if s.gpus.is_empty() => DASH.to_string(),
+        ResourceChoice::Gpu => {
+            let usage = s.gpus.iter().map(|g| g.usage).fold(0.0, f32::max);
+            format!("{usage:.0}%")
+        }
     }
 }
 
@@ -226,7 +293,14 @@ fn draw_mini(buf: &mut Buffer, area: Rect, series: &Series, app: &App) {
     for column in 0..width.min(count) {
         let value = series.values[count - 1 - column];
         let x = area.x + area.width - 1 - column as u16;
-        graph::fill_column(buf, x, area.y, area.height, value / 100.0, color, theme);
+        graph::fill_column(
+            buf,
+            Rect::new(x, area.y, 1, area.height),
+            value / 100.0,
+            color,
+            theme.surface,
+            theme,
+        );
     }
 }
 
@@ -525,6 +599,50 @@ mod tests {
         }
         app.tab = crate::app::Tab::Performance;
         app
+    }
+
+    fn rail(screen: &str) -> Vec<String> {
+        screen
+            .lines()
+            .skip(2)
+            .map(|line| line.chars().take(20).collect())
+            .collect()
+    }
+
+    #[test]
+    fn tall_rail_shows_sparkline_and_value() {
+        let rail = rail(&render(&app(), 120, 36));
+        assert!(rail[0].contains("CPU"));
+        assert!(
+            rail[1].chars().any(|c| "▁▂▃▄▅▆▇█".contains(c)),
+            "sparkline under CPU: {:?}",
+            rail[1]
+        );
+        assert!(rail[2].contains("GHz"), "value under CPU: {:?}", rail[2]);
+        assert!(rail.iter().any(|l| l.contains("16.0 GB (62%)")));
+    }
+
+    #[test]
+    fn short_rail_keeps_name_and_value_on_one_row() {
+        let rail = rail(&render(&app(), 80, 14));
+        for (row, name) in ["CPU", "Memory", "Disk", "Network", "GPU"]
+            .iter()
+            .enumerate()
+        {
+            assert!(
+                rail[row].contains(name),
+                "{name} on row {row}: {:?}",
+                rail[row]
+            );
+        }
+        assert!(rail[0].contains('%') && rail[1].contains('%'), "{rail:?}");
+        assert!(
+            !rail
+                .iter()
+                .take(5)
+                .any(|l| l.chars().any(|c| "▁▂▃▅▆▇".contains(c))),
+            "no sparkline in a short rail"
+        );
     }
 
     #[test]

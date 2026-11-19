@@ -55,6 +55,23 @@ fn performance_rail_is_clickable() {
 }
 
 #[test]
+fn rail_sparkline_rows_select_their_resource() {
+    let app = app(Tab::Performance);
+    let (screen, hits) = render_with_hits(&app, 120, 36);
+    let row = screen
+        .lines()
+        .position(|line| line.starts_with("  Memory"))
+        .expect("Memory entry") as u16;
+    assert_eq!(
+        hits.hit(5, row + 1),
+        Some(Target::Resource(
+            task_manager_tui::app::ResourceChoice::Memory
+        )),
+        "the sparkline row under Memory"
+    );
+}
+
+#[test]
 fn open_menu_publishes_its_items() {
     let mut app = app(Tab::Processes);
     app.menu = Some(task_manager_tui::app::MenuState { menu: 2, item: 0 });
