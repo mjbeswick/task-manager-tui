@@ -19,7 +19,6 @@ pub enum Target {
     /// A table row, by index in the tab's visible row list.
     Row(usize),
     Resource(ResourceChoice),
-    FewerDetails,
     DialogConfirm,
     DialogCancel,
     DialogSignal(usize),
@@ -105,8 +104,8 @@ mod tests {
     fn hit_finds_the_topmost_region() {
         let mut hits = HitMap::default();
         hits.add(Rect::new(0, 0, 10, 2), Target::Tab(Tab::Processes));
-        hits.add(Rect::new(0, 0, 10, 1), Target::FewerDetails);
-        assert_eq!(hits.hit(3, 0), Some(Target::FewerDetails));
+        hits.add(Rect::new(0, 0, 10, 1), Target::Tab(Tab::Processes));
+        assert_eq!(hits.hit(3, 0), Some(Target::Tab(Tab::Processes)));
         assert_eq!(hits.hit(3, 1), Some(Target::Tab(Tab::Processes)));
         assert_eq!(hits.hit(20, 0), None);
     }
@@ -114,7 +113,7 @@ mod tests {
     #[test]
     fn empty_regions_are_ignored() {
         let mut hits = HitMap::default();
-        hits.add(Rect::new(0, 0, 0, 5), Target::FewerDetails);
+        hits.add(Rect::new(0, 0, 0, 5), Target::Tab(Tab::Processes));
         assert!(hits.is_empty());
         hits.add(Rect::new(0, 0, 4, 1), Target::Row(2));
         assert_eq!(hits.len(), 1);

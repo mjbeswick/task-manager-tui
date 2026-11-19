@@ -54,7 +54,7 @@ pub fn draw(frame: &mut Frame, app: &App, hits: &mut HitMap) {
         Tab::Services => crate::ui::services::draw(buf, content, app, hits),
     }
 
-    draw_status_bar(buf, status_row, app, hits);
+    draw_status_bar(buf, status_row, app);
 
     if let Some(menu) = app.menu {
         draw_menu_dropdown(buf, area, app, menu, hits);
@@ -342,20 +342,11 @@ fn draw_tabs(buf: &mut Buffer, top: Rect, area: Rect, rule: Rect, app: &App, hit
     }
 }
 
-fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
+fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App) {
     let theme = app.theme();
     let bar = Style::default().bg(theme.status).fg(theme.muted);
     fill_area(buf, area, bar);
 
-    let action = if app.tab == Tab::Processes {
-        if app.process.more_details {
-            "Fewer details"
-        } else {
-            "More details"
-        }
-    } else {
-        ""
-    };
     let position = status_position(app);
 
     let snapshot = &app.snapshot;
@@ -387,11 +378,10 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         parts.push(metric("GPU", pct(gpu), 6));
     }
 
-    let mut show_action = !action.is_empty();
     let mut show_position = position.is_some();
     let summary = loop {
         let summary = parts.join("   ");
-        let left = left_width(action, show_action, &position, show_position);
+        let left = left_width(&position, show_position);
         if left + summary.chars().count() as u16 + 2 <= area.width {
             break summary;
         }
@@ -401,10 +391,6 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         }
         if show_position {
             show_position = false;
-            continue;
-        }
-        if show_action {
-            show_action = false;
             continue;
         }
         break summary;
@@ -417,16 +403,6 @@ fn draw_status_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     put(buf, summary_x, area.y, &summary, bar, area);
 
     let mut x = area.x + 1;
-    if show_action {
-        let style = Style::default()
-            .fg(theme.accent)
-            .bg(theme.status)
-            .add_modifier(Modifier::UNDERLINED);
-        let width = action.chars().count() as u16;
-        put(buf, x, area.y, action, style, area);
-        hits.add(Rect::new(x, area.y, width, 1), Target::FewerDetails);
-        x += width + 2;
-    }
     if show_position && let Some(position) = &position {
         let width = position.chars().count() as u16;
         put(buf, x, area.y, position, bar, area);
@@ -454,16 +430,8 @@ fn metric(label: &str, value: String, width: usize) -> String {
     format!("{label} {value:>width$}")
 }
 
-fn left_width(
-    action: &str,
-    show_action: bool,
-    position: &Option<String>,
-    show_position: bool,
-) -> u16 {
+fn left_width(position: &Option<String>, show_position: bool) -> u16 {
     let mut width = 0;
-    if show_action {
-        width += action.chars().count() as u16 + 2;
-    }
     if show_position && let Some(position) = position {
         width += position.chars().count() as u16 + 2;
     }
@@ -832,6 +800,21 @@ mod tests {
         );
         assert!(screen.contains("CPU  27.0%"));
         assert!(screen.contains("Fewer details"));
+    }
+
+    #[test]
+    fn status_bar_starts_with_the_position_not_a_details_link() {
+        let (mut app, _) = App::new(Settings::default(), false);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        let screen = crate::ui::test_util::render(&app, 120, 30);
+        let line = screen.lines().last().unwrap();
+        assert!(
+            line.trim_start().starts_with("1/"),
+            "status starts with the counter: {line:?}"
+        );
+        assert!(!line.contains("Fewer details"), "{line:?}");
+        let hint = screen.lines().nth(28).unwrap();
+        assert!(hint.contains("[f] Fewer details"), "{hint:?}");
     }
 
     #[test]

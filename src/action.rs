@@ -245,7 +245,6 @@ impl App {
                 self.performance.resource = resource;
                 Vec::new()
             }
-            Target::FewerDetails => self.dispatch(Action::ToggleDetails),
             Target::DialogConfirm => self.dispatch(Action::Confirm),
             Target::DialogCancel | Target::DialogClose => self.dispatch(Action::Cancel),
             Target::DialogSignal(index) => {

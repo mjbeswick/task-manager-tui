@@ -37,7 +37,6 @@ fn chrome_publishes_menu_tabs_and_rows() {
     assert!(found.contains(&Target::Tab(Tab::Services)));
     assert!(found.contains(&Target::Row(0)));
     assert!(found.contains(&Target::Row(5)));
-    assert!(found.contains(&Target::FewerDetails));
 }
 
 fn menu_app() -> App {
