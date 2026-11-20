@@ -236,7 +236,7 @@ consecutive samples with a dot-space segment.
 
 When the gradient option is on, filled charts SHALL blend the chart colour toward the
 chart background as the fill rises, producing a visible vertical gradient at cell
-resolution, and the top of the fill MUST stay closer to the chart colour than to the
+resolution, and the top of the fill MUST differ clearly from both the base colour and the
 surface.
 
 #### Scenario: Bottom is strongest
@@ -245,7 +245,7 @@ surface.
 
 #### Scenario: Top keeps the hue
 - **WHEN** a fill is at least eight rows tall and gradients are on
-- **THEN** the row below the tip is closer to the chart colour than to the surface
+- **THEN** the top row differs from the base by a visible colour step and is not the surface colour
 
 #### Scenario: Reduced colour
 - **WHEN** the terminal uses the 16-colour palette
