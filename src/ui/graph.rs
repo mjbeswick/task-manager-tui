@@ -90,7 +90,7 @@ pub fn mix(a: Color, b: Color, toward_b: f32) -> Color {
 
 /// A three-stop ramp: chart colour at the base, a dim tint in the middle,
 /// and the surface at the top. `rise` is 0 at the base and 1 at the top.
-pub fn ramp(edge: Color, rise: f32) -> Color {
+pub fn ramp(edge: Color, rise: f32, strength: f32) -> Color {
     let black = Color::Rgb(0, 0, 0);
     let white = Color::Rgb(255, 255, 255);
     let target = if crate::theme::contrast(edge, black) >= crate::theme::contrast(edge, white) {
@@ -98,8 +98,8 @@ pub fn ramp(edge: Color, rise: f32) -> Color {
     } else {
         white
     };
-    let mid = crate::theme::mix_linear(edge, target, 0.20);
-    let top = crate::theme::mix_linear(edge, target, 0.55);
+    let mid = crate::theme::mix_linear(edge, target, (0.20 * strength).min(0.45));
+    let top = crate::theme::mix_linear(edge, target, (0.55 * strength).min(0.90));
     let rise = rise.clamp(0.0, 1.0);
     if rise < 0.5 {
         crate::theme::mix_linear(edge, mid, rise * 2.0)
@@ -317,7 +317,7 @@ pub fn fill_column(buf: &mut Buffer, column: Rect, fraction: f32, spec: FillSpec
         let colour = if coarse || !gradient {
             edge
         } else {
-            ramp(edge, 0.05 + rise * 0.95)
+            ramp(edge, 0.05 + rise * 0.95, theme.gradient_strength)
         };
         let style = ratatui::style::Style::default().fg(colour).bg(bg);
         let row = top + height - 1 - offset as u16;
@@ -396,7 +396,7 @@ fn blocks_column(
         let colour = if coarse || !gradient {
             edge
         } else {
-            ramp(edge, 0.05 + rise * 0.95)
+            ramp(edge, 0.05 + rise * 0.95, theme.gradient_strength)
         };
         let is_top = total <= (offset + 1) * 8;
         let glyph = if units == 8 {
@@ -507,7 +507,11 @@ impl Dots {
                 let colour = if theme.coarse || !gradient {
                     edge
                 } else {
-                    ramp(edge, (1.0 - self.peaks[cell]) * 0.85)
+                    ramp(
+                        edge,
+                        (1.0 - self.peaks[cell]) * 0.85,
+                        theme.gradient_strength,
+                    )
                 };
                 let style = ratatui::style::Style::default().fg(colour).bg(bg);
                 if let Some(ch) = char::from_u32(0x2800 + mask as u32) {
@@ -988,10 +992,10 @@ mod tests {
         let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
         let edge = theme.graph_fill;
         let bg = theme.surface;
-        assert_eq!(ramp(edge, 0.0), edge);
-        let top = ramp(edge, 1.0);
+        assert_eq!(ramp(edge, 0.0, 1.0), edge);
+        let top = ramp(edge, 1.0, 1.0);
         assert_ne!(top, bg, "the top keeps some hue");
-        let middle = ramp(edge, 0.5);
+        let middle = ramp(edge, 0.5, 1.0);
         let Color::Rgb(r, g, b) = middle else {
             panic!("expected rgb");
         };
@@ -1414,6 +1418,40 @@ mod tests {
             .map(|cell| cell.fg)
             .collect();
         assert!(colours.len() > 1, "the sparkline is one flat colour");
+    }
+
+    #[test]
+    fn phosphor_and_amber_boost_the_gradient() {
+        let distance = |a: ratatui::style::Color, b: ratatui::style::Color| {
+            let (a, b) = (crate::theme::indexed_rgb(a), crate::theme::indexed_rgb(b));
+            (a.0 as i32 - b.0 as i32).abs()
+                + (a.1 as i32 - b.1 as i32).abs()
+                + (a.2 as i32 - b.2 as i32).abs()
+        };
+        for name in [
+            crate::theme::ThemeName::Phosphor,
+            crate::theme::ThemeName::Amber,
+        ] {
+            let theme = crate::theme::Theme::from_name(name, false);
+            assert_eq!(theme.gradient_strength, 1.5);
+            let normal = ramp(theme.graph_fill, 1.0, 1.0);
+            let strong = ramp(theme.graph_fill, 1.0, theme.gradient_strength);
+            assert!(
+                distance(strong, theme.graph_fill) > distance(normal, theme.graph_fill),
+                "{name:?} did not deepen"
+            );
+        }
+        for name in crate::theme::ThemeName::ALL {
+            if !matches!(
+                name,
+                crate::theme::ThemeName::Phosphor | crate::theme::ThemeName::Amber
+            ) {
+                assert_eq!(
+                    crate::theme::Theme::from_name(name, false).gradient_strength,
+                    1.0
+                );
+            }
+        }
     }
 
     #[test]

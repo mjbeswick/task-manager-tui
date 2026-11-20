@@ -103,6 +103,8 @@ pub struct Theme {
     pub good: Color,
     pub warn: Color,
     pub bad: Color,
+    /// Multiplier for the chart gradient's midpoint and top stops.
+    pub gradient_strength: f32,
     /// Per-resource chart colours: CPU, Memory, Disk, Network, GPU.
     pub charts: [Color; 5],
     /// Processes cell shading, palest first.
@@ -137,6 +139,7 @@ pub const LIGHT: Theme = Theme {
         Color::Rgb(167, 79, 1),
         Color::Rgb(30, 138, 115),
     ],
+    gradient_strength: 1.0,
     heat: [
         Color::Rgb(0xFF, 0xF4, 0xC4),
         Color::Rgb(0xFF, 0xE9, 0xA8),
@@ -173,6 +176,7 @@ pub const DARK: Theme = Theme {
         Color::Rgb(240, 149, 74),
         Color::Rgb(76, 194, 168),
     ],
+    gradient_strength: 1.0,
     heat: [
         Color::Rgb(0x3A, 0x33, 0x22),
         Color::Rgb(0x4A, 0x3D, 0x20),
@@ -209,6 +213,7 @@ pub const NORD: Theme = Theme {
         Color::Rgb(208, 135, 112),
         Color::Rgb(94, 129, 172),
     ],
+    gradient_strength: 1.0,
     heat: [
         Color::Rgb(0x3A, 0x41, 0x4A),
         Color::Rgb(0x46, 0x44, 0x4A),
@@ -245,6 +250,7 @@ pub const GRUVBOX: Theme = Theme {
         Color::Rgb(254, 128, 25),
         Color::Rgb(250, 189, 47),
     ],
+    gradient_strength: 1.0,
     heat: [
         Color::Rgb(0x3A, 0x33, 0x24),
         Color::Rgb(0x4A, 0x3C, 0x22),
@@ -260,7 +266,7 @@ pub const PHOSPHOR: Theme = Theme {
     name: ThemeName::Phosphor,
     bg: Color::Rgb(0x0A, 0x0F, 0x0A),
     surface: Color::Rgb(0x0F, 0x16, 0x0F),
-    surface_alt: Color::Rgb(0x12, 0x1A, 0x12),
+    surface_alt: Color::Rgb(0x16, 0x22, 0x16),
     chrome: Color::Rgb(0x02, 0x05, 0x02),
     status: Color::Rgb(0x02, 0x0E, 0x02),
     text: Color::Rgb(0x7D, 0xF9, 0xA5),
@@ -281,6 +287,7 @@ pub const PHOSPHOR: Theme = Theme {
         Color::Rgb(182, 255, 92),
         Color::Rgb(51, 204, 204),
     ],
+    gradient_strength: 1.5,
     heat: [
         Color::Rgb(0x12, 0x30, 0x1C),
         Color::Rgb(0x1B, 0x3D, 0x22),
@@ -296,7 +303,7 @@ pub const AMBER: Theme = Theme {
     name: ThemeName::Amber,
     bg: Color::Rgb(0x0F, 0x0B, 0x06),
     surface: Color::Rgb(0x16, 0x10, 0x0A),
-    surface_alt: Color::Rgb(0x1A, 0x13, 0x0C),
+    surface_alt: Color::Rgb(0x22, 0x18, 0x0D),
     chrome: Color::Rgb(0x06, 0x04, 0x02),
     status: Color::Rgb(0x18, 0x10, 0x06),
     text: Color::Rgb(0xFF, 0xC4, 0x6B),
@@ -317,6 +324,7 @@ pub const AMBER: Theme = Theme {
         Color::Rgb(224, 108, 43),
         Color::Rgb(255, 107, 90),
     ],
+    gradient_strength: 1.5,
     heat: [
         Color::Rgb(0x2A, 0x22, 0x13),
         Color::Rgb(0x3A, 0x2C, 0x12),
@@ -332,7 +340,7 @@ pub const TOKYO_NIGHT: Theme = Theme {
     name: ThemeName::TokyoNight,
     bg: Color::Rgb(0x1A, 0x1B, 0x26),
     surface: Color::Rgb(0x1F, 0x23, 0x35),
-    surface_alt: Color::Rgb(0x23, 0x25, 0x36),
+    surface_alt: Color::Rgb(0x25, 0x28, 0x3A),
     chrome: Color::Rgb(0x10, 0x11, 0x1A),
     status: Color::Rgb(0x14, 0x15, 0x1E),
     text: Color::Rgb(0xC0, 0xCA, 0xF5),
@@ -353,6 +361,7 @@ pub const TOKYO_NIGHT: Theme = Theme {
         Color::Rgb(0xE0, 0xAF, 0x68),
         Color::Rgb(0x7D, 0xCF, 0xFF),
     ],
+    gradient_strength: 1.0,
     heat: [
         Color::Rgb(0x2A, 0x2E, 0x42),
         Color::Rgb(0x34, 0x31, 0x4A),
@@ -389,6 +398,7 @@ pub const CATPPUCCIN: Theme = Theme {
         Color::Rgb(0xF9, 0xE2, 0xAF),
         Color::Rgb(0x94, 0xE2, 0xD5),
     ],
+    gradient_strength: 1.0,
     heat: [
         Color::Rgb(0x3A, 0x35, 0x48),
         Color::Rgb(0x45, 0x38, 0x4E),
@@ -425,6 +435,7 @@ pub const SOLARIZED: Theme = Theme {
         Color::Rgb(0xCB, 0x4B, 0x16),
         Color::Rgb(0x2A, 0xA1, 0x98),
     ],
+    gradient_strength: 1.0,
     heat: [
         Color::Rgb(0xFF, 0xF0, 0xC4),
         Color::Rgb(0xFF, 0xE3, 0xA6),
@@ -461,6 +472,7 @@ pub const ROSE_PINE: Theme = Theme {
         Color::Rgb(0xF6, 0xC1, 0x77),
         Color::Rgb(0xEB, 0x6F, 0x92),
     ],
+    gradient_strength: 1.0,
     heat: [
         Color::Rgb(0x2A, 0x24, 0x40),
         Color::Rgb(0x35, 0x2A, 0x45),
@@ -1042,6 +1054,19 @@ mod tests {
                     contrast(theme.charts[i], theme.surface)
                 );
             }
+        }
+    }
+
+    #[test]
+    fn stripes_are_visible_in_every_theme() {
+        for theme in all_themes() {
+            let (a, b) = (indexed_rgb(theme.surface), indexed_rgb(theme.surface_alt));
+            let step = [(a.0, b.0), (a.1, b.1), (a.2, b.2)]
+                .into_iter()
+                .map(|(x, y)| (x as i32 - y as i32).abs())
+                .max()
+                .unwrap();
+            assert!(step >= 5, "{:?} stripe step is {step}", theme.name);
         }
     }
 
