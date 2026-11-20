@@ -911,6 +911,10 @@ impl App {
                 return effects;
             }
             MenuItem::EndTask => Action::EndTask,
+            MenuItem::EndTree => Action::EndTree,
+            MenuItem::Signal => Action::OpenSignal,
+            MenuItem::Priority => Action::SetPriority,
+            MenuItem::Properties => Action::ShowProperties,
             MenuItem::ClearHistory => Action::DeleteHistory,
             MenuItem::Help => Action::Help,
             MenuItem::About => {
@@ -1585,6 +1589,25 @@ mod tests {
         app.dialog = Some(Dialog::Appearance { selected: 0 });
         app.dispatch(Action::Confirm);
         assert_eq!(app.theme_name, crate::theme::ThemeName::Dark);
+    }
+
+    #[test]
+    fn process_menu_lists_the_process_actions() {
+        let menu = crate::app::MENUS
+            .iter()
+            .find(|(label, _)| *label == "Process")
+            .unwrap();
+        let labels: Vec<&str> = menu.1.iter().map(|(label, _)| *label).collect();
+        assert_eq!(
+            labels,
+            vec![
+                "End task",
+                "End process tree",
+                "Send signal...",
+                "Set priority...",
+                "Properties"
+            ]
+        );
     }
 
     #[test]

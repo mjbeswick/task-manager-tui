@@ -2,7 +2,7 @@
 source: tests/render.rs
 expression: "screen(&app, 120, 40)"
 ---
- File  Options  View  Help                                                                 / Filter                     
+ File  Options  View  Process  Help                                                        / Filter                     
 ┌─────────┐                                                                                                             
 │Processes│ Performance  App history  Startup  Users  Details  Services                                                 
 ┘         └─────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -10,7 +10,7 @@ Name                                                                  Status    
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 ▾ Apps (2)              ┌─ Keyboard shortcuts ─────────────────────────────────────────────────┐5.3MB/s  12.0Mbps    -  
   ▸ Safari (1)          │  q, Ctrl+C               Quit                                        │.0 KB/s                 
-  ▸ Ghostty (1)         │  F10, Alt+F/O/V/H        Menu bar                                    │.0 KB/s                 
+  ▸ Ghostty (1)         │  F10, Alt+F/O/V/P/H      Menu bar                                    │.0 KB/s                 
 ▾ Background processes (│  F1                      This help                                   │                        
   ▸ node (1)            │  F2                      Appearance: theme, style, colour, gradient  │.0 KB/s                 
   ▸ postgres (1)        │  F5                      Refresh now                                 │.0 KB/s                 

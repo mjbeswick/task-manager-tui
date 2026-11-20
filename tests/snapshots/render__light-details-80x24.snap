@@ -2,7 +2,7 @@
 source: tests/render.rs
 expression: "screen(&app(Tab::Details, \"light\"), 80, 24)"
 ---
- File  Options  View  Help                         / Filter                     
+ File  Options  View  Process  Help                / Filter                     
                               ┌────┐                                            
  Proc  Perf  Hist  Star  User │Deta│ Serv                                       
 ──────────────────────────────┘    └────────────────────────────────────────────

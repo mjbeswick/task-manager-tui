@@ -83,7 +83,8 @@ pub fn translate(app: &App, key: KeyEvent) -> Option<Action> {
             'f' => Some(0),
             'o' => Some(1),
             'v' => Some(2),
-            'h' => Some(3),
+            'p' => Some(3),
+            'h' => Some(4),
             _ => None,
         };
         if let Some(index) = index {
@@ -406,6 +407,14 @@ mod tests {
         assert_eq!(
             translate(&app, KeyEvent::new(KeyCode::Char('v'), KeyModifiers::ALT)),
             Some(Action::OpenMenu(2))
+        );
+        assert_eq!(
+            translate(&app, KeyEvent::new(KeyCode::Char('p'), KeyModifiers::ALT)),
+            Some(Action::OpenMenu(3))
+        );
+        assert_eq!(
+            translate(&app, KeyEvent::new(KeyCode::Char('h'), KeyModifiers::ALT)),
+            Some(Action::OpenMenu(4))
         );
     }
 

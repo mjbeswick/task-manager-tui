@@ -10,7 +10,7 @@ use ratatui::style::{Modifier, Style};
 
 const HELP: &[(&str, &str)] = &[
     ("q, Ctrl+C", "Quit"),
-    ("F10, Alt+F/O/V/H", "Menu bar"),
+    ("F10, Alt+F/O/V/P/H", "Menu bar"),
     ("F1", "This help"),
     ("F2", "Appearance: theme, style, colour, gradient"),
     ("F5", "Refresh now"),

@@ -205,7 +205,7 @@ fn draw_filter_field(buf: &mut Buffer, bar: Rect, free: u16, app: &App, hits: &m
         .bg(theme.surface)
         .add_modifier(Modifier::BOLD);
     let right = bar.x + bar.width;
-    if free < 3 {
+    if free < 1 {
         return;
     }
     if free < 16 {
@@ -768,7 +768,7 @@ mod tests {
         // At 40 columns the menus stay whole and the field shrinks to its key.
         let narrow = bar(screen_for(Tab::Processes, 40, "", false));
         assert!(
-            narrow.starts_with(" File  Options  View  Help "),
+            narrow.starts_with(" File  Options  View  Process  Help "),
             "{narrow:?}"
         );
         assert!(narrow.trim_end().ends_with('/'), "{narrow:?}");
