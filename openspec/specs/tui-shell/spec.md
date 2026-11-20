@@ -297,12 +297,17 @@ anchored at the right edge, so changing values MUST NOT move any other part of t
 ### Requirement: Chrome and status bands
 
 The menu row and tab strip SHALL share a chrome background distinct from the content
-surface, the status bar SHALL use its own background, and the window title MUST name the
-application and the active tab.
+surface, the status bar SHALL use its own background, and both bands MUST differ visibly
+from the window background in every theme. The window title MUST name the application and
+the active tab.
 
 #### Scenario: Chrome band
 - **WHEN** any theme is active
 - **THEN** the menu row and tab strip share one background, and the content sits on the lighter surface
+
+#### Scenario: Visible bands
+- **WHEN** any theme is active
+- **THEN** the chrome and status backgrounds each differ from the window background by at least a perceptible channel step
 
 #### Scenario: Filter inset
 - **WHEN** the filter field is drawn in the menu bar
