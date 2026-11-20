@@ -101,7 +101,7 @@ fn draw_rail(buf: &mut Buffer, area: Rect, app: &App, narrow: bool, hits: &mut H
             let (series, max) = rail_series(app, *resource);
             let color = app.chart_color.color(theme, *resource);
             let spark = Rect::new(area.x + 2, y + 1, area.width.saturating_sub(3), 1);
-            graph::sparkline(buf, spark, series, max, color, bg, theme);
+            graph::sparkline(buf, spark, series, max, color, bg, theme, app.chart_style);
             put(buf, area.x + 2, y + 2, &value, value_style, area);
         } else {
             let right = area.x + area.width - 1;
@@ -295,20 +295,16 @@ fn draw_cores(buf: &mut Buffer, area: Rect, app: &App) {
 fn draw_mini(buf: &mut Buffer, area: Rect, series: &Series, app: &App) {
     let theme = app.theme();
     let color = app.chart_color.color(theme, ResourceChoice::Cpu);
-    let count = series.values.len();
-    let width = area.width as usize;
-    for column in 0..width.min(count) {
-        let value = series.values[count - 1 - column];
-        let x = area.x + area.width - 1 - column as u16;
-        graph::fill_column(
-            buf,
-            Rect::new(x, area.y, 1, area.height),
-            value / 100.0,
-            color,
-            theme.surface,
-            theme,
-        );
-    }
+    graph::sparkline(
+        buf,
+        area,
+        series,
+        100.0,
+        color,
+        theme.surface,
+        theme,
+        app.chart_style,
+    );
 }
 
 fn draw_memory(buf: &mut Buffer, inner: Rect, app: &App) {

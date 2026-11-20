@@ -151,26 +151,109 @@ pub fn sparkline(
     color: Color,
     bg: Color,
     theme: &Theme,
+    style: ChartStyle,
 ) {
     let maximum = if max > 0.0 {
         max
     } else {
         (series.max() * 1.1).max(f32::EPSILON)
     };
+    plot_series(buf, area, series, maximum, style, color, bg, theme);
+}
+
+/// Plot one column per sample, newest on the right, without grid or labels.
+fn plot_series(
+    buf: &mut Buffer,
+    area: Rect,
+    series: &Series,
+    maximum: f32,
+    style: ChartStyle,
+    color: Color,
+    bg: Color,
+    theme: &Theme,
+) {
+    let width = area.width as usize;
+    let height = area.height as usize;
+    if width == 0 || height == 0 {
+        return;
+    }
     let values: Vec<f32> = series.values.iter().copied().collect();
-    for column in 0..area.width as usize {
-        let Some(value) = sample_column(&values, column, area.width as usize) else {
+    let count = values.len();
+    let fractions: Vec<Option<f32>> = (0..width)
+        .map(|column| {
+            (column < count).then(|| (values[count - 1 - column] / maximum).clamp(0.0, 1.0))
+        })
+        .collect();
+    let totals: Vec<usize> = fractions
+        .iter()
+        .map(|fraction| {
+            fraction
+                .map(|fraction| (fraction * (height * 8) as f32).round() as usize)
+                .unwrap_or(0)
+        })
+        .collect();
+    let glyphs = theme.glyphs();
+    let mut dots = if matches!(style, ChartStyle::Line | ChartStyle::Dots) && !theme.ascii {
+        Some(Dots::new(area.width, area.height))
+    } else {
+        None
+    };
+    let mut previous_dot: Option<(usize, usize)> = None;
+    for column in 0..width {
+        let Some(fraction) = fractions[column] else {
             continue;
         };
         let x = area.x + area.width - 1 - column as u16;
-        fill_column(
-            buf,
-            Rect::new(x, area.y, 1, area.height),
-            value / maximum,
-            color,
-            bg,
-            theme,
-        );
+        match style {
+            ChartStyle::Filled => fill_column(
+                buf,
+                Rect::new(x, area.y, 1, area.height),
+                fraction,
+                color,
+                bg,
+                theme,
+            ),
+            ChartStyle::Blocks => {
+                let older = if column + 1 < width && fractions[column + 1].is_some() {
+                    Some(totals[column + 1])
+                } else {
+                    None
+                };
+                blocks_column(
+                    buf,
+                    Rect::new(x, area.y, 1, area.height),
+                    totals[column],
+                    older,
+                    color,
+                    bg,
+                    theme,
+                );
+            }
+            ChartStyle::Line | ChartStyle::Dots if dots.is_some() => {
+                let grid = dots.as_mut().unwrap();
+                let dx = (width - 1 - column) * 2 + 1;
+                let rows = height * 4;
+                let dy = rows - 1 - (fraction * (rows - 1) as f32).round() as usize;
+                if style == ChartStyle::Line
+                    && let Some((px, py)) = previous_dot
+                {
+                    grid.line(px, py, dx, dy, fraction);
+                } else {
+                    grid.set(dx, dy, fraction);
+                }
+                previous_dot = Some((dx, dy));
+            }
+            ChartStyle::Line | ChartStyle::Dots => {
+                let level = (fraction * height as f32).ceil().clamp(1.0, height as f32) as u16;
+                let row = area.y + area.height - level;
+                buf[(x, row)]
+                    .set_char(glyphs.bullet)
+                    .set_style(ratatui::style::Style::default().fg(color).bg(bg));
+            }
+        }
+    }
+    if let Some(dots) = &dots {
+        dots.flush(buf, area, theme, color, bg);
     }
 }
 
@@ -1136,6 +1219,54 @@ mod tests {
         assert!(symbols(&buffer).contains(&'▙'), "falling join at the right");
     }
 
+    fn sparkline_symbols(style: ChartStyle) -> Vec<char> {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        let area = Rect::new(0, 0, 20, 1);
+        let mut buffer = Buffer::empty(area);
+        let mut series = Series::default();
+        for value in [20.0, 90.0, 30.0, 70.0, 10.0, 100.0] {
+            series.push(value);
+        }
+        sparkline(
+            &mut buffer,
+            area,
+            &series,
+            100.0,
+            theme.graph_fill,
+            theme.surface,
+            &theme,
+            style,
+        );
+        symbols(&buffer)
+    }
+
+    #[test]
+    fn sparkline_uses_the_selected_style() {
+        let filled = sparkline_symbols(ChartStyle::Filled);
+        assert!(filled.iter().any(|ch| "▁▂▃▄▅▆▇█".contains(*ch)));
+        assert!(
+            !filled
+                .iter()
+                .any(|ch| ('\u{2800}'..='\u{28ff}').contains(ch))
+        );
+
+        let blocks = sparkline_symbols(ChartStyle::Blocks);
+        assert!(
+            blocks.iter().any(|ch| "▙▛▜▟◢◣◤◥".contains(*ch)),
+            "blocks slope: {blocks:?}"
+        );
+
+        for style in [ChartStyle::Line, ChartStyle::Dots] {
+            let chars = sparkline_symbols(style);
+            assert!(
+                chars
+                    .iter()
+                    .any(|ch| ('\u{2800}'..='\u{28ff}').contains(ch)),
+                "{style:?} braille: {chars:?}"
+            );
+        }
+    }
+
     #[test]
     fn sparkline_fades_with_the_same_gradient() {
         let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
@@ -1152,6 +1283,7 @@ mod tests {
             theme.graph_fill,
             theme.surface,
             &theme,
+            ChartStyle::Filled,
         );
         let colours: std::collections::HashSet<_> = buffer
             .content
