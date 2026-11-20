@@ -205,7 +205,6 @@ impl App {
             | Action::PriorityChar(_)
             | Action::PriorityBackspace
             | Action::PriorityStep(_) => {}
-            Action::ClearUsageEntry => {}
         }
         effects
     }
