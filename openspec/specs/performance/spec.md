@@ -37,7 +37,8 @@ recent history and its current value.
 
 Every chart SHALL be drawn inside a single-line bordered frame whose title names the
 series, matching the Windows 10 chart frame. The frame MUST clip the plot instead of
-overflowing its panel.
+overflowing its panel. Per-processor charts MUST be omitted when their cells are too small
+to frame.
 
 #### Scenario: Main chart
 - **WHEN** any resource panel is shown
@@ -48,8 +49,12 @@ overflowing its panel.
 - **THEN** each has its own bordered frame titled CPU followed by its index
 
 #### Scenario: Too little room
-- **WHEN** a per-processor cell is shorter than three rows or narrower than eight columns
-- **THEN** the frame is dropped for that cell and the graph is drawn without a border rather than clipped badly
+- **WHEN** the panel cannot give each processor cell at least four rows and ten columns
+- **THEN** the per-processor section is hidden and its height goes to the main graph and stat boxes
+
+#### Scenario: Terminal grows
+- **WHEN** the terminal becomes large enough for framed cells
+- **THEN** the per-processor charts return on the next frame
 
 ### Requirement: Graphs share one shape
 
