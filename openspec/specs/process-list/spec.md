@@ -180,13 +180,17 @@ show the active filter, and MUST restore all rows when the filter is cleared.
 
 ### Requirement: Process signals
 
-The Processes tab SHALL offer a signal dialog for the selected process, listing TERM,
-KILL, INT, HUP, STOP, and CONT, and SHALL allow the signal to target the process tree
-instead of one process.
+The Processes tab SHALL offer a signal dialog for the selected process, or for the first
+process under a selected kind heading, listing TERM, KILL, INT, HUP, STOP, and CONT, and
+SHALL allow the signal to target the process tree instead of one process.
 
 #### Scenario: Open the signal dialog
 - **WHEN** a process row is selected and the user presses `K`
 - **THEN** a panel names the process and its PID and lists the six signals with a tree toggle
+
+#### Scenario: Open from a heading
+- **WHEN** a kind heading such as Apps is selected and the user presses `K`
+- **THEN** the dialog opens for the first process under that heading and names it
 
 #### Scenario: Send a graceful signal
 - **WHEN** the user chooses TERM, INT, HUP, or CONT for a process they own and confirms
@@ -205,7 +209,7 @@ instead of one process.
 - **THEN** the same signal reaches the process and every descendant listed in the current sample
 
 #### Scenario: Nothing selected
-- **WHEN** the selected row is a group heading with no resolvable process
+- **WHEN** the heading has no process and no process row is selected
 - **THEN** a notice asks for a process row and no signal is sent
 
 #### Scenario: Permission refused
