@@ -298,8 +298,8 @@ anchored at the right edge, so changing values MUST NOT move any other part of t
 
 The menu row and tab strip SHALL share a chrome background distinct from the content
 surface, the status bar SHALL use its own background, and both bands MUST differ visibly
-from the window background in every theme. The window title MUST name the application and
-the active tab.
+from the window background in every theme. Opening a modal MUST leave those backgrounds
+unchanged. The window title MUST name the application and the active tab.
 
 #### Scenario: Chrome band
 - **WHEN** any theme is active
@@ -308,6 +308,10 @@ the active tab.
 #### Scenario: Visible bands
 - **WHEN** any theme is active
 - **THEN** the chrome and status backgrounds each differ from the window background by at least a perceptible channel step
+
+#### Scenario: Modal open
+- **WHEN** any dialog is open
+- **THEN** the chrome and status backgrounds are the same colours as before it opened
 
 #### Scenario: Filter inset
 - **WHEN** the filter field is drawn in the menu bar
