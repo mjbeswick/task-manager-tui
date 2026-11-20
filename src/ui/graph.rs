@@ -91,12 +91,13 @@ pub fn mix(a: Color, b: Color, toward_b: f32) -> Color {
 /// A three-stop ramp: chart colour at the base, a dim tint in the middle,
 /// and the surface at the top. `rise` is 0 at the base and 1 at the top.
 pub fn ramp(edge: Color, bg: Color, rise: f32) -> Color {
-    let mid = crate::theme::mix_linear(edge, bg, 0.55);
+    let mid = crate::theme::mix_linear(edge, bg, 0.12);
+    let top = crate::theme::mix_linear(edge, bg, 0.28);
     let rise = rise.clamp(0.0, 1.0);
     if rise < 0.5 {
         crate::theme::mix_linear(edge, mid, rise * 2.0)
     } else {
-        crate::theme::mix_linear(mid, bg, (rise - 0.5) * 2.0)
+        crate::theme::mix_linear(mid, top, (rise - 0.5) * 2.0)
     }
 }
 
@@ -286,7 +287,7 @@ pub fn fill_column(
         let colour = if is_top || coarse {
             edge
         } else {
-            ramp(edge, bg, 0.2 + rise * 0.5)
+            ramp(edge, bg, 0.05 + rise * 0.95)
         };
         let style = ratatui::style::Style::default().fg(colour).bg(bg);
         let row = top + height - 1 - offset as u16;
@@ -362,7 +363,7 @@ fn blocks_column(
         let colour = if is_top || coarse {
             edge
         } else {
-            ramp(edge, bg, 0.2 + rise * 0.5)
+            ramp(edge, bg, 0.05 + rise * 0.95)
         };
         let glyph = if units == 8 {
             glyphs.block_full
@@ -916,7 +917,8 @@ mod tests {
         let edge = theme.graph_fill;
         let bg = theme.surface;
         assert_eq!(ramp(edge, bg, 0.0), edge);
-        assert_eq!(ramp(edge, bg, 1.0), bg);
+        let top = ramp(edge, bg, 1.0);
+        assert_ne!(top, bg, "the top keeps some hue");
         let middle = ramp(edge, bg, 0.5);
         let Color::Rgb(r, g, b) = middle else {
             panic!("expected rgb");
@@ -1298,9 +1300,29 @@ mod tests {
     #[test]
     fn filled_columns_fade_toward_the_top() {
         let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
-        let buffer = one_column(&theme, 1.0);
-        assert_ne!(buffer[(0, 0)].fg, buffer[(0, 1)].fg, "a gradient ran");
-        assert_ne!(buffer[(0, 1)].fg, theme.surface, "the base stays coloured");
+        let area = Rect::new(0, 0, 1, 8);
+        let mut buffer = Buffer::empty(area);
+        fill_column(
+            &mut buffer,
+            area,
+            1.0,
+            theme.graph_fill,
+            theme.surface,
+            &theme,
+        );
+        let below_tip = buffer[(0, 1)].fg;
+        assert_ne!(below_tip, theme.graph_fill, "a gradient ran");
+        assert_ne!(below_tip, theme.surface, "the top is not washed out");
+        let distance = |a: ratatui::style::Color, b: ratatui::style::Color| {
+            let (a, b) = (crate::theme::indexed_rgb(a), crate::theme::indexed_rgb(b));
+            (a.0 as i32 - b.0 as i32).abs()
+                + (a.1 as i32 - b.1 as i32).abs()
+                + (a.2 as i32 - b.2 as i32).abs()
+        };
+        assert!(
+            distance(below_tip, theme.graph_fill) < distance(below_tip, theme.surface),
+            "the top stays closer to the chart colour"
+        );
     }
 
     #[test]
