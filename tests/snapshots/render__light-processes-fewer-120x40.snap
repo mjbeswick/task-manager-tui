@@ -4,7 +4,7 @@ expression: "screen(&app, 120, 40)"
 ---
  File  Options  View  Help                                                                 / Filter                     
 ┌─────────┐                                                                                                             
-│Processes│ Performance  App history  Startup  Users  Details  Services                                    Task Manager 
+│Processes│ Performance  App history  Startup  Users  Details  Services                                                 
 ┘         └─────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Name                                                                                                    CPU ▼   Memory  
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────

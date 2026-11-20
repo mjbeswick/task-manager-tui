@@ -4,7 +4,7 @@ expression: "screen(&app(Tab::Processes, \"light\"), 80, 24)"
 ---
  File  Options  View  Help                         / Filter                     
 ┌────┐                                                                          
-│Proc│ Perf  Hist  Star  User  Deta  Serv                          Task Manager 
+│Proc│ Perf  Hist  Star  User  Deta  Serv                                       
 ┘    └──────────────────────────────────────────────────────────────────────────
 Name                                         Status    CPU ▼ Memory       Disk  
 ────────────────────────────────────────────────────────────────────────────────

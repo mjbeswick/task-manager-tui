@@ -295,20 +295,6 @@ fn draw_tabs(buf: &mut Buffer, top: Rect, area: Rect, rule: Rect, app: &App, hit
             x += 1;
         }
     }
-    // The window title sits at the right of the tab strip.
-    if area.x + area.width > x + 14 {
-        put_right(
-            buf,
-            area.x + area.width - 1,
-            area.y,
-            "Task Manager",
-            Style::default()
-                .fg(theme.muted)
-                .bg(theme.bg)
-                .add_modifier(Modifier::BOLD),
-            area,
-        );
-    }
     // One continuous rule first, then the active tab's box sits on it.
     let border = Style::default().fg(theme.border).bg(theme.bg);
     for x in area.x..area.x + area.width {
@@ -1076,7 +1062,6 @@ mod tests {
         let screen = crate::ui::test_util::render(&app, 120, 30);
         let line = screen.lines().nth(2).unwrap();
         assert!(line.starts_with("│Processes│"), "{line:?}");
-        assert!(line.trim_end().ends_with("Task Manager"), "{line:?}");
         assert!(line.contains("Performance"));
         assert!(line.contains("Services"));
         assert_eq!(line.matches('│').count(), 2, "only the active sides");
