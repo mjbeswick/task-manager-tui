@@ -47,8 +47,8 @@ and PID MUST be a dash for a service that is not running.
 ### Requirement: Start, stop, and restart
 
 The tab SHALL offer Start, Stop, and Restart for the selected service, SHALL perform
-them through the native manager, and MUST refuse an action that needs administrator
-rights with an explanation.
+them through the native manager, and MUST offer per-action elevation for an action that
+needs administrator rights.
 
 #### Scenario: Stop a user service
 - **WHEN** the user stops a service in their own scope
@@ -64,7 +64,7 @@ rights with an explanation.
 
 #### Scenario: Privilege required
 - **WHEN** the selected service belongs to the system scope
-- **THEN** a dialog explains that administrator rights are required and no command is run
+- **THEN** a confirmation explains that administrator rights are required, and confirming offers elevation for that one command
 
 #### Scenario: Manager rejects
 - **WHEN** the manager returns a failure
