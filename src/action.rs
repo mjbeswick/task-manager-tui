@@ -79,6 +79,10 @@ impl App {
             Action::ToggleOptionalColumns => {
                 self.process.show_optional_columns = !self.process.show_optional_columns;
             }
+            Action::ToggleHints => {
+                self.toggle_hints();
+                effects.push(Effect::PersistSettings);
+            }
             Action::ToggleTheme => {
                 self.toggle_theme();
                 effects.push(Effect::PersistSettings);
@@ -970,6 +974,7 @@ impl App {
             MenuItem::Refresh => Action::Refresh,
             MenuItem::ToggleDetails => Action::ToggleDetails,
             MenuItem::OptionalColumns => Action::ToggleOptionalColumns,
+            MenuItem::ToggleHints => Action::ToggleHints,
             MenuItem::Appearance => {
                 self.dialog = Some(Dialog::Appearance { selected: 0 });
                 return effects;
@@ -1663,6 +1668,16 @@ mod tests {
         app.dialog = Some(Dialog::Appearance { selected: 0 });
         app.dispatch(Action::Confirm);
         assert_eq!(app.theme_name, crate::theme::ThemeName::Dark);
+    }
+
+    #[test]
+    fn f4_hides_the_hints_and_persists() {
+        let mut app = app();
+        assert!(app.show_hints);
+        let effects = app.dispatch(Action::ToggleHints);
+        assert!(!app.show_hints);
+        assert!(!app.settings.show_hints);
+        assert!(effects.contains(&Effect::PersistSettings));
     }
 
     #[test]

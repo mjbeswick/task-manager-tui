@@ -13,6 +13,7 @@ const HELP: &[(&str, &str)] = &[
     ("F10, Alt+F/O/V/P/H", "Menu bar"),
     ("F1", "This help"),
     ("F2", "Appearance: theme, style, colour, gradient"),
+    ("F4", "Show or hide shortcut hints"),
     ("F5", "Refresh now"),
     ("1-7, Tab", "Switch tabs"),
     ("Up/Down, j/k, PgUp/PgDn", "Move and scroll"),

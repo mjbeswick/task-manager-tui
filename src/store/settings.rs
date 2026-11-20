@@ -14,6 +14,7 @@ pub struct Settings {
     pub chart_style: String,
     pub chart_color: String,
     pub chart_gradient: bool,
+    pub show_hints: bool,
 }
 
 impl Default for Settings {
@@ -26,6 +27,7 @@ impl Default for Settings {
             chart_style: "filled".to_string(),
             chart_color: "per-resource".to_string(),
             chart_gradient: true,
+            show_hints: true,
         }
     }
 }
@@ -136,6 +138,7 @@ mod tests {
             chart_style: "line".into(),
             chart_color: "orange".into(),
             chart_gradient: false,
+            show_hints: false,
         };
         save_to(&settings, &path).unwrap();
         let (loaded, warning) = load_from(&path);

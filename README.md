@@ -64,6 +64,7 @@ If graph blocks show as boxes or question marks, your font lacks them. Use
 | `F10`, `Alt+F`/`Alt+O`/`Alt+V`/`Alt+P`/`Alt+H` | Menu bar, arrows navigate, Enter activates |
 | `F1` | Keyboard help |
 | `F2` | Appearance: theme, chart style, chart colour, chart gradient |
+| `F4` | Show or hide shortcut hints |
 | `F5` | Refresh now |
 | `1`-`7`, `Tab`, `Shift+Tab` | Switch tabs |
 | `Up`/`Down` or `j`/`k`, `PgUp`/`PgDn`, `Ctrl+d`/`Ctrl+u` | Move and scroll |

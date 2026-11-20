@@ -429,6 +429,7 @@ pub enum MenuItem {
     Refresh,
     ToggleDetails,
     OptionalColumns,
+    ToggleHints,
     Appearance,
     SortNext,
     SortReverse,
@@ -464,6 +465,7 @@ pub const MENUS: [(&str, &[(&str, MenuItem)]); 5] = [
             ("Refresh now", MenuItem::Refresh),
             ("Fewer details", MenuItem::ToggleDetails),
             ("Optional columns", MenuItem::OptionalColumns),
+            ("Shortcut hints", MenuItem::ToggleHints),
             ("Appearance...", MenuItem::Appearance),
             ("Sort by next column", MenuItem::SortNext),
             ("Reverse sort", MenuItem::SortReverse),
@@ -534,6 +536,7 @@ pub struct App {
     pub chart_style: ChartStyle,
     pub chart_color: ChartColor,
     pub chart_gradient: bool,
+    pub show_hints: bool,
     pub ascii: bool,
     pub theme: Theme,
     pub depth: crate::theme::ColorDepth,
@@ -580,6 +583,7 @@ impl App {
             chart_style,
             chart_color,
             chart_gradient: settings.chart_gradient,
+            show_hints: settings.show_hints,
             ascii,
             theme: Theme::from_name(theme_name, ascii),
             depth: crate::theme::ColorDepth::default(),
@@ -646,6 +650,11 @@ impl App {
     pub fn set_chart_style(&mut self, style: ChartStyle) {
         self.chart_style = style;
         self.settings.chart_style = style.key().to_string();
+    }
+
+    pub fn toggle_hints(&mut self) {
+        self.show_hints = !self.show_hints;
+        self.settings.show_hints = self.show_hints;
     }
 
     pub fn set_chart_gradient(&mut self, on: bool) {

@@ -22,6 +22,7 @@ pub enum Action {
     SortFlip,
     ToggleDetails,
     ToggleOptionalColumns,
+    ToggleHints,
     ToggleTheme,
     Appearance,
     CycleBack,
@@ -129,6 +130,7 @@ pub fn translate(app: &App, key: KeyEvent) -> Option<Action> {
         KeyCode::F(10) => Action::MenuOpen,
         KeyCode::F(1) => Action::Help,
         KeyCode::F(2) => Action::Appearance,
+        KeyCode::F(4) => Action::ToggleHints,
         KeyCode::F(5) => Action::Refresh,
         KeyCode::Tab => Action::NextTab,
         KeyCode::BackTab => Action::PreviousTab,
@@ -272,6 +274,10 @@ mod tests {
     #[test]
     fn quit_keys() {
         let app = app();
+        assert_eq!(
+            translate(&app, key(KeyCode::F(4))),
+            Some(Action::ToggleHints)
+        );
         assert_eq!(translate(&app, key(KeyCode::Char('q'))), Some(Action::Quit));
         assert_eq!(
             translate(

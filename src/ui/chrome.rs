@@ -608,8 +608,9 @@ fn tab_hints(app: &App) -> String {
 }
 
 /// The row reserved for hints, when the content is tall enough to spare one.
-pub fn hint_area(area: Rect) -> Option<Rect> {
-    (area.height >= 4).then(|| Rect::new(area.x, area.y + area.height - 1, area.width, 1))
+pub fn hint_area(area: Rect, app: &App) -> Option<Rect> {
+    (app.show_hints && area.height >= 4)
+        .then(|| Rect::new(area.x, area.y + area.height - 1, area.width, 1))
 }
 
 /// The content area above the hint row.
@@ -868,6 +869,17 @@ mod tests {
     }
 
     #[test]
+    fn hints_can_be_hidden() {
+        let (mut app, _) = App::new(Settings::default(), false);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        let shown = crate::ui::test_util::render(&app, 120, 30);
+        assert!(shown.lines().nth(28).unwrap().contains("[e] End task"));
+        app.show_hints = false;
+        let hidden = crate::ui::test_util::render(&app, 120, 30);
+        assert!(!hidden.contains("[e] End task"));
+    }
+
+    #[test]
     fn hint_keys_are_accented_and_actions_muted() {
         let (mut app, _) = App::new(Settings::default(), false);
         app.apply_snapshot(crate::model::Snapshot::fixture());
@@ -1027,12 +1039,16 @@ mod tests {
 
     #[test]
     fn hint_room_and_reservation() {
-        assert!(hint_area(Rect::new(0, 0, 80, 3)).is_none());
-        let hint = hint_area(Rect::new(0, 0, 80, 12)).unwrap();
+        let app = App::new(Settings::default(), false).0;
+        assert!(hint_area(Rect::new(0, 0, 80, 3), &app).is_none());
+        let hint = hint_area(Rect::new(0, 0, 80, 12), &app).unwrap();
         assert_eq!(hint.y, 11);
         let body = without_hint(Rect::new(0, 0, 80, 12), Some(hint));
         assert_eq!(body.height, 11);
         assert_eq!(without_hint(Rect::new(0, 0, 80, 12), None).height, 12);
+        let mut hidden = App::new(Settings::default(), false).0;
+        hidden.show_hints = false;
+        assert!(hint_area(Rect::new(0, 0, 80, 12), &hidden).is_none());
     }
 
     #[test]
