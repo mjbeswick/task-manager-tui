@@ -2,7 +2,7 @@
 
 use crate::app::{App, Dialog};
 use crate::ui::chrome::{fill_area, panel, put};
-use crate::ui::format::wrap;
+use crate::ui::format::{DASH, bit_rate, bytes, duration, pct, rate, wrap};
 use crate::ui::hits::{HitMap, Target};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Layout, Rect};
@@ -17,7 +17,8 @@ const HELP: &[(&str, &str)] = &[
     ("1-7, Tab", "Switch tabs"),
     ("Up/Down, j/k, PgUp/PgDn", "Move and scroll"),
     ("g / G, Ctrl+d / Ctrl+u", "Top, bottom, half page"),
-    ("Enter, Left/Right, h/l", "Expand, collapse, inspect"),
+    ("Enter", "Process details, or expand a group"),
+    ("Left/Right, h/l", "Collapse, expand, inspect"),
     ("Mouse", "Click away closes a menu; wheel scrolls"),
     ("<, >, r", "Sort column, reverse"),
     ("/", "Filter"),
@@ -55,6 +56,17 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
             max_width,
             (lines.len() as u16 + 5).min(area.height.saturating_sub(2)),
         ),
+        Dialog::ProcessInfo { key, .. } => {
+            let count = app
+                .snapshot
+                .process(*key)
+                .map(|row| process_info_lines(row).len() as u16)
+                .unwrap_or(1);
+            (
+                max_width.min(68),
+                (count + 5).min(area.height.saturating_sub(2)),
+            )
+        }
     };
     let width = content_width.max(24).min(area.width.saturating_sub(2));
     let height = content_height.max(5).min(area.height.saturating_sub(2));
@@ -401,6 +413,36 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
             hits.add(Rect::new(inner.x + 17, y, 18, 1), Target::DialogConfirm);
             hits.add(Rect::new(inner.x + 37, y, 12, 1), Target::DialogCancel);
         }
+        Dialog::ProcessInfo { key, .. } => {
+            let lines = match app.snapshot.process(*key) {
+                Some(row) => process_info_lines(row),
+                None => vec!["This process has exited.".to_string()],
+            };
+            for (index, line) in lines.iter().enumerate() {
+                let row = inner.y + 1 + index as u16;
+                if row >= inner.y + inner.height - 1 {
+                    break;
+                }
+                put(
+                    buf,
+                    inner.x + 2,
+                    row,
+                    &truncate_line(line, inner.width.saturating_sub(3) as usize),
+                    Style::default().fg(theme.text).bg(theme.surface),
+                    inner,
+                );
+            }
+            let y = inner.y + inner.height.saturating_sub(2);
+            put(
+                buf,
+                inner.x + 2,
+                y,
+                "[Esc] Close",
+                Style::default().fg(theme.accent).bg(theme.surface),
+                inner,
+            );
+            hits.add(Rect::new(inner.x + 2, y, 11, 1), Target::DialogClose);
+        }
         Dialog::Properties { lines, .. } => {
             for (index, line) in lines.iter().enumerate() {
                 let row = inner.y + 1 + index as u16;
@@ -428,6 +470,52 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
             hits.add(Rect::new(inner.x + 2, y, 11, 1), Target::DialogClose);
         }
     }
+}
+
+fn process_info_lines(row: &crate::model::ProcRow) -> Vec<String> {
+    let dash = || DASH.to_string();
+    vec![
+        format!("Name: {}", row.name),
+        format!("PID: {}", row.key.pid),
+        format!("Kind: {}", row.kind.label()),
+        format!("Status: {}", row.status.label()),
+        format!("Owner: {}", row.user.clone().unwrap_or_else(|| dash())),
+        format!("Priority: {}", row.priority.label()),
+        format!(
+            "Threads: {}",
+            row.thread_count()
+                .map(|count| count.to_string())
+                .unwrap_or_else(|| dash())
+        ),
+        format!("Started: {}", duration(row.run_time_secs)),
+        format!("CPU: {}", pct(row.cpu)),
+        format!("Memory: {}", bytes(row.memory)),
+        format!(
+            "Disk: {} read / {} write",
+            rate(row.disk.read_bps),
+            rate(row.disk.write_bps)
+        ),
+        format!(
+            "Network: {}",
+            row.network.map(bit_rate).unwrap_or_else(|| dash())
+        ),
+        format!("GPU: {}", row.gpu.map(pct).unwrap_or_else(|| dash())),
+        format!(
+            "Parent PID: {}",
+            row.parent_pid
+                .map(|pid| pid.to_string())
+                .unwrap_or_else(|| dash())
+        ),
+        format!(
+            "Command line: {}",
+            if row.cmd.is_empty() {
+                dash()
+            } else {
+                row.cmd.clone()
+            }
+        ),
+        format!("Executable: {}", row.exe.clone().unwrap_or_else(|| dash())),
+    ]
 }
 
 fn truncate_line(text: &str, width: usize) -> String {
@@ -495,6 +583,31 @@ mod tests {
         assert!(screen.contains("Run a new task"));
         assert!(screen.contains("open -a Calculator"));
         assert!(screen.contains("[Enter] Run"));
+    }
+
+    #[test]
+    fn process_info_shows_live_metrics_and_exit_state() {
+        let mut app = app();
+        let row = app
+            .snapshot
+            .processes
+            .iter()
+            .find(|row| row.kind == crate::model::Kind::Background)
+            .unwrap()
+            .clone();
+        app.dialog = Some(Dialog::ProcessInfo {
+            key: row.key,
+            name: row.name.clone(),
+        });
+        let screen = render(&app, 120, 40);
+        assert!(screen.contains("Process details"));
+        assert!(screen.contains("Command line:"));
+        assert!(screen.contains("CPU:"));
+        assert!(screen.contains("[Esc] Close"));
+
+        app.apply_snapshot(crate::model::Snapshot::default());
+        let screen = render(&app, 120, 40);
+        assert!(screen.contains("This process has exited."));
     }
 
     #[test]

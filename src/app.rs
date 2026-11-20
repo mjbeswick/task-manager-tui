@@ -385,6 +385,10 @@ pub enum Dialog {
         selected: usize,
         tree: bool,
     },
+    ProcessInfo {
+        key: ProcKey,
+        name: String,
+    },
     Appearance {
         selected: usize,
     },
@@ -403,6 +407,7 @@ impl Dialog {
             Dialog::Run { .. } => "Run a new task",
             Dialog::Priority { .. } => "Set priority",
             Dialog::Signal { .. } => "Send signal",
+            Dialog::ProcessInfo { .. } => "Process details",
             Dialog::Appearance { .. } => "Appearance",
             Dialog::Properties { title, .. } => title,
         }
@@ -1157,6 +1162,10 @@ impl App {
         let Some(key) = self.process.selected_key() else {
             return;
         };
+        if matches!(key, ProcSel::Proc(_)) {
+            self.open_process_info();
+            return;
+        }
         self.expand_key(key);
     }
 

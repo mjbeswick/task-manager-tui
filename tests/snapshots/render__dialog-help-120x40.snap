@@ -18,7 +18,8 @@ Name                                                                  Status    
   ▸ WindowServer (1)    │  1-7, Tab                Switch tabs                                 │.0 KB/s                 
   ▸ launchd (1)         │  Up/Down, j/k, PgUp/PgDn Move and scroll                             │.0 KB/s                 
                         │  g / G, Ctrl+d / Ctrl+u  Top, bottom, half page                      │                        
-                        │  Enter, Left/Right, h/l  Expand, collapse, inspect                   │                        
+                        │  Enter                   Process details, or expand a group          │                        
+                        │  Left/Right, h/l         Collapse, expand, inspect                   │                        
                         │  Mouse                   Click away closes a menu; wheel scrolls     │                        
                         │  <, >, r                 Sort column, reverse                        │                        
                         │  /                       Filter                                      │                        
@@ -34,7 +35,6 @@ Name                                                                  Status    
                         │  [Esc] Close                                                         │                        
                         │                                                                      │                        
                         └──────────────────────────────────────────────────────────────────────┘                        
-                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

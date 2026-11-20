@@ -476,6 +476,7 @@ impl App {
 
     fn inspect(&mut self) {
         match self.tab {
+            Tab::Processes => self.open_process_info(),
             Tab::Details => {
                 self.details.panel = !self.details.panel;
             }
@@ -484,6 +485,21 @@ impl App {
             }
             _ => self.show_properties(),
         }
+    }
+
+    pub(crate) fn open_process_info(&mut self) {
+        let Some(ProcSel::Proc(key)) = self.process.selected_key() else {
+            self.notice("Select a process row for details.");
+            return;
+        };
+        let Some(row) = self.snapshot.process(key) else {
+            self.notice("That process has exited.");
+            return;
+        };
+        self.dialog = Some(Dialog::ProcessInfo {
+            key,
+            name: row.name.clone(),
+        });
     }
 
     fn show_properties(&mut self) {
@@ -1305,6 +1321,32 @@ mod tests {
     }
 
     #[test]
+    fn k_on_a_process_row_opens_the_signal_dialog() {
+        let mut app = app();
+        app.tab = Tab::Processes;
+        for process in &app.snapshot.processes {
+            app.process
+                .expanded_groups
+                .insert((process.kind, process.name.clone()));
+        }
+        app.process.refresh(&app.snapshot);
+        let index = app
+            .process
+            .items
+            .iter()
+            .position(|item| matches!(item, crate::sample::group::ProcItem::Child { .. }))
+            .unwrap();
+        app.select_row(index);
+        let effects = app.dispatch(Action::OpenSignal);
+        assert!(effects.is_empty());
+        assert!(
+            matches!(app.dialog, Some(Dialog::Signal { .. })),
+            "notices: {:?}",
+            app.notices
+        );
+    }
+
+    #[test]
     fn signal_dialog_sends_term_for_an_owned_process() {
         let mut app = app();
         let row = owned_background(&mut app);
@@ -1372,6 +1414,40 @@ mod tests {
         let effects = app.dispatch(Action::Confirm);
         assert!(effects.is_empty());
         assert!(matches!(app.dialog, Some(Dialog::Confirm { .. })));
+    }
+
+    #[test]
+    fn enter_on_a_process_opens_the_info_modal_and_expands_groups() {
+        let mut app = app();
+        app.tab = Tab::Processes;
+        for process in &app.snapshot.processes {
+            app.process
+                .expanded_groups
+                .insert((process.kind, process.name.clone()));
+        }
+        app.process.refresh(&app.snapshot);
+        let child = app
+            .process
+            .items
+            .iter()
+            .position(|item| matches!(item, crate::sample::group::ProcItem::Child { .. }))
+            .unwrap();
+        app.select_row(child);
+        let effects = app.dispatch(Action::Expand);
+        assert!(effects.is_empty());
+        assert!(matches!(app.dialog, Some(Dialog::ProcessInfo { .. })));
+
+        let mut group_app = self::app();
+        group_app.tab = Tab::Processes;
+        let group = group_app
+            .process
+            .items
+            .iter()
+            .position(|item| matches!(item, crate::sample::group::ProcItem::Group { .. }))
+            .unwrap();
+        group_app.select_row(group);
+        group_app.dispatch(Action::Expand);
+        assert!(group_app.dialog.is_none(), "groups still expand");
     }
 
     #[test]

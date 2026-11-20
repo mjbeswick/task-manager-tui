@@ -188,7 +188,10 @@ fn translate_dialog(dialog: &Dialog, key: KeyEvent) -> Option<Action> {
             }
             _ => None,
         },
-        Dialog::Error { .. } | Dialog::Help | Dialog::Properties { .. } => match key.code {
+        Dialog::Error { .. }
+        | Dialog::Help
+        | Dialog::Properties { .. }
+        | Dialog::ProcessInfo { .. } => match key.code {
             KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') | KeyCode::F(1) => {
                 Some(Action::Cancel)
             }
@@ -490,6 +493,21 @@ mod tests {
         );
         assert_eq!(translate(&app, key(KeyCode::Enter)), Some(Action::Confirm));
         assert_eq!(translate(&app, key(KeyCode::Char('x'))), None);
+    }
+
+    #[test]
+    fn process_info_closes_on_enter_and_escape() {
+        let mut app = app();
+        app.dialog = Some(Dialog::ProcessInfo {
+            key: crate::model::ProcKey::new(1, 1),
+            name: "node".into(),
+        });
+        assert_eq!(translate(&app, key(KeyCode::Esc)), Some(Action::Cancel));
+        assert_eq!(translate(&app, key(KeyCode::Enter)), Some(Action::Cancel));
+        assert_eq!(
+            translate(&app, key(KeyCode::Char('q'))),
+            Some(Action::Cancel)
+        );
     }
 
     #[test]

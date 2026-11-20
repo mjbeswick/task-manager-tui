@@ -68,7 +68,8 @@ If graph blocks show as boxes or question marks, your font lacks them. Use
 | `1`-`7`, `Tab`, `Shift+Tab` | Switch tabs |
 | `Up`/`Down` or `j`/`k`, `PgUp`/`PgDn`, `Ctrl+d`/`Ctrl+u` | Move and scroll |
 | `g` / `G`, `Home` / `End` | Top and bottom |
-| `Enter`, `Left`/`Right`, `h`/`l` | Expand, collapse, inspect |
+| `Enter` | Open process details, or expand a group |
+| `Left`/`Right`, `h`/`l` | Collapse, expand, inspect |
 | `<` `>` `r` | Sort column, reverse |
 | `/` | Filter the list. `Enter` keeps the filter, `Esc` clears it |
 | `Delete`, `e` | End task |
