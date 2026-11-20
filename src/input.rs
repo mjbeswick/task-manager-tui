@@ -206,8 +206,8 @@ fn translate_dialog(dialog: &Dialog, key: KeyEvent) -> Option<Action> {
             _ => None,
         },
         Dialog::Priority { .. } => match key.code {
-            KeyCode::Up => Some(Action::PriorityStep(1)),
-            KeyCode::Down => Some(Action::PriorityStep(-1)),
+            KeyCode::Up | KeyCode::Right => Some(Action::PriorityStep(1)),
+            KeyCode::Down | KeyCode::Left => Some(Action::PriorityStep(-1)),
             KeyCode::PageUp => Some(Action::PriorityStep(5)),
             KeyCode::PageDown => Some(Action::PriorityStep(-5)),
             KeyCode::Enter => Some(Action::Confirm),
@@ -478,6 +478,14 @@ mod tests {
         assert_eq!(
             translate(&app, key(KeyCode::Char('-'))),
             Some(Action::PriorityChar('-'))
+        );
+        assert_eq!(
+            translate(&app, key(KeyCode::Left)),
+            Some(Action::PriorityStep(-1))
+        );
+        assert_eq!(
+            translate(&app, key(KeyCode::Right)),
+            Some(Action::PriorityStep(1))
         );
         assert_eq!(
             translate(&app, key(KeyCode::PageUp)),

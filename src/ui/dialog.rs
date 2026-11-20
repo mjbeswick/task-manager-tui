@@ -317,7 +317,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
             let hint = if *error {
                 "Enter a value from -20 to 19."
             } else {
-                "Range -20 to 19. Up/Down 1, PgUp/PgDn 5."
+                "Range -20 to 19. Arrows 1, PgUp/PgDn 5."
             };
             put(
                 buf,
