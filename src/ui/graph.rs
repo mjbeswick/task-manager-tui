@@ -302,13 +302,12 @@ pub fn fill_column(buf: &mut Buffer, column: Rect, fraction: f32, spec: FillSpec
         if units == 0 {
             break;
         }
-        let is_top = total <= (offset + 1) * 8;
         let rise = if height > 1 {
             offset as f32 / (height - 1) as f32
         } else {
             0.0
         };
-        let colour = if is_top || coarse || !gradient {
+        let colour = if coarse || !gradient {
             edge
         } else {
             ramp(edge, bg, 0.05 + rise * 0.95)
@@ -382,17 +381,17 @@ fn blocks_column(
         if units == 0 {
             break;
         }
-        let is_top = total <= (offset + 1) * 8;
         let rise = if height > 1 {
             offset as f32 / (height - 1) as f32
         } else {
             0.0
         };
-        let colour = if is_top || coarse || !gradient {
+        let colour = if coarse || !gradient {
             edge
         } else {
             ramp(edge, bg, 0.05 + rise * 0.95)
         };
+        let is_top = total <= (offset + 1) * 8;
         let glyph = if units == 8 {
             glyphs.block_full
         } else if is_top {
@@ -1090,17 +1089,48 @@ mod tests {
     }
 
     #[test]
-    fn partial_cells_resolve_to_eighths_with_an_edge() {
+    fn partial_cells_resolve_to_eighths() {
         let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
         // 11/16 of two rows: one full cell, then three eighths on top.
         let buffer = one_column(&theme, 11.0 / 16.0);
         assert_eq!(buffer[(0, 1)].symbol(), "█");
         assert_eq!(buffer[(0, 0)].symbol(), "▃");
-        assert_eq!(buffer[(0, 0)].fg, theme.graph_fill, "top cell is the edge");
         assert_ne!(
-            buffer[(0, 1)].fg,
+            buffer[(0, 0)].fg,
             theme.graph_fill,
-            "cells below are the fill"
+            "the tip follows the ramp"
+        );
+        assert_ne!(buffer[(0, 1)].fg, buffer[(0, 0)].fg, "rows differ");
+    }
+
+    #[test]
+    fn the_gradient_has_no_bright_rim() {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        let area = Rect::new(0, 0, 1, 8);
+        let mut buffer = Buffer::empty(area);
+        fill_column(
+            &mut buffer,
+            area,
+            1.0,
+            FillSpec {
+                edge: theme.graph_fill,
+                bg: theme.surface,
+                theme: &theme,
+                gradient: true,
+            },
+        );
+        let distance = |a: ratatui::style::Color, b: ratatui::style::Color| {
+            let (a, b) = (crate::theme::indexed_rgb(a), crate::theme::indexed_rgb(b));
+            (a.0 as i32 - b.0 as i32).abs()
+                + (a.1 as i32 - b.1 as i32).abs()
+                + (a.2 as i32 - b.2 as i32).abs()
+        };
+        let tip = buffer[(0, 0)].fg;
+        let below = buffer[(0, 1)].fg;
+        assert_ne!(tip, theme.graph_fill, "the tip is blended");
+        assert!(
+            distance(tip, theme.graph_fill) >= distance(below, theme.graph_fill),
+            "the tip is no brighter than the row below"
         );
     }
 
