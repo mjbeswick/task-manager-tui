@@ -96,20 +96,27 @@ an open box whose outline uses the rule colour, with an accent label.
 The menu bar SHALL expose File, Options, View, Tabs, Process, and Help. F10 SHALL focus
 the menu bar, the arrow keys SHALL move between menus and items, Enter SHALL activate an
 item, and Esc SHALL close the menu without acting. On a narrow terminal the labels MUST use
-compact spacing so no menu is truncated.
+compact spacing so no menu is truncated. Each item MUST show its shortcut hint right-aligned,
+groups within a menu MUST be separated by a rule, and the active update speed and each
+enabled display toggle MUST carry a mark. An item that cannot act on the current tab MUST be
+drawn muted with a short reason and MUST do nothing when activated.
 
 #### Scenario: Open a menu
 - **WHEN** the user presses F10 and then Right twice
-- **THEN** the View menu opens and its items are listed with their shortcut hints
+- **THEN** the View menu opens, its groups are separated by rules, and every item shows its shortcut hint
 
 #### Scenario: Tabs menu
 - **WHEN** the user opens Tabs
-- **THEN** it lists Processes, Performance, App history, Startup, Users, Details, and Services
+- **THEN** it lists Processes, Performance, App history, Startup, Users, Details, and Services with their `1`-`7` keys
 - **AND** choosing one switches to that tab
 
 #### Scenario: Process menu
 - **WHEN** the user opens Process
-- **THEN** it lists End task, End tree, Signal, Priority, and Properties
+- **THEN** it lists End task `Del`, End tree `E`, Send signal `K`, Set priority `p`, and Properties `Enter`
+
+#### Scenario: Options menu
+- **WHEN** the user opens Options
+- **THEN** it lists the four update speeds with a radio on the active one, the three display toggles with checks, and Appearance
 
 #### Scenario: Alt shortcuts
 - **WHEN** the user presses Alt+T
@@ -124,12 +131,16 @@ compact spacing so no menu is truncated.
 - **THEN** the item's action runs, the menu closes, and focus returns to the content area
 
 #### Scenario: Unavailable item
-- **WHEN** an item cannot be used on this platform
-- **THEN** it is drawn disabled with a short reason, and activating it does nothing
+- **WHEN** an item cannot act on the current tab
+- **THEN** it is drawn muted with a short reason in place of its shortcut, and activating it leaves the menu open and changes nothing
+
+#### Scenario: Click the open menu
+- **WHEN** the user clicks the label of the menu that is already open
+- **THEN** the menu closes
 
 #### Scenario: No process selected
 - **WHEN** a process action is chosen on a tab with no selected process
-- **THEN** the existing notice explains the requirement and nothing is signalled
+- **THEN** the item is muted with a reason and nothing is signalled
 
 ### Requirement: Light and dark themes
 
@@ -361,11 +372,11 @@ the choice MUST persist.
 
 #### Scenario: Processes hints
 - **WHEN** the Processes tab is shown
-- **THEN** the line reads `[e] End task`, `[K] Signal`, `[p] Priority`, and the current details toggle
+- **THEN** the line reads `[e] End task`, `[E] End tree`, `[K] Signal`, `[p] Priority`, and the current details toggle
 
 #### Scenario: Details hints
 - **WHEN** the Details tab is shown
-- **THEN** the line names the panel toggle, end task, signal, and priority
+- **THEN** the line names the panel toggle, end task, end tree, signal, and priority
 
 #### Scenario: Services hints
 - **WHEN** the Services tab is shown
@@ -404,7 +415,7 @@ the choice MUST persist.
 - **THEN** every `[key]` including its brackets uses the accent colour and bold, and the action text stays muted
 
 #### Scenario: Hidden
-- **WHEN** the user presses F4 or selects Shortcut hints from View
+- **WHEN** the user presses F4 or selects Shortcut hints from Options
 - **THEN** the line is hidden, no row is reserved, and the choice survives a restart
 
 ### Requirement: Colour depth adapts to the terminal
@@ -436,15 +447,15 @@ flag with `auto`, `truecolor`, `256`, and `16` MUST override detection.
 ### Requirement: Filter field on list tabs
 
 Every tab that shows a list SHALL show a filter field at the right of the menu bar.
-The field MUST show a hint when empty, MUST take focus on `/` or a click, and MUST
-keep each tab's filter text separate.
+The field MUST show a hint when empty, MUST take focus on `/`, `Ctrl+F`, or a click, and
+MUST keep each tab's filter text separate.
 
 #### Scenario: Empty field
 - **WHEN** a list tab is active and its filter is empty
 - **THEN** the menu bar shows a filter field with a hint naming the `/` key
 
 #### Scenario: Focus
-- **WHEN** the user presses `/` or clicks the field
+- **WHEN** the user presses `/`, `Ctrl+F`, or clicks the field
 - **THEN** the field shows a cursor and typed characters go into it
 
 #### Scenario: Leave the field
@@ -486,12 +497,18 @@ the column that is already sorted MUST reverse its direction.
 
 ### Requirement: Help and About
 
-The help panel SHALL list every global key, and Help > About SHALL open a read-only panel
-showing the version, platform, theme, colour depth, settings path, and usage-history path.
+The help panel SHALL list every global key grouped by area, and Help > About SHALL open a
+read-only panel showing the version, platform, theme, colour depth, settings path, and
+usage-history path. The help panel MUST scroll and MUST keep every key reachable at the
+minimum terminal size.
 
 #### Scenario: Complete help
 - **WHEN** the help panel is opened
 - **THEN** it names `i`, the gradient in the F2 row, and both Space actions
+
+#### Scenario: Short terminal
+- **WHEN** the help panel is opened at 40 by 12
+- **THEN** Up, Down, PgUp, and PgDn move through every row and the last row can be reached
 
 #### Scenario: About
 - **WHEN** the user selects About from the Help menu
@@ -504,3 +521,29 @@ showing the version, platform, theme, colour depth, settings path, and usage-his
 #### Scenario: Close
 - **WHEN** the user presses Esc, Enter, or q in About
 - **THEN** it closes and no other action runs
+
+### Requirement: Shortcuts act only in context
+
+The application SHALL apply a tab's single-key actions only while that tab is active,
+MUST NOT run a plain-letter command while Ctrl or Alt is held, and MUST NOT open a menu
+accelerator while a dialog or the filter field has focus.
+
+#### Scenario: Service keys on another tab
+- **WHEN** the user presses `s`, `S`, or `R` while the Processes tab is active
+- **THEN** nothing runs, and no service on the Services tab changes
+
+#### Scenario: Ctrl plus a letter
+- **WHEN** the user presses `Ctrl+S` or `Ctrl+R`
+- **THEN** no service starts, stops, or restarts
+
+#### Scenario: Alt with a dialog
+- **WHEN** the confirmation, password, run, or appearance dialog is open and the user presses Alt+F
+- **THEN** no menu opens and the dialog stays focused
+
+#### Scenario: Alt while filtering
+- **WHEN** the filter field has focus and the user presses Alt+F
+- **THEN** no menu opens and no character is inserted
+
+#### Scenario: Filter shortcut
+- **WHEN** the user presses `Ctrl+F` on a list tab
+- **THEN** the filter field takes focus, as `/` does
