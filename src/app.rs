@@ -448,11 +448,12 @@ pub enum MenuItem {
     Priority,
     Properties,
     ClearHistory,
+    Tab(usize),
     Help,
     About,
 }
 
-pub const MENUS: [(&str, &[(&str, MenuItem)]); 5] = [
+pub const MENUS: [(&str, &[(&str, MenuItem)]); 6] = [
     (
         "File",
         &[("Run new task", MenuItem::Run), ("Exit", MenuItem::Exit)],
@@ -479,6 +480,18 @@ pub const MENUS: [(&str, &[(&str, MenuItem)]); 5] = [
             ("Expand all", MenuItem::ExpandAll),
             ("Collapse all", MenuItem::CollapseAll),
             ("Clear app history", MenuItem::ClearHistory),
+        ],
+    ),
+    (
+        "Tabs",
+        &[
+            ("Processes", MenuItem::Tab(0)),
+            ("Performance", MenuItem::Tab(1)),
+            ("App history", MenuItem::Tab(2)),
+            ("Startup", MenuItem::Tab(3)),
+            ("Users", MenuItem::Tab(4)),
+            ("Details", MenuItem::Tab(5)),
+            ("Services", MenuItem::Tab(6)),
         ],
     ),
     (

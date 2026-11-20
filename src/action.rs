@@ -1097,6 +1097,7 @@ impl App {
             MenuItem::Properties => Action::ShowProperties,
             MenuItem::ClearHistory => Action::DeleteHistory,
             MenuItem::Help => Action::Help,
+            MenuItem::Tab(index) => Action::GoTab(index),
             MenuItem::About => {
                 self.dialog = Some(Dialog::About);
                 return effects;
@@ -1862,6 +1863,38 @@ mod tests {
         assert!(!app.show_hints);
         assert!(!app.settings.show_hints);
         assert!(effects.contains(&Effect::PersistSettings));
+    }
+
+    #[test]
+    fn tabs_menu_lists_and_switches_every_tab() {
+        let index = crate::app::MENUS
+            .iter()
+            .position(|(label, _)| *label == "Tabs")
+            .unwrap();
+        let labels: Vec<&str> = crate::app::MENUS[index]
+            .1
+            .iter()
+            .map(|(label, _)| *label)
+            .collect();
+        assert_eq!(
+            labels,
+            vec![
+                "Processes",
+                "Performance",
+                "App history",
+                "Startup",
+                "Users",
+                "Details",
+                "Services"
+            ]
+        );
+        let mut app = app();
+        app.menu = Some(crate::app::MenuState {
+            menu: index,
+            item: 1,
+        });
+        app.dispatch(Action::MenuActivate);
+        assert_eq!(app.tab, Tab::Performance);
     }
 
     #[test]

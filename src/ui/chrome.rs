@@ -161,11 +161,28 @@ pub fn put_right(buf: &mut Buffer, right: u16, y: u16, text: &str, style: Style,
     put(buf, x, y, text, style, clip);
 }
 
+fn menu_offsets(area: Rect) -> (bool, Vec<(u16, u16)>) {
+    let padded: u16 = MENUS
+        .iter()
+        .map(|(label, _)| label.chars().count() as u16 + 2)
+        .sum();
+    let compact = padded > area.width;
+    let mut x = area.x;
+    let mut cells = Vec::new();
+    for (label, _) in MENUS.iter() {
+        let width = label.chars().count() as u16 + if compact { 1 } else { 2 };
+        cells.push((x, width));
+        x += width;
+    }
+    (compact, cells)
+}
+
 fn draw_menu_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
     let theme = app.theme();
     fill_area(buf, area, Style::default().bg(theme.chrome));
-    let mut x = area.x;
+    let (compact, cells) = menu_offsets(area);
     for (index, (label, _)) in MENUS.iter().enumerate() {
+        let (x, width) = cells[index];
         let active = app.menu.is_some_and(|menu| menu.menu == index);
         let style = if active {
             Style::default()
@@ -178,12 +195,15 @@ fn draw_menu_bar(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
                 .bg(theme.chrome)
                 .add_modifier(Modifier::BOLD)
         };
-        let text = format!(" {label} ");
-        let width = text.chars().count() as u16;
+        let text = if compact {
+            format!("{label} ")
+        } else {
+            format!(" {label} ")
+        };
         put(buf, x, area.y, &text, style, area);
         hits.add(Rect::new(x, area.y, width, 1), Target::Menu(index));
-        x += width;
     }
+    let x = cells.last().map(|(x, width)| x + width).unwrap_or(area.x);
     if app.tab == Tab::Performance {
         return;
     }
@@ -518,11 +538,12 @@ fn draw_menu_dropdown(
         + 4;
     let height = items.len() as u16 + 2;
 
-    let mut x = area.x;
-    for (label, _) in MENUS.iter().take(menu.menu) {
-        x += label.chars().count() as u16 + 2;
-    }
-    x = x.min(area.x + area.width.saturating_sub(width));
+    let (_, cells) = menu_offsets(area);
+    let x = cells
+        .get(menu.menu)
+        .map(|(x, _)| *x)
+        .unwrap_or(area.x)
+        .min(area.x + area.width.saturating_sub(width));
     let y = area.y + 1;
     let rect = Rect::new(x, y, width, height.min(area.height.saturating_sub(y)));
     let inner = panel(buf, rect, "", theme);
@@ -769,7 +790,7 @@ mod tests {
         // At 40 columns the menus stay whole and the field shrinks to its key.
         let narrow = bar(screen_for(Tab::Processes, 40, "", false));
         assert!(
-            narrow.starts_with(" File  Options  View  Process  Help "),
+            narrow.starts_with("File Options View Tabs Process Help"),
             "{narrow:?}"
         );
         assert!(narrow.trim_end().ends_with('/'), "{narrow:?}");

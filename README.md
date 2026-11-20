@@ -61,7 +61,7 @@ If graph blocks show as boxes or question marks, your font lacks them. Use
 | Key | Action |
 |---|---|
 | `q`, `Ctrl+C` | Quit |
-| `F10`, `Alt+F`/`Alt+O`/`Alt+V`/`Alt+P`/`Alt+H` | Menu bar, arrows navigate, Enter activates |
+| `F10`, `Alt+F`/`Alt+O`/`Alt+V`/`Alt+T`/`Alt+P`/`Alt+H` | Menu bar, arrows navigate, Enter activates |
 | `F1` | Keyboard help |
 | `F2` | Appearance: theme, chart style, chart colour, chart gradient |
 | `F4` | Show or hide shortcut hints |
@@ -87,7 +87,8 @@ If graph blocks show as boxes or question marks, your font lacks them. Use
 | `s` `S` `R` | Start, stop, restart a service |
 
 Help > About shows the version, platform, active theme and colour depth, and where the
-settings and usage history live.
+settings and usage history live. The Tabs menu lists all seven tabs, so every tab stays
+reachable when a narrow terminal drops strip labels.
 
 ## Filter
 
