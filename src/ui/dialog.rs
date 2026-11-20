@@ -524,12 +524,10 @@ fn truncate_line(text: &str, width: usize) -> String {
 
 /// Darken the window behind a modal so focus is obvious.
 fn dim(buf: &mut Buffer, area: Rect, theme: &crate::theme::Theme) {
-    let style = Style::default().fg(theme.muted).bg(theme.bg);
     for y in area.y..area.y + area.height {
         for x in area.x..area.x + area.width {
-            let fg = buf[(x, y)].fg;
-            let _ = style;
-            buf[(x, y)].set_style(Style::default().fg(fg).bg(theme.bg));
+            let bg = buf[(x, y)].bg;
+            buf[(x, y)].set_style(Style::default().fg(theme.muted).bg(bg));
         }
     }
 }

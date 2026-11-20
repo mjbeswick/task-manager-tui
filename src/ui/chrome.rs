@@ -1167,6 +1167,18 @@ mod tests {
     }
 
     #[test]
+    fn a_modal_keeps_the_band_colours() {
+        let (mut app, _) = App::new(Settings::default(), false);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        app.dialog = Some(crate::app::Dialog::Help);
+        let theme = *app.theme();
+        let buffer = buffer_for(&app, 120, 30);
+        assert_eq!(buffer[(5, 0)].bg, theme.chrome, "menu bar");
+        assert_eq!(buffer[(95, 1)].bg, theme.bg, "tab strip");
+        assert_eq!(buffer[(100, 29)].bg, theme.status, "status bar");
+    }
+
+    #[test]
     fn chrome_and_status_use_their_band_colours() {
         let (mut app, _) = App::new(Settings::default(), false);
         app.apply_snapshot(crate::model::Snapshot::fixture());
