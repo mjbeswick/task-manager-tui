@@ -15,7 +15,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, hits: &mut HitMap) {
         return;
     }
     let content = area;
-    let hint = crate::ui::chrome::hint_area(area);
+    let hint = crate::ui::chrome::hint_area(area, app);
     let area = crate::ui::chrome::without_hint(area, hint);
     if let Some(hint) = hint {
         crate::ui::chrome::draw_hint(buf, content, app, hint);
