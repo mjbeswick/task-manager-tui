@@ -428,7 +428,7 @@ impl App {
     }
 
     fn open_signal_dialog(&mut self) {
-        let Some(row) = self.selected_process() else {
+        let Some(row) = self.signal_target() else {
             self.notice("Select a process row first.");
             return;
         };
@@ -439,6 +439,21 @@ impl App {
             selected: 0,
             tree: false,
         });
+    }
+
+    /// The selected process, or the first process under a selected kind heading.
+    fn signal_target(&self) -> Option<ProcRow> {
+        if let Some(row) = self.selected_process() {
+            return Some(row);
+        }
+        let ProcSel::Kind(kind) = self.process.selected_key()? else {
+            return None;
+        };
+        self.snapshot
+            .processes
+            .iter()
+            .find(|process| process.kind == kind)
+            .cloned()
     }
 
     fn submit_signal(&mut self, key: ProcKey, signal: Signal, tree: bool) -> Vec<Effect> {
@@ -1451,11 +1466,21 @@ mod tests {
     }
 
     #[test]
-    fn signal_on_a_kind_heading_only_notices() {
+    fn signal_from_a_kind_heading_uses_its_first_process() {
         let mut app = app();
         app.tab = Tab::Processes;
         app.collapse_all();
         assert!(matches!(app.process.selected_key(), Some(ProcSel::Kind(_))));
+        app.dispatch(Action::OpenSignal);
+        assert!(matches!(app.dialog, Some(Dialog::Signal { .. })));
+    }
+
+    #[test]
+    fn signal_without_rows_only_notices() {
+        let mut app = app();
+        app.tab = Tab::Processes;
+        app.apply_snapshot(crate::model::Snapshot::default());
+        app.process.refresh(&app.snapshot);
         let effects = app.dispatch(Action::OpenSignal);
         assert!(effects.is_empty());
         assert!(app.dialog.is_none());
