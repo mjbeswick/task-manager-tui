@@ -35,7 +35,6 @@ const HELP: &[(&str, &str)] = &[
 
 pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut HitMap) {
     let theme = app.theme();
-    dim(buf, area, theme);
 
     let max_width = area.width.saturating_sub(4).min(72);
     let (content_width, content_height) = match dialog {
@@ -520,20 +519,6 @@ fn process_info_lines(row: &crate::model::ProcRow) -> Vec<String> {
 
 fn truncate_line(text: &str, width: usize) -> String {
     text.chars().take(width).collect()
-}
-
-/// Darken the window behind a modal so focus is obvious.
-fn dim(buf: &mut Buffer, area: Rect, theme: &crate::theme::Theme) {
-    for y in area.y..area.y + area.height {
-        for x in area.x..area.x + area.width {
-            let cell = &buf[(x, y)];
-            let symbol = cell.symbol().chars().next().unwrap_or(' ');
-            let structural = matches!(symbol, '\u{2500}'..='\u{257F}' | '-' | '|' | '+');
-            let (fg, bg) = (cell.fg, cell.bg);
-            let fg = if structural { fg } else { theme.muted };
-            buf[(x, y)].set_style(Style::default().fg(fg).bg(bg));
-        }
-    }
 }
 
 #[cfg(test)]
