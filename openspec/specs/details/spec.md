@@ -76,8 +76,12 @@ translating it to the platform's scheduling value.
 - **THEN** the process receives a nice value of 7 and the dialog labels it Below normal
 
 #### Scenario: Step the value
-- **WHEN** the user presses Up or PgUp
-- **THEN** the value rises by one or five respectively and stops at 19
+- **WHEN** the user presses Up, Down, Left, or Right
+- **THEN** the value moves by one in that direction and stops at -20 or 19
+
+#### Scenario: Page step
+- **WHEN** the user presses PgUp or PgDn
+- **THEN** the value moves by five and stops at the ends of the range
 
 #### Scenario: Out of range
 - **WHEN** the user enters a value above 19 or below -20
