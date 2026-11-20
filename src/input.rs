@@ -41,6 +41,9 @@ pub enum Action {
     PriorityChar(char),
     PriorityBackspace,
     PriorityStep(i32),
+    PasswordChar(char),
+    PasswordBackspace,
+    PasswordSubmit,
     ToggleStartup,
     ServiceStart,
     ServiceStop,
@@ -235,6 +238,18 @@ fn translate_dialog(dialog: &Dialog, key: KeyEvent) -> Option<Action> {
             KeyCode::Char(' ') => Some(Action::ToggleSignalTree),
             KeyCode::Enter => Some(Action::Confirm),
             KeyCode::Esc | KeyCode::Char('q') => Some(Action::Cancel),
+            _ => None,
+        },
+        Dialog::Password { .. } => match key.code {
+            KeyCode::Esc => Some(Action::Cancel),
+            KeyCode::Enter => Some(Action::PasswordSubmit),
+            KeyCode::Backspace => Some(Action::PasswordBackspace),
+            KeyCode::Char(ch)
+                if !key.modifiers.contains(KeyModifiers::CONTROL)
+                    && !key.modifiers.contains(KeyModifiers::ALT) =>
+            {
+                Some(Action::PasswordChar(ch))
+            }
             _ => None,
         },
         Dialog::Run { .. } => match key.code {
@@ -540,6 +555,32 @@ mod tests {
             translate(&app, key(KeyCode::Char('q'))),
             Some(Action::Cancel)
         );
+    }
+
+    #[test]
+    fn password_dialog_takes_hidden_input() {
+        let mut app = app();
+        app.dialog = Some(Dialog::Password {
+            action: crate::platform::ElevatedAction::Signal {
+                pids: vec![1],
+                signal: crate::model::Signal::Term,
+            },
+            input: String::new(),
+            error: false,
+        });
+        assert_eq!(
+            translate(&app, key(KeyCode::Char('p'))),
+            Some(Action::PasswordChar('p'))
+        );
+        assert_eq!(
+            translate(&app, key(KeyCode::Backspace)),
+            Some(Action::PasswordBackspace)
+        );
+        assert_eq!(
+            translate(&app, key(KeyCode::Enter)),
+            Some(Action::PasswordSubmit)
+        );
+        assert_eq!(translate(&app, key(KeyCode::Esc)), Some(Action::Cancel));
     }
 
     #[test]

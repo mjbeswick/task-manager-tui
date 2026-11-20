@@ -4,7 +4,7 @@ use crate::model::{
     AppUsage, ChartColor, ChartStyle, ProcKey, ProcRow, ProcSel, ServiceRow, SessionRow, Signal,
     Snapshot, StartupRow,
 };
-use crate::platform::ServiceAction;
+use crate::platform::{ElevatedAction, ServiceAction};
 use crate::sample::group::{self, ProcItem, SortDir, SortKey};
 use crate::store::settings::Settings;
 use crate::theme::{Theme, ThemeName};
@@ -355,6 +355,7 @@ pub enum PendingAction {
     Signal(ProcKey, Signal, bool),
     ClearUsage(String),
     EndApp(String),
+    Elevate(ElevatedAction),
 }
 
 #[derive(Debug, Clone)]
@@ -388,6 +389,11 @@ pub enum Dialog {
         selected: usize,
         tree: bool,
     },
+    Password {
+        action: ElevatedAction,
+        input: String,
+        error: bool,
+    },
     ProcessInfo {
         key: ProcKey,
         name: String,
@@ -411,6 +417,7 @@ impl Dialog {
             Dialog::Run { .. } => "Run a new task",
             Dialog::Priority { .. } => "Set priority",
             Dialog::Signal { .. } => "Send signal",
+            Dialog::Password { .. } => "Administrator password",
             Dialog::ProcessInfo { .. } => "Process details",
             Dialog::Appearance { .. } => "Appearance",
             Dialog::Properties { title, .. } => title,
@@ -521,6 +528,11 @@ pub enum Effect {
     },
     ClearHistory,
     ClearUsage(String),
+    Elevated(ElevatedAction),
+    ElevatedWithPassword {
+        action: ElevatedAction,
+        password: String,
+    },
     Priority {
         key: ProcKey,
         nice: i32,

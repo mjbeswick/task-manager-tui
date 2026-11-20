@@ -53,6 +53,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
         Dialog::About => (max_width.min(72), 12),
         Dialog::Run { .. } => (max_width.min(52), 9),
         Dialog::Priority { .. } => (max_width.min(52), 6),
+        Dialog::Password { .. } => (max_width.min(56), 8),
         Dialog::Signal { .. } => (max_width.min(52), 10),
         Dialog::Appearance { .. } => (max_width.min(46), 10),
         Dialog::Properties { lines, .. } => (
@@ -443,6 +444,63 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
             hits.add(Rect::new(inner.x + 17, y, 18, 1), Target::DialogConfirm);
             hits.add(Rect::new(inner.x + 37, y, 12, 1), Target::DialogCancel);
         }
+        Dialog::Password {
+            action,
+            input,
+            error,
+        } => {
+            let muted = Style::default().fg(theme.muted).bg(theme.surface);
+            let text = Style::default().fg(theme.text).bg(theme.surface);
+            put(
+                buf,
+                inner.x + 2,
+                inner.y,
+                &truncate_line(&action.describe(), inner.width.saturating_sub(3) as usize),
+                text,
+                inner,
+            );
+            let masked = "*".repeat(input.chars().count());
+            let field = format!("Password: {masked}");
+            put(
+                buf,
+                inner.x + 2,
+                inner.y + 1,
+                &truncate_line(&field, inner.width.saturating_sub(3) as usize),
+                Style::default()
+                    .fg(theme.text)
+                    .bg(theme.bg)
+                    .add_modifier(Modifier::BOLD),
+                inner,
+            );
+            let hint = if *error {
+                "Enter the password."
+            } else {
+                "Used once. Never stored."
+            };
+            put(
+                buf,
+                inner.x + 2,
+                inner.y + 2,
+                &truncate_line(hint, inner.width.saturating_sub(3) as usize),
+                if *error {
+                    Style::default().fg(theme.bad).bg(theme.surface)
+                } else {
+                    muted
+                },
+                inner,
+            );
+            let y = inner.y + inner.height.saturating_sub(1);
+            put(
+                buf,
+                inner.x + 2,
+                y,
+                "[Enter] Elevate      [Esc] Cancel",
+                Style::default().fg(theme.accent).bg(theme.surface),
+                inner,
+            );
+            hits.add(Rect::new(inner.x + 2, y, 16, 1), Target::DialogConfirm);
+            hits.add(Rect::new(inner.x + 24, y, 12, 1), Target::DialogCancel);
+        }
         Dialog::ProcessInfo { key, .. } => {
             let lines = match app.snapshot.process(*key) {
                 Some(row) => process_info_lines(row),
@@ -646,6 +704,24 @@ mod tests {
         app.apply_snapshot(crate::model::Snapshot::default());
         let screen = render(&app, 120, 40);
         assert!(screen.contains("This process has exited."));
+    }
+
+    #[test]
+    fn password_dialog_masks_the_input() {
+        let mut app = app();
+        app.dialog = Some(Dialog::Password {
+            action: crate::platform::ElevatedAction::Signal {
+                pids: vec![42],
+                signal: crate::model::Signal::Term,
+            },
+            input: "hunter2".into(),
+            error: false,
+        });
+        let screen = render(&app, 100, 30);
+        assert!(screen.contains("Administrator password"));
+        assert!(screen.contains("*******"));
+        assert!(!screen.contains("hunter2"));
+        assert!(screen.contains("Used once. Never stored."));
     }
 
     #[test]

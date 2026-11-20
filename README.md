@@ -142,7 +142,18 @@ dropped and the position counter in the status bar takes over.
   enabled state.
 - **Users** - sessions from `who`, with each user's CPU, memory, and disk totals.
 - **Details** - every process with PID, status, owner, and priority.
-- **Services** - launchd jobs or systemd units, start, stop, and restart.
+- **Services** - launchd jobs or systemd units, start, stop, and restart. System-scope actions offer per-action elevation.
+
+## Administrator rights
+
+System services, and processes owned by another user or root, need elevation. The app never
+runs the whole interface as root. It elevates only the one command:
+
+- macOS uses the system administrator prompt.
+- Linux uses `pkexec` when available, then `sudo -n`, then a masked password field that
+  feeds `sudo -S` once.
+- The password is never written to settings, history, logs, or the screen.
+- Cancelling or failing changes nothing.
 
 ## Table readability
 

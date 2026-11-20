@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use task_manager_tui::app::{App, Dialog, Effect};
 use task_manager_tui::cli::Cli;
-use task_manager_tui::platform::{self, RealRunner};
+use task_manager_tui::platform::{self, ElevationError, RealRunner};
 use task_manager_tui::sample::Sampler;
 use task_manager_tui::store::settings;
 use task_manager_tui::ui;
@@ -280,6 +280,12 @@ fn apply_effects(app: &mut App, sampler: &mut Sampler, effects: Vec<Effect>) -> 
             Effect::Signal { key, signal, tree } => {
                 signal_process(app, key, signal, tree);
             }
+            Effect::Elevated(action) => {
+                handle_elevated(app, sampler, action, None);
+            }
+            Effect::ElevatedWithPassword { action, password } => {
+                handle_elevated(app, sampler, action, Some(&password));
+            }
             Effect::Service { name, action } => {
                 let Some(row) = app
                     .snapshot
@@ -371,6 +377,36 @@ fn apply_effects(app: &mut App, sampler: &mut Sampler, effects: Vec<Effect>) -> 
         }
     }
     Ok(quit)
+}
+
+fn handle_elevated(
+    app: &mut App,
+    sampler: &mut Sampler,
+    action: platform::ElevatedAction,
+    password: Option<&str>,
+) {
+    match platform::elevate(&action, password) {
+        Ok(()) => {
+            app.notice(format!(
+                "{}: done with administrator rights.",
+                action.describe()
+            ));
+            sampler.refresh_now();
+        }
+        Err(ElevationError::PasswordRequired) => {
+            app.dialog = Some(Dialog::Password {
+                action,
+                input: String::new(),
+                error: false,
+            });
+        }
+        Err(ElevationError::Failed(message)) => {
+            app.dialog = Some(Dialog::Error {
+                title: "Administrator action failed".to_string(),
+                message,
+            });
+        }
+    }
 }
 
 fn signal_process(

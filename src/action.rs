@@ -4,7 +4,7 @@
 use crate::app::{App, Dialog, Effect, MENUS, MenuState, PendingAction, Tab};
 use crate::input::Action;
 use crate::model::{Kind, ProcKey, ProcRow, ProcSel, Signal, Status};
-use crate::platform::ServiceAction;
+use crate::platform::{ElevatedAction, ServiceAction};
 use crate::sample::group::{SortDir, SortKey};
 
 impl App {
@@ -137,7 +137,28 @@ impl App {
                     _ => ServiceAction::Restart,
                 };
                 if let Some(row) = self.selected_service() {
-                    if service_action == ServiceAction::Start {
+                    let needs_admin =
+                        row.scope == crate::model::Scope::System && !crate::platform::is_root();
+                    if needs_admin {
+                        let elevated = ElevatedAction::Service {
+                            name: row.name.clone(),
+                            scope: row.scope,
+                            action: service_action,
+                        };
+                        self.dialog = Some(Dialog::Confirm {
+                            title: format!("{} service", service_action.label()),
+                            message: format!(
+                                "{} {}? This system service needs administrator rights.",
+                                service_action.label(),
+                                row.name
+                            ),
+                            confirm_label: format!(
+                                "Elevate and {}",
+                                service_action.label().to_lowercase()
+                            ),
+                            action: PendingAction::Elevate(elevated),
+                        });
+                    } else if service_action == ServiceAction::Start {
                         effects.push(Effect::Service {
                             name: row.name.clone(),
                             action: service_action,
@@ -208,7 +229,10 @@ impl App {
             | Action::ToggleSignalTree
             | Action::PriorityChar(_)
             | Action::PriorityBackspace
-            | Action::PriorityStep(_) => {}
+            | Action::PriorityStep(_)
+            | Action::PasswordChar(_)
+            | Action::PasswordBackspace
+            | Action::PasswordSubmit => {}
         }
         effects
     }
@@ -518,14 +542,47 @@ impl App {
             .cloned()
     }
 
+    fn signal_pids(&self, key: ProcKey, tree: bool) -> Vec<u32> {
+        let mut pids = vec![key.pid];
+        if tree {
+            pids.extend(
+                descendants(&self.snapshot.processes, key.pid)
+                    .iter()
+                    .map(|key| key.pid),
+            );
+        }
+        pids
+    }
+
     fn submit_signal(&mut self, key: ProcKey, signal: Signal, tree: bool) -> Vec<Effect> {
         let mut effects = Vec::new();
         let row = self.snapshot.process(key);
-        let needs_confirm = signal.requires_confirm()
-            || row.is_some_and(|row| {
+        let privileged = !crate::platform::is_root()
+            && row.is_some_and(|row| {
                 row.kind == Kind::System || row.uid != Some(crate::platform::current_uid())
             });
-        if needs_confirm {
+        if privileged {
+            let name = row
+                .map(|r| r.name.clone())
+                .unwrap_or_else(|| format!("PID {}", key.pid));
+            let tree_note = if tree { " and its process tree" } else { "" };
+            let elevated = ElevatedAction::Signal {
+                pids: self.signal_pids(key, tree),
+                signal,
+            };
+            self.dialog = Some(Dialog::Confirm {
+                title: format!("Send SIG{}", signal.name()),
+                message: format!(
+                    "Send SIG{} to {name} (PID {}){tree_note}? This process needs administrator rights.",
+                    signal.name(),
+                    key.pid
+                ),
+                confirm_label: format!("Elevate and send SIG{}", signal.name()),
+                action: PendingAction::Elevate(elevated),
+            });
+            return effects;
+        }
+        if signal.requires_confirm() {
             let name = row
                 .map(|r| r.name.clone())
                 .unwrap_or_else(|| format!("PID {}", key.pid));
@@ -631,6 +688,34 @@ impl App {
             return effects;
         }
         let key = row.key;
+        let privileged = !crate::platform::is_root()
+            && (row.kind == Kind::System || row.uid != Some(crate::platform::current_uid()));
+        let signal = if tree { Signal::Kill } else { Signal::Term };
+        if privileged {
+            let count = descendants(&self.snapshot.processes, key.pid).len() + 1;
+            let elevated = ElevatedAction::Signal {
+                pids: self.signal_pids(key, tree),
+                signal,
+            };
+            self.dialog = Some(Dialog::Confirm {
+                title: if tree { "End process tree" } else { "End task" }.to_string(),
+                message: format!(
+                    "End {}{}? This needs administrator rights.",
+                    row.name,
+                    if tree {
+                        format!(
+                            " and its {count} process{}",
+                            if count == 1 { "" } else { "es" }
+                        )
+                    } else {
+                        format!(" (PID {})", key.pid)
+                    }
+                ),
+                confirm_label: "Elevate and end".to_string(),
+                action: PendingAction::Elevate(elevated),
+            });
+            return effects;
+        }
         if tree {
             let count = descendants(&self.snapshot.processes, key.pid).len() + 1;
             self.dialog = Some(Dialog::Confirm {
@@ -645,27 +730,11 @@ impl App {
             });
             return effects;
         }
-        let needs_confirm =
-            row.kind == Kind::System || row.uid != Some(crate::platform::current_uid());
-        if needs_confirm {
-            self.dialog = Some(Dialog::Confirm {
-                title: "End task".to_string(),
-                message: format!(
-                    "End {} (PID {})? This process belongs to {}, so ending it may need administrator rights.",
-                    row.name,
-                    key.pid,
-                    row.user.clone().unwrap_or_else(|| "another user".into())
-                ),
-                confirm_label: "End task".to_string(),
-                action: PendingAction::EndTask(key),
-            });
-        } else {
-            effects.push(Effect::Signal {
-                key,
-                signal: Signal::Term,
-                tree: false,
-            });
-        }
+        effects.push(Effect::Signal {
+            key,
+            signal: Signal::Term,
+            tree: false,
+        });
         effects
     }
 
@@ -694,6 +763,37 @@ impl App {
                             args: args.to_vec(),
                         }),
                         None => self.notice("Nothing to run."),
+                    }
+                }
+            }
+            Action::PasswordChar(ch) => {
+                if let Some(Dialog::Password { input, error, .. }) = &mut self.dialog {
+                    input.push(ch);
+                    *error = false;
+                }
+            }
+            Action::PasswordBackspace => {
+                if let Some(Dialog::Password { input, error, .. }) = &mut self.dialog {
+                    input.pop();
+                    *error = false;
+                }
+            }
+            Action::PasswordSubmit => {
+                if matches!(self.dialog, Some(Dialog::Password { .. })) {
+                    let Some(Dialog::Password { action, input, .. }) = self.dialog.take() else {
+                        return effects;
+                    };
+                    if input.is_empty() {
+                        self.dialog = Some(Dialog::Password {
+                            action,
+                            input,
+                            error: true,
+                        });
+                    } else {
+                        effects.push(Effect::ElevatedWithPassword {
+                            action,
+                            password: input,
+                        });
                     }
                 }
             }
@@ -861,6 +961,7 @@ impl App {
                         }),
                         PendingAction::ClearHistory => effects.push(Effect::ClearHistory),
                         PendingAction::ClearUsage(name) => effects.push(Effect::ClearUsage(name)),
+                        PendingAction::Elevate(action) => effects.push(Effect::Elevated(action)),
                         PendingAction::EndApp(name) => {
                             let processes = self.app_processes(&name);
                             let pids: std::collections::HashSet<u32> =
@@ -1173,11 +1274,10 @@ mod tests {
         let effects = app.dispatch(Action::Confirm);
         assert!(matches!(
             effects.as_slice(),
-            [Effect::Signal {
+            [Effect::Elevated(ElevatedAction::Signal {
                 signal: Signal::Term,
-                tree: false,
                 ..
-            }]
+            })]
         ));
     }
 
@@ -1226,18 +1326,25 @@ mod tests {
         let effects = app.dispatch(Action::Confirm);
         assert!(matches!(
             effects.as_slice(),
-            [Effect::Service {
+            [Effect::Elevated(ElevatedAction::Service {
                 action: ServiceAction::Stop,
                 ..
-            }]
+            })]
         ));
     }
 
     #[test]
-    fn starting_a_service_runs_without_a_confirmation() {
+    fn starting_a_user_service_runs_without_a_confirmation() {
         let mut app = app();
         app.tab = Tab::Services;
         app.sync_services_public();
+        let index = app
+            .service_rows()
+            .iter()
+            .position(|row| row.scope == crate::model::Scope::User)
+            .unwrap();
+        app.services.selected = index;
+        app.services.key = Some(app.service_rows()[index].name.clone());
         let effects = app.dispatch(Action::ServiceStart);
         assert!(app.dialog.is_none());
         assert!(matches!(
@@ -1246,6 +1353,83 @@ mod tests {
                 action: ServiceAction::Start,
                 ..
             }]
+        ));
+    }
+
+    #[test]
+    fn starting_a_system_service_offers_elevation() {
+        let mut app = app();
+        app.tab = Tab::Services;
+        app.sync_services_public();
+        let index = app
+            .service_rows()
+            .iter()
+            .position(|row| row.scope == crate::model::Scope::System)
+            .unwrap();
+        app.services.selected = index;
+        app.services.key = Some(app.service_rows()[index].name.clone());
+        let effects = app.dispatch(Action::ServiceStart);
+        assert!(effects.is_empty());
+        assert!(matches!(app.dialog, Some(Dialog::Confirm { .. })));
+        let effects = app.dispatch(Action::Confirm);
+        assert!(matches!(
+            effects.as_slice(),
+            [Effect::Elevated(ElevatedAction::Service {
+                action: ServiceAction::Start,
+                ..
+            })]
+        ));
+    }
+
+    #[test]
+    fn password_dialog_emits_one_elevated_effect() {
+        use crate::platform::ElevatedAction;
+        let mut app = app();
+        let action = ElevatedAction::Signal {
+            pids: vec![42],
+            signal: Signal::Term,
+        };
+        app.dialog = Some(Dialog::Password {
+            action: action.clone(),
+            input: String::new(),
+            error: false,
+        });
+        app.dispatch(Action::PasswordChar('s'));
+        app.dispatch(Action::PasswordChar('e'));
+        app.dispatch(Action::PasswordBackspace);
+        let effects = app.dispatch(Action::PasswordSubmit);
+        match effects.as_slice() {
+            [
+                Effect::ElevatedWithPassword {
+                    action: sent,
+                    password,
+                },
+            ] => {
+                assert_eq!(*sent, action);
+                assert_eq!(password, "s");
+            }
+            other => panic!("unexpected effects: {other:?}"),
+        }
+        assert!(app.dialog.is_none());
+    }
+
+    #[test]
+    fn empty_password_is_refused() {
+        use crate::platform::ElevatedAction;
+        let mut app = app();
+        app.dialog = Some(Dialog::Password {
+            action: ElevatedAction::Signal {
+                pids: vec![42],
+                signal: Signal::Term,
+            },
+            input: String::new(),
+            error: false,
+        });
+        let effects = app.dispatch(Action::PasswordSubmit);
+        assert!(effects.is_empty());
+        assert!(matches!(
+            app.dialog,
+            Some(Dialog::Password { error: true, .. })
         ));
     }
 

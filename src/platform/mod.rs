@@ -12,8 +12,11 @@ use linux as imp;
 #[cfg(target_os = "macos")]
 use macos as imp;
 
-use crate::model::{ServiceRow, SessionRow, SessionStatus, Signal, StartupRow};
+use crate::model::{Scope, ServiceRow, SessionRow, SessionStatus, Signal, StartupRow};
 use std::collections::HashMap;
+use std::process::Command;
+#[cfg(target_os = "linux")]
+use std::process::Stdio;
 
 pub use proc::{CommandOutput, RealRunner, RecordingRunner, Runner};
 
@@ -39,6 +42,225 @@ impl ServiceAction {
             ServiceAction::Stop => "stopped",
             ServiceAction::Restart => "restarted",
         }
+    }
+}
+
+/// A privileged operation that runs as one elevated command.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ElevatedAction {
+    Service {
+        name: String,
+        scope: Scope,
+        action: ServiceAction,
+    },
+    Signal {
+        pids: Vec<u32>,
+        signal: Signal,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ElevationError {
+    PasswordRequired,
+    Failed(String),
+}
+
+impl ElevatedAction {
+    /// Program and argv for the action, before any elevation wrapper.
+    pub fn command(&self) -> (String, Vec<String>) {
+        match self {
+            ElevatedAction::Signal { pids, signal } => {
+                let mut args = vec!["-s".to_string(), signal.name().to_string()];
+                args.extend(pids.iter().map(|pid| pid.to_string()));
+                ("kill".to_string(), args)
+            }
+            ElevatedAction::Service {
+                name,
+                scope,
+                action,
+            } => service_command(name, *scope, *action),
+        }
+    }
+
+    pub fn describe(&self) -> String {
+        match self {
+            ElevatedAction::Signal { pids, signal } => format!(
+                "Send SIG{} to {} process{}",
+                signal.name(),
+                pids.len(),
+                if pids.len() == 1 { "" } else { "es" }
+            ),
+            ElevatedAction::Service { name, action, .. } => {
+                format!("{} {name}", action.label())
+            }
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn service_command(name: &str, scope: Scope, action: ServiceAction) -> (String, Vec<String>) {
+    let verb = match action {
+        ServiceAction::Start => "start",
+        ServiceAction::Stop => "stop",
+        ServiceAction::Restart => "restart",
+    };
+    let mut args = Vec::new();
+    if scope == Scope::User {
+        args.push("--user".to_string());
+    }
+    args.push(verb.to_string());
+    args.push(name.to_string());
+    ("systemctl".to_string(), args)
+}
+
+#[cfg(target_os = "macos")]
+fn service_command(name: &str, scope: Scope, action: ServiceAction) -> (String, Vec<String>) {
+    let domain = if scope == Scope::System {
+        "system".to_string()
+    } else {
+        format!("gui/{}", current_uid())
+    };
+    let target = format!("{domain}/{name}");
+    let args = match action {
+        ServiceAction::Start => vec!["kickstart".to_string(), target],
+        ServiceAction::Stop => vec!["kill".to_string(), "SIGTERM".to_string(), target],
+        ServiceAction::Restart => {
+            vec!["kickstart".to_string(), "-k".to_string(), target]
+        }
+    };
+    ("launchctl".to_string(), args)
+}
+
+/// Run one action with administrator rights. `password` is only used by the
+/// Linux fallback and is never stored.
+pub fn elevate(action: &ElevatedAction, password: Option<&str>) -> Result<(), ElevationError> {
+    let (program, args) = action.command();
+    #[cfg(target_os = "macos")]
+    {
+        let _ = password;
+        run_macos_elevated(&program, &args)
+    }
+    #[cfg(target_os = "linux")]
+    {
+        run_linux_elevated(&program, &args, password)
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+    {
+        let _ = (program, args, password);
+        Err(ElevationError::Failed(
+            "elevation is not supported on this platform".into(),
+        ))
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn run_macos_elevated(program: &str, args: &[String]) -> Result<(), ElevationError> {
+    let command = std::iter::once(program.to_string())
+        .chain(args.iter().cloned())
+        .map(|part| format!("'{}'", part.replace('\'', "'\\''")))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let escaped = command.replace('\\', "\\\\").replace('"', "\\\"");
+    let script = format!("do shell script \"{escaped}\" with administrator privileges");
+    let output = Command::new("osascript")
+        .args(["-e", &script])
+        .output()
+        .map_err(|err| ElevationError::Failed(format!("cannot start osascript: {err}")))?;
+    finish(output)
+}
+
+#[cfg(target_os = "linux")]
+fn run_linux_elevated(
+    program: &str,
+    args: &[String],
+    password: Option<&str>,
+) -> Result<(), ElevationError> {
+    if let Some(password) = password {
+        return run_with_password(program, args, password);
+    }
+    if pkexec_available() {
+        let output = Command::new("pkexec")
+            .arg(program)
+            .args(args)
+            .output()
+            .map_err(|err| ElevationError::Failed(format!("cannot start pkexec: {err}")))?;
+        if output.status.success() {
+            return Ok(());
+        }
+        let message = String::from_utf8_lossy(&output.stderr);
+        if message.contains("No authentication agent") {
+            return Err(ElevationError::PasswordRequired);
+        }
+        return Err(ElevationError::Failed(clean_error(&message, output.status)));
+    }
+    let output = Command::new("sudo")
+        .arg("-n")
+        .arg("--")
+        .arg(program)
+        .args(args)
+        .output()
+        .map_err(|err| ElevationError::Failed(format!("cannot start sudo: {err}")))?;
+    if output.status.success() {
+        return Ok(());
+    }
+    let message = String::from_utf8_lossy(&output.stderr);
+    if message.contains("password is required")
+        || message.contains("no tty")
+        || message.contains("terminal is required")
+        || message.contains("askpass")
+    {
+        Err(ElevationError::PasswordRequired)
+    } else {
+        Err(ElevationError::Failed(clean_error(&message, output.status)))
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn pkexec_available() -> bool {
+    std::path::Path::new("/usr/bin/pkexec").exists() || std::path::Path::new("/bin/pkexec").exists()
+}
+
+#[cfg(target_os = "linux")]
+fn run_with_password(program: &str, args: &[String], password: &str) -> Result<(), ElevationError> {
+    use std::io::Write;
+    let mut child = Command::new("sudo")
+        .arg("-S")
+        .arg("-p")
+        .arg("")
+        .arg("--")
+        .arg(program)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|err| ElevationError::Failed(format!("cannot start sudo: {err}")))?;
+    if let Some(stdin) = child.stdin.as_mut() {
+        stdin
+            .write_all(format!("{password}\n").as_bytes())
+            .map_err(|err| ElevationError::Failed(format!("cannot write to sudo: {err}")))?;
+    }
+    let output = child
+        .wait_with_output()
+        .map_err(|err| ElevationError::Failed(format!("cannot wait for sudo: {err}")))?;
+    finish(output)
+}
+
+fn finish(output: std::process::Output) -> Result<(), ElevationError> {
+    if output.status.success() {
+        Ok(())
+    } else {
+        let message = String::from_utf8_lossy(&output.stderr);
+        Err(ElevationError::Failed(clean_error(&message, output.status)))
+    }
+}
+
+fn clean_error(message: &str, status: std::process::ExitStatus) -> String {
+    let text = message.trim();
+    if text.is_empty() {
+        format!("elevated command exited with {status}")
+    } else {
+        text.to_string()
     }
 }
 
@@ -231,6 +453,64 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
         assert!(waited.is_some(), "the child should have exited");
+    }
+
+    #[test]
+    fn elevated_signal_builds_a_kill_argv() {
+        let action = ElevatedAction::Signal {
+            pids: vec![12, 34],
+            signal: Signal::Term,
+        };
+        assert_eq!(
+            action.command(),
+            (
+                "kill".to_string(),
+                vec![
+                    "-s".to_string(),
+                    "TERM".to_string(),
+                    "12".to_string(),
+                    "34".to_string()
+                ]
+            )
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn elevated_system_service_uses_systemctl() {
+        let action = ElevatedAction::Service {
+            name: "nginx.service".into(),
+            scope: Scope::System,
+            action: ServiceAction::Stop,
+        };
+        assert_eq!(
+            action.command(),
+            (
+                "systemctl".to_string(),
+                vec!["stop".to_string(), "nginx.service".to_string()]
+            )
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn elevated_system_service_uses_the_system_domain() {
+        let action = ElevatedAction::Service {
+            name: "com.example.job".into(),
+            scope: Scope::System,
+            action: ServiceAction::Restart,
+        };
+        assert_eq!(
+            action.command(),
+            (
+                "launchctl".to_string(),
+                vec![
+                    "kickstart".to_string(),
+                    "-k".to_string(),
+                    "system/com.example.job".to_string()
+                ]
+            )
+        );
     }
 
     #[test]
