@@ -206,9 +206,20 @@ fn chart(buf: &mut Buffer, area: Rect, app: &App, series: &Series, max: f32, lab
 
 fn draw_cpu(buf: &mut Buffer, inner: Rect, app: &App) {
     let snapshot = &app.snapshot;
-    let show_cores = snapshot.cpu.logical > 1 && inner.height >= 12;
+    let logical = snapshot.cpu.logical.max(1);
+    let columns = if inner.width >= 56 {
+        4
+    } else if inner.width >= 30 {
+        2
+    } else {
+        1
+    };
+    let rows = logical.div_ceil(columns) as u16;
+    let cores_height = ((inner.height / 3).max(4)).min(inner.height.saturating_sub(6));
+    let cell_height = cores_height / rows.max(1);
+    let cell_width = inner.width / columns as u16;
+    let show_cores = logical > 1 && inner.height >= 12 && cell_height >= 4 && cell_width >= 10;
     let (graph_area, boxes_area, cores_area) = if show_cores {
-        let cores_height = ((inner.height / 3).max(4)).min(inner.height - 6);
         let [graph_area, boxes_area, cores_area] = Layout::vertical([
             Constraint::Min(4),
             Constraint::Length(stat_height(inner.width)),
@@ -282,26 +293,12 @@ fn draw_cores(buf: &mut Buffer, area: Rect, app: &App) {
         }
         let height = cell_height.min(area.y + area.height - y);
         let cell = Rect::new(x, y, cell_width.saturating_sub(1), height);
-        if cell.height >= 3 && cell.width >= 8 {
-            let title = format!("CPU {index}");
-            let graph_cell = panel(buf, cell, &title, theme);
-            draw_mini(buf, graph_cell, series, app);
-        } else {
-            let mut graph_cell = cell;
-            if cell.height >= 2 {
-                let label = format!("CPU {index}  {}", pct(series.last()));
-                put(
-                    buf,
-                    cell.x,
-                    cell.y,
-                    &truncate(&label, cell.width as usize),
-                    Style::default().fg(theme.muted).bg(theme.surface),
-                    cell,
-                );
-                graph_cell = Rect::new(cell.x, cell.y + 1, cell.width, cell.height - 1);
-            }
-            draw_mini(buf, graph_cell, series, app);
+        if cell.height < 3 || cell.width < 8 {
+            continue;
         }
+        let title = format!("CPU {index}");
+        let graph_cell = panel(buf, cell, &title, theme);
+        draw_mini(buf, graph_cell, series, app);
     }
 }
 
@@ -639,6 +636,14 @@ mod tests {
         );
         assert!(rail[2].contains("GHz"), "value under CPU: {:?}", rail[2]);
         assert!(rail.iter().any(|l| l.contains("16.0 GB (62%)")));
+    }
+
+    #[test]
+    fn cores_hide_on_a_small_screen() {
+        let wide = render(&app(), 120, 40);
+        assert!(wide.contains("CPU 0"), "large screen shows cores");
+        let small = render(&app(), 80, 24);
+        assert!(!small.contains("CPU 0"), "small screen hides cores");
     }
 
     #[test]
