@@ -149,8 +149,7 @@ dialog.
 
 The application SHALL present confirmations, errors, the run dialog, and help as
 modal panels drawn over the window. A modal panel MUST capture all keys until it
-closes, and opening one MUST dim text without changing the colours of borders, rules, or
-frames.
+closes, and opening one MUST leave the window behind it unchanged.
 
 #### Scenario: Confirmation
 - **WHEN** an action needs confirmation
@@ -166,7 +165,7 @@ frames.
 
 #### Scenario: Dimming
 - **WHEN** any dialog opens
-- **THEN** text behind it turns muted and every box-drawing border, rule, and frame keeps its existing foreground colour
+- **THEN** every colour behind it stays exactly as it was, with no dimming pass
 
 ### Requirement: Every action is reachable from the keyboard
 
