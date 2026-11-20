@@ -90,9 +90,16 @@ pub fn mix(a: Color, b: Color, toward_b: f32) -> Color {
 
 /// A three-stop ramp: chart colour at the base, a dim tint in the middle,
 /// and the surface at the top. `rise` is 0 at the base and 1 at the top.
-pub fn ramp(edge: Color, bg: Color, rise: f32) -> Color {
-    let mid = crate::theme::mix_linear(edge, bg, 0.32);
-    let top = crate::theme::mix_linear(edge, bg, 0.68);
+pub fn ramp(edge: Color, rise: f32) -> Color {
+    let black = Color::Rgb(0, 0, 0);
+    let white = Color::Rgb(255, 255, 255);
+    let target = if crate::theme::contrast(edge, black) >= crate::theme::contrast(edge, white) {
+        black
+    } else {
+        white
+    };
+    let mid = crate::theme::mix_linear(edge, target, 0.20);
+    let top = crate::theme::mix_linear(edge, target, 0.55);
     let rise = rise.clamp(0.0, 1.0);
     if rise < 0.5 {
         crate::theme::mix_linear(edge, mid, rise * 2.0)
@@ -310,7 +317,7 @@ pub fn fill_column(buf: &mut Buffer, column: Rect, fraction: f32, spec: FillSpec
         let colour = if coarse || !gradient {
             edge
         } else {
-            ramp(edge, bg, 0.05 + rise * 0.95)
+            ramp(edge, 0.05 + rise * 0.95)
         };
         let style = ratatui::style::Style::default().fg(colour).bg(bg);
         let row = top + height - 1 - offset as u16;
@@ -389,7 +396,7 @@ fn blocks_column(
         let colour = if coarse || !gradient {
             edge
         } else {
-            ramp(edge, bg, 0.05 + rise * 0.95)
+            ramp(edge, 0.05 + rise * 0.95)
         };
         let is_top = total <= (offset + 1) * 8;
         let glyph = if units == 8 {
@@ -500,7 +507,7 @@ impl Dots {
                 let colour = if theme.coarse || !gradient {
                     edge
                 } else {
-                    ramp(edge, bg, (1.0 - self.peaks[cell]) * 0.85)
+                    ramp(edge, (1.0 - self.peaks[cell]) * 0.85)
                 };
                 let style = ratatui::style::Style::default().fg(colour).bg(bg);
                 if let Some(ch) = char::from_u32(0x2800 + mask as u32) {
@@ -981,10 +988,10 @@ mod tests {
         let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
         let edge = theme.graph_fill;
         let bg = theme.surface;
-        assert_eq!(ramp(edge, bg, 0.0), edge);
-        let top = ramp(edge, bg, 1.0);
+        assert_eq!(ramp(edge, 0.0), edge);
+        let top = ramp(edge, 1.0);
         assert_ne!(top, bg, "the top keeps some hue");
-        let middle = ramp(edge, bg, 0.5);
+        let middle = ramp(edge, 0.5);
         let Color::Rgb(r, g, b) = middle else {
             panic!("expected rgb");
         };
@@ -1407,6 +1414,34 @@ mod tests {
             .map(|cell| cell.fg)
             .collect();
         assert!(colours.len() > 1, "the sparkline is one flat colour");
+    }
+
+    #[test]
+    fn the_gradient_is_visible_in_every_theme() {
+        let distance = |a: ratatui::style::Color, b: ratatui::style::Color| {
+            let (a, b) = (crate::theme::indexed_rgb(a), crate::theme::indexed_rgb(b));
+            (a.0 as i32 - b.0 as i32).abs()
+                + (a.1 as i32 - b.1 as i32).abs()
+                + (a.2 as i32 - b.2 as i32).abs()
+        };
+        for name in crate::theme::ThemeName::ALL {
+            let theme = crate::theme::Theme::from_name(name, false);
+            let area = Rect::new(0, 0, 1, 8);
+            let mut buffer = Buffer::empty(area);
+            fill_column(
+                &mut buffer,
+                area,
+                1.0,
+                FillSpec {
+                    edge: theme.graph_fill,
+                    bg: theme.surface,
+                    theme: &theme,
+                    gradient: true,
+                },
+            );
+            let step = distance(buffer[(0, 1)].fg, theme.graph_fill);
+            assert!(step >= 30, "{name:?} gradient step is {step}");
+        }
     }
 
     #[test]
