@@ -479,13 +479,13 @@ fn process_info_lines(row: &crate::model::ProcRow) -> Vec<String> {
         format!("PID: {}", row.key.pid),
         format!("Kind: {}", row.kind.label()),
         format!("Status: {}", row.status.label()),
-        format!("Owner: {}", row.user.clone().unwrap_or_else(|| dash())),
+        format!("Owner: {}", row.user.clone().unwrap_or_else(dash)),
         format!("Priority: {}", row.priority.label()),
         format!(
             "Threads: {}",
             row.thread_count()
                 .map(|count| count.to_string())
-                .unwrap_or_else(|| dash())
+                .unwrap_or_else(dash)
         ),
         format!("Started: {}", duration(row.run_time_secs)),
         format!("CPU: {}", pct(row.cpu)),
@@ -497,14 +497,14 @@ fn process_info_lines(row: &crate::model::ProcRow) -> Vec<String> {
         ),
         format!(
             "Network: {}",
-            row.network.map(bit_rate).unwrap_or_else(|| dash())
+            row.network.map(bit_rate).unwrap_or_else(dash)
         ),
-        format!("GPU: {}", row.gpu.map(pct).unwrap_or_else(|| dash())),
+        format!("GPU: {}", row.gpu.map(pct).unwrap_or_else(dash)),
         format!(
             "Parent PID: {}",
             row.parent_pid
                 .map(|pid| pid.to_string())
-                .unwrap_or_else(|| dash())
+                .unwrap_or_else(dash)
         ),
         format!(
             "Command line: {}",
@@ -514,7 +514,7 @@ fn process_info_lines(row: &crate::model::ProcRow) -> Vec<String> {
                 row.cmd.clone()
             }
         ),
-        format!("Executable: {}", row.exe.clone().unwrap_or_else(|| dash())),
+        format!("Executable: {}", row.exe.clone().unwrap_or_else(dash)),
     ]
 }
 
