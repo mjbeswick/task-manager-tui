@@ -1,36 +1,99 @@
 # taskmgr
 
 A Windows 10 Task Manager clone for Linux and macOS terminals. Seven tabs, the
-Windows 10 and modern terminal themes, grouped process table, and 60 second graphs,
-driven from the keyboard or the mouse.
+Windows 10 and modern terminal themes, a grouped process table, and 60 second
+graphs, driven from the keyboard or the mouse.
+
+## Screenshots
+
+Processes, in the Windows Dark theme:
+
+![Processes tab showing grouped processes, per-process CPU, memory, disk, and network](docs/screenshots/processes.png)
+
+Performance, in the Phosphor theme:
+
+![Performance tab with a filled CPU chart, stat boxes, and per-core charts](docs/screenshots/performance.png)
+
+The sample below is the same layout at 100 columns:
 
 ```
- File  Options  View  Help                         / Filter
-Proc  Perf  History  Startup  Users  Details  Services
-                                                       15%      62%    5.3MB/s
-Name                                         Status    CPU ▼ Memory       Disk
-────────────────────────────────────────────────────────────────────────────────
-▾ Apps (2)
-  ▸ Safari (1)                                        6.4%   1.2 GB  15.0 KB/s
-  ▸ Ghostty (1)                                       2.1%   380 MB  15.0 KB/s
-▾ Background processes (2)
-  ▸ node (1)                                         12.5%   512 MB  15.0 KB/s
-  ▸ postgres (1)                                      1.1%  96.0 MB  15.0 KB/s
-▾ System processes (2)
-  ▸ WindowServer (1)                                  4.8%   1.2 GB  15.0 KB/s
-  ▸ launchd (1)                                       0.2%  12.0 MB  15.0 KB/s
- Fewer details  1/9                   CPU 15.2%   Memory 62.5%   Disk 5.3 MB/s
+ File  Options  View  Tabs  Process  Help                              / Filter
+┌─────────┐
+│Processes│ Performance  App history  Startup  Users  Details  Services
+┘         └─────────────────────────────────────────────────────────────────────────────────────────
+Name                                              Status    CPU ▼ Memory       Disk   Network  GPU
+────────────────────────────────────────────────────────────────────────────────────────────────────
+▾ Apps (6)                                                  27%      62%    5.3MB/s  12.0Mbps    -
+  ▸ Safari (1)                                             6.4%   1.2 GB  15.0 KB/s
+  ▸ Xcode (1)                                              3.2%   900 MB   5.5 KB/s
+  ▸ Ghostty (1)                                            2.1%   380 MB  15.0 KB/s
+▾ Background processes (6)
+  ▸ node (1)                                              12.5%   512 MB  15.0 KB/s
+  ⋮
+[e] End task   [K] Signal   [p] Priority   [f] Fewer details
+    1/  20            CPU  27.0%   Memory  62.5%   Disk    5.3 MB/s   Network   12.0 Mbps   Normal
 ```
 
 ## Install
 
+### Prerequisites
+
+- Rust 1.85 or newer with `cargo`. The crate uses the 2024 edition.
+- A terminal at least 40x12. 100x30 is comfortable.
+- Linux: systemd for the Services and Startup tabs, `who` for the Users tab, and
+  `/proc` for sampling. `pkexec` or `sudo` is only needed for elevation.
+- macOS: launchd for Services and Startup, and the system administrator prompt for
+  elevation.
+- A Unicode font for box drawing and block characters. Pass `--ascii` if it lacks
+  them.
+
+### Build
+
 ```sh
+git clone https://github.com/mjbeswick/task-manager-tui.git
+cd task-manager-tui
 cargo build --release
-install -m755 target/release/taskmgr /usr/local/bin/taskmgr
 ```
 
-Requires Rust 2024 edition (1.85 or newer). Linux needs systemd for the Services
-and Startup tabs; macOS uses launchd.
+### Install the binary
+
+Either copy the release binary somewhere on `PATH`:
+
+```sh
+mkdir -p ~/.local/bin
+install -m755 target/release/taskmgr ~/.local/bin/taskmgr
+```
+
+Or let Cargo put it in `~/.cargo/bin`:
+
+```sh
+cargo install --path .
+```
+
+Make sure the directory you chose is on `PATH`:
+
+```sh
+echo "$PATH" | tr ':' '\n' | grep -E '\.local/bin|\.cargo/bin'
+```
+
+### Verify
+
+```sh
+taskmgr --version
+```
+
+That prints `taskmgr 0.1.0`. `taskmgr --once` renders a single frame and exits,
+which is a quick way to check fonts and colours without a live session.
+
+### Uninstall
+
+```sh
+cargo uninstall task-manager-tui   # if installed with cargo install
+rm ~/.local/bin/taskmgr            # if installed by copying
+```
+
+Settings and history survive an uninstall. Delete them from the paths in
+[Where data lives](#where-data-lives) if you want a clean slate.
 
 ## Run
 
@@ -88,7 +151,8 @@ If graph blocks show as boxes or question marks, your font lacks them. Use
 
 Help > About shows the version, platform, active theme and colour depth, and where the
 settings and usage history live. The Tabs menu lists all seven tabs, so every tab stays
-reachable when a narrow terminal drops strip labels.
+reachable when a narrow terminal drops strip labels. The Process menu mirrors `e`, `E`,
+`K`, `p`, and the details dialog.
 
 ## Filter
 
@@ -127,6 +191,8 @@ dropped and the position counter in the status bar takes over.
   process or another user's process.
 - **Performance** - CPU, Memory, Disk, Network, and GPU panels with a bordered
   60 second graph, stat boxes, and one bordered graph per logical processor.
+  Per-processor charts are hidden when the panel cannot give each cell at least
+  four rows and ten columns, so a small terminal keeps the main graph readable.
   A full history always spans the whole plot, whatever the terminal width.
   Percentage graphs keep a fixed 0-100 scale, so a quiet graph looks quiet. Disk
   and network graphs scale to the largest value in the window and label that
@@ -138,7 +204,7 @@ dropped and the position counter in the status bar takes over.
   half-cell triangles to draw a sloped area edge. Per resource takes five distinct colours from the
   active theme, one per resource.
 - **App history** - CPU time, peak memory, and disk totals per application,
-  accumulated across restarts.
+  accumulated across restarts. `x` clears the selected entry.
 - **Startup** - login agents from launchd or XDG autostart, with their real
   enabled state.
 - **Users** - sessions from `who`, with each user's CPU, memory, and disk totals.
@@ -156,7 +222,10 @@ runs the whole interface as root. It elevates only the one command:
 - The password is never written to settings, history, logs, or the screen.
 - Cancelling or failing changes nothing.
 
-## Table readability
+Signalling a process tree elevates every descendant in one `kill` command, so a
+half-delivered tree cannot happen.
+
+## Themes and table readability
 
 The theme collection holds Windows Light, Windows Dark, Nord, Gruvbox Dark, Phosphor,
 Amber, Tokyo Night, Catppuccin Mocha, Solarized Light, and Rosé Pine. `t`, the Appearance
@@ -168,8 +237,8 @@ easier to follow across its columns. Processes escalate cell shading through 1, 
 beyond their text: Not responding is red, Suspended and Stopped are amber, service
 Running is green, and service Stopped is muted. A selected row always uses the
 selection colour, so the stripe and the status tone never compete with it. Every tab
-names its own keys in a line at the bottom of its content. One continuous line runs
-beneath the tabs. The active tab
+names its own keys in a line at the bottom of its content, and `F4` hides that line.
+One continuous line runs beneath the tabs. The active tab
 is drawn as an open box with box characters: a top border, vertical sides, and outward
 `┘` `└` corners that join the line, with an empty bottom. The 1-7 keys still jump to a
 tab even though the digits are not printed. Its label and box use the accent colour. The
@@ -221,8 +290,8 @@ days are dropped. Clear it with View > Clear app history.
 
 Every command is executed as a program plus an argument vector. Nothing goes
 through a shell, so a unit name with spaces or quotes cannot become a second
-command. Actions that need root are refused before anything runs, with a message
-saying so.
+command. An action that needs root is elevated as a single command, with the
+platform helper described above.
 
 ## Development
 
@@ -235,6 +304,14 @@ cargo test
 Golden frames live in `tests/snapshots/` with `insta`. After an intentional
 visual change, regenerate with `INSTA_UPDATE=always cargo test --test render`,
 then read the diff before committing.
+
+The screenshots are rendered from the `Snapshot::fixture()` demo data, not from a
+live machine:
+
+```sh
+cargo run --example screenshot -- processes dark docs/screenshots/processes.png
+cargo run --example screenshot -- performance phosphor docs/screenshots/performance.png
+```
 
 Sampling budget, measured on an M1 with 608 processes in release mode: worst
 refresh 65 ms, well inside the one second interval. The sampler thread skips a
