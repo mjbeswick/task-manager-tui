@@ -101,6 +101,14 @@ pub fn ramp(edge: Color, bg: Color, rise: f32) -> Color {
     }
 }
 
+#[derive(Clone, Copy)]
+pub struct FillSpec<'a> {
+    pub edge: Color,
+    pub bg: Color,
+    pub theme: &'a Theme,
+    pub gradient: bool,
+}
+
 /// One column's value on the 60 sample time axis. Wider plots interpolate
 /// between samples; narrower plots keep the peak of the samples they cover.
 pub fn sample_column(values: &[f32], column: usize, width: usize) -> Option<f32> {
@@ -150,6 +158,7 @@ pub struct PlotSpec<'a> {
     pub color: Color,
     pub bg: Color,
     pub theme: &'a Theme,
+    pub gradient: bool,
 }
 
 pub fn sparkline(buf: &mut Buffer, area: Rect, series: &Series, spec: PlotSpec<'_>) {
@@ -168,6 +177,7 @@ fn plot_series(buf: &mut Buffer, area: Rect, series: &Series, maximum: f32, spec
         color,
         bg,
         theme,
+        gradient,
         ..
     } = spec;
     let width = area.width as usize;
@@ -207,9 +217,12 @@ fn plot_series(buf: &mut Buffer, area: Rect, series: &Series, maximum: f32, spec
                 buf,
                 Rect::new(x, area.y, 1, area.height),
                 fraction,
-                color,
-                bg,
-                theme,
+                FillSpec {
+                    edge: color,
+                    bg,
+                    theme,
+                    gradient,
+                },
             ),
             ChartStyle::Blocks => {
                 let older = if column + 1 < width && fractions[column + 1].is_some() {
@@ -222,9 +235,12 @@ fn plot_series(buf: &mut Buffer, area: Rect, series: &Series, maximum: f32, spec
                     Rect::new(x, area.y, 1, area.height),
                     totals[column],
                     older,
-                    color,
-                    bg,
-                    theme,
+                    FillSpec {
+                        edge: color,
+                        bg,
+                        theme,
+                        gradient,
+                    },
                 );
             }
             ChartStyle::Line | ChartStyle::Dots if dots.is_some() => {
@@ -251,21 +267,29 @@ fn plot_series(buf: &mut Buffer, area: Rect, series: &Series, maximum: f32, spec
         }
     }
     if let Some(dots) = &dots {
-        dots.flush(buf, area, theme, color, bg);
+        dots.flush(
+            buf,
+            area,
+            FillSpec {
+                edge: color,
+                bg,
+                theme,
+                gradient,
+            },
+        );
     }
 }
 
 /// Paint one filled column, `fraction` of `height` rows tall, bottom-anchored.
 /// The top cell resolves to an eighth in the edge colour; cells under it use a
 /// lighter fill. ASCII and 16 colour modes round to half cells and skip the mix.
-pub fn fill_column(
-    buf: &mut Buffer,
-    column: Rect,
-    fraction: f32,
-    edge: Color,
-    bg: Color,
-    theme: &Theme,
-) {
+pub fn fill_column(buf: &mut Buffer, column: Rect, fraction: f32, spec: FillSpec<'_>) {
+    let FillSpec {
+        edge,
+        bg,
+        theme,
+        gradient,
+    } = spec;
     let (x, top, height) = (column.x, column.y, column.height);
     let glyphs = theme.glyphs();
     let coarse = theme.ascii || theme.coarse;
@@ -284,7 +308,7 @@ pub fn fill_column(
         } else {
             0.0
         };
-        let colour = if is_top || coarse {
+        let colour = if is_top || coarse || !gradient {
             edge
         } else {
             ramp(edge, bg, 0.05 + rise * 0.95)
@@ -342,10 +366,14 @@ fn blocks_column(
     column: Rect,
     total: usize,
     older: Option<usize>,
-    edge: Color,
-    bg: Color,
-    theme: &Theme,
+    spec: FillSpec<'_>,
 ) {
+    let FillSpec {
+        edge,
+        bg,
+        theme,
+        gradient,
+    } = spec;
     let glyphs = theme.glyphs();
     let (x, top, height) = (column.x, column.y, column.height);
     let coarse = theme.ascii || theme.coarse;
@@ -360,7 +388,7 @@ fn blocks_column(
         } else {
             0.0
         };
-        let colour = if is_top || coarse {
+        let colour = if is_top || coarse || !gradient {
             edge
         } else {
             ramp(edge, bg, 0.05 + rise * 0.95)
@@ -455,7 +483,13 @@ impl Dots {
         }
     }
 
-    fn flush(&self, buf: &mut Buffer, area: Rect, theme: &Theme, edge: Color, bg: Color) {
+    fn flush(&self, buf: &mut Buffer, area: Rect, spec: FillSpec<'_>) {
+        let FillSpec {
+            edge,
+            bg,
+            theme,
+            gradient,
+        } = spec;
         let columns = self.width.div_ceil(2);
         for cy in 0..self.height.div_ceil(4) {
             for cx in 0..columns {
@@ -464,7 +498,7 @@ impl Dots {
                 if mask == 0 {
                     continue;
                 }
-                let colour = if theme.coarse {
+                let colour = if theme.coarse || !gradient {
                     edge
                 } else {
                     ramp(edge, bg, (1.0 - self.peaks[cell]) * 0.85)
@@ -487,6 +521,7 @@ pub struct GraphSpec<'a> {
     pub footnote: &'a str,
     pub style: ChartStyle,
     pub color: ratatui::style::Color,
+    pub gradient: bool,
 }
 
 pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: GraphSpec<'_>) {
@@ -496,6 +531,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: 
         footnote,
         style,
         color,
+        gradient,
     } = spec;
     if area.width < 4 || area.height < 2 {
         return;
@@ -588,9 +624,12 @@ pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: 
                     buf,
                     Rect::new(x, column_top, 1, plot.height),
                     fraction,
-                    color,
-                    theme.surface,
-                    theme,
+                    FillSpec {
+                        edge: color,
+                        bg: theme.surface,
+                        theme,
+                        gradient,
+                    },
                 );
             }
             ChartStyle::Blocks => {
@@ -604,9 +643,12 @@ pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: 
                     Rect::new(x, column_top, 1, plot.height),
                     totals[column],
                     older,
-                    color,
-                    theme.surface,
-                    theme,
+                    FillSpec {
+                        edge: color,
+                        bg: theme.surface,
+                        theme,
+                        gradient,
+                    },
                 );
             }
             ChartStyle::Line | ChartStyle::Dots if dots.is_some() => {
@@ -644,7 +686,16 @@ pub fn draw(buf: &mut Buffer, area: Rect, series: &Series, theme: &Theme, spec: 
         previous = Some(level);
     }
     if let Some(dots) = &dots {
-        dots.flush(buf, plot, theme, color, theme.surface);
+        dots.flush(
+            buf,
+            plot,
+            FillSpec {
+                edge: color,
+                bg: theme.surface,
+                theme,
+                gradient,
+            },
+        );
     }
 
     let label_style = ratatui::style::Style::default()
@@ -709,6 +760,7 @@ mod tests {
                 footnote: "",
                 style: ChartStyle::Filled,
                 color: theme.graph_fill,
+                gradient: true,
             },
         );
         let bottom = buffer[(9, 3)].symbol().to_string();
@@ -735,6 +787,7 @@ mod tests {
                 footnote: "",
                 style: ChartStyle::Filled,
                 color: theme.graph_fill,
+                gradient: true,
             },
         );
         // The newest sample sits at the right edge, the left is untouched grid.
@@ -762,6 +815,7 @@ mod tests {
                 footnote: "",
                 style: ChartStyle::Filled,
                 color: theme.graph_fill,
+                gradient: true,
             },
         );
         assert_eq!(buffer[(0, 9)].symbol(), "█", "left edge is drawn");
@@ -788,6 +842,7 @@ mod tests {
                 footnote: "",
                 style: ChartStyle::Filled,
                 color: theme.graph_fill,
+                gradient: true,
             },
         );
         assert_eq!(buffer[(99, 9)].symbol(), "█");
@@ -812,6 +867,7 @@ mod tests {
                 footnote: "",
                 style: ChartStyle::Line,
                 color: theme.graph_fill,
+                gradient: true,
             },
         );
         assert_eq!(buffer[(59, 0)].symbol(), theme.glyphs().bullet.to_string());
@@ -836,6 +892,7 @@ mod tests {
                 footnote: "",
                 style: ChartStyle::Filled,
                 color: theme.graph_fill,
+                gradient: true,
             },
         );
         assert_ne!(buffer[(9, 3)].symbol().to_string(), "█");
@@ -852,9 +909,12 @@ mod tests {
         dots.flush(
             &mut buffer,
             Rect::new(0, 0, 2, 1),
-            &theme,
-            theme.graph_fill,
-            theme.surface,
+            FillSpec {
+                edge: theme.graph_fill,
+                bg: theme.surface,
+                theme: &theme,
+                gradient: true,
+            },
         );
         assert_eq!(buffer[(0, 0)].symbol(), "⠉");
         assert_eq!(buffer[(1, 0)].symbol(), "⢀");
@@ -870,9 +930,12 @@ mod tests {
         dots.flush(
             &mut buffer,
             Rect::new(0, 0, 2, 1),
-            &theme,
-            theme.graph_fill,
-            theme.surface,
+            FillSpec {
+                edge: theme.graph_fill,
+                bg: theme.surface,
+                theme: &theme,
+                gradient: true,
+            },
         );
         assert_eq!(
             buffer[(1, 0)].fg,
@@ -893,9 +956,12 @@ mod tests {
         dots.flush(
             &mut buffer,
             Rect::new(0, 0, 2, 1),
-            &theme,
-            theme.graph_fill,
-            theme.surface,
+            FillSpec {
+                edge: theme.graph_fill,
+                bg: theme.surface,
+                theme: &theme,
+                gradient: true,
+            },
         );
         assert_eq!(buffer[(0, 0)].fg, theme.graph_fill);
         assert_eq!(buffer[(1, 0)].fg, theme.graph_fill);
@@ -939,9 +1005,12 @@ mod tests {
             &mut buffer,
             area,
             1.0,
-            theme.graph_fill,
-            theme.surface,
-            &theme,
+            FillSpec {
+                edge: theme.graph_fill,
+                bg: theme.surface,
+                theme: &theme,
+                gradient: true,
+            },
         );
         let colours: std::collections::HashSet<_> = buffer
             .content
@@ -962,9 +1031,12 @@ mod tests {
         dots.flush(
             &mut buffer,
             Rect::new(0, 0, 2, 1),
-            &theme,
-            theme.graph_fill,
-            theme.surface,
+            FillSpec {
+                edge: theme.graph_fill,
+                bg: theme.surface,
+                theme: &theme,
+                gradient: true,
+            },
         );
         assert_ne!(buffer[(0, 0)].fg, buffer[(1, 0)].fg);
     }
@@ -1007,9 +1079,12 @@ mod tests {
             &mut buffer,
             Rect::new(0, 0, 1, 2),
             fraction,
-            theme.graph_fill,
-            theme.surface,
-            theme,
+            FillSpec {
+                edge: theme.graph_fill,
+                bg: theme.surface,
+                theme,
+                gradient: true,
+            },
         );
         buffer
     }
@@ -1048,6 +1123,7 @@ mod tests {
                 footnote: "",
                 style: ChartStyle::Line,
                 color: theme.graph_fill,
+                gradient: true,
             },
         );
         let symbols: Vec<char> = buffer
@@ -1073,9 +1149,12 @@ mod tests {
             area,
             total,
             Some(older),
-            theme.graph_fill,
-            theme.surface,
-            &theme,
+            FillSpec {
+                edge: theme.graph_fill,
+                bg: theme.surface,
+                theme: &theme,
+                gradient: true,
+            },
         );
         buffer
     }
@@ -1213,6 +1292,7 @@ mod tests {
                 footnote: "",
                 style: ChartStyle::Blocks,
                 color: theme.graph_fill,
+                gradient: true,
             },
         );
         assert!(symbols(&buffer).contains(&'▙'), "falling join at the right");
@@ -1236,6 +1316,7 @@ mod tests {
                 color: theme.graph_fill,
                 bg: theme.surface,
                 theme: &theme,
+                gradient: true,
             },
         );
         symbols(&buffer)
@@ -1286,6 +1367,7 @@ mod tests {
                 color: theme.graph_fill,
                 bg: theme.surface,
                 theme: &theme,
+                gradient: true,
             },
         );
         let colours: std::collections::HashSet<_> = buffer
@@ -1298,6 +1380,32 @@ mod tests {
     }
 
     #[test]
+    fn a_flat_fill_uses_one_colour() {
+        let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
+        let area = Rect::new(0, 0, 1, 8);
+        let mut buffer = Buffer::empty(area);
+        fill_column(
+            &mut buffer,
+            area,
+            1.0,
+            FillSpec {
+                edge: theme.graph_fill,
+                bg: theme.surface,
+                theme: &theme,
+                gradient: false,
+            },
+        );
+        let colours: std::collections::HashSet<_> = buffer
+            .content
+            .iter()
+            .filter(|cell| cell.symbol() != " ")
+            .map(|cell| cell.fg)
+            .collect();
+        assert_eq!(colours.len(), 1, "flat fill");
+        assert!(colours.contains(&theme.graph_fill));
+    }
+
+    #[test]
     fn filled_columns_fade_toward_the_top() {
         let theme = crate::theme::Theme::from_name(crate::theme::ThemeName::Light, false);
         let area = Rect::new(0, 0, 1, 8);
@@ -1306,9 +1414,12 @@ mod tests {
             &mut buffer,
             area,
             1.0,
-            theme.graph_fill,
-            theme.surface,
-            &theme,
+            FillSpec {
+                edge: theme.graph_fill,
+                bg: theme.surface,
+                theme: &theme,
+                gradient: true,
+            },
         );
         let below_tip = buffer[(0, 1)].fg;
         assert_ne!(below_tip, theme.graph_fill, "a gradient ran");

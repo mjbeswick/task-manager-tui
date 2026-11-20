@@ -50,7 +50,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
         Dialog::Run { .. } => (max_width.min(52), 9),
         Dialog::Priority { .. } => (max_width.min(52), 6),
         Dialog::Signal { .. } => (max_width.min(52), 10),
-        Dialog::Appearance { .. } => (max_width.min(46), 9),
+        Dialog::Appearance { .. } => (max_width.min(46), 10),
         Dialog::Properties { lines, .. } => (
             max_width,
             (lines.len() as u16 + 5).min(area.height.saturating_sub(2)),
@@ -218,6 +218,10 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
                 ("Theme", app.theme_name.label().to_string()),
                 ("Chart style", app.chart_style.label().to_string()),
                 ("Chart colour", app.chart_color.label().to_string()),
+                (
+                    "Gradient",
+                    if app.chart_gradient { "On" } else { "Off" }.to_string(),
+                ),
             ];
             for (index, (label, value)) in rows.iter().enumerate() {
                 let row = inner.y + 1 + index as u16;

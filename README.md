@@ -63,7 +63,7 @@ If graph blocks show as boxes or question marks, your font lacks them. Use
 | `q`, `Ctrl+C` | Quit |
 | `F10`, `Alt+F`/`Alt+O`/`Alt+V`/`Alt+H` | Menu bar, arrows navigate, Enter activates |
 | `F1` | Keyboard help |
-| `F2` | Appearance: theme, chart style, chart colour |
+| `F2` | Appearance: theme, chart style, chart colour, chart gradient |
 | `F5` | Refresh now |
 | `1`-`7`, `Tab`, `Shift+Tab` | Switch tabs |
 | `Up`/`Down` or `j`/`k`, `PgUp`/`PgDn`, `Ctrl+d`/`Ctrl+u` | Move and scroll |
@@ -126,8 +126,8 @@ dropped and the position counter in the status bar takes over.
   maximum. Filled charts use a gamma-correct colour ramp, line and dot charts take
   the colour of the highest sample in each braille cell, and resampling interpolates
   when the plot is wide and keeps peaks when it is narrow. View > Appearance, or F2,
-  switches between Filled, Line, Dots, and Blocks rendering and chart colours: Teal,
-  Blue, Orange, Magenta, Mono, or Theme. Blocks fills with quadrants, eighth blocks, and
+  switches between Filled, Line, Dots, and Blocks rendering, chart colours Teal, Blue,
+  Orange, Magenta, Mono, or Theme, and turns chart gradients on or off. Blocks fills with quadrants, eighth blocks, and
   half-cell triangles to draw a sloped area edge. Per resource takes five distinct colours from the
   active theme, one per resource.
 - **App history** - CPU time, peak memory, and disk totals per application,

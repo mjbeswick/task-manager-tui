@@ -111,6 +111,7 @@ fn draw_rail(buf: &mut Buffer, area: Rect, app: &App, narrow: bool, hits: &mut H
                     color,
                     bg,
                     theme,
+                    gradient: app.chart_gradient,
                 },
             );
             put(buf, area.x + 2, y + 2, &value, value_style, area);
@@ -198,6 +199,7 @@ fn chart(buf: &mut Buffer, area: Rect, app: &App, series: &Series, max: f32, lab
             footnote: "60 seconds",
             style: app.chart_style,
             color: app.chart_color.color(theme, app.performance.resource),
+            gradient: app.chart_gradient,
         },
     );
 }
@@ -316,6 +318,7 @@ fn draw_mini(buf: &mut Buffer, area: Rect, series: &Series, app: &App) {
             color,
             bg: theme.surface,
             theme,
+            gradient: app.chart_gradient,
         },
     );
 }

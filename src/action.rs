@@ -255,7 +255,7 @@ impl App {
             }
             Target::AppearanceRow(index) => {
                 if let Some(Dialog::Appearance { selected }) = &mut self.dialog {
-                    *selected = index.min(2);
+                    *selected = index.min(3);
                 }
                 Vec::new()
             }
@@ -612,7 +612,7 @@ impl App {
                         *selected = (*selected as isize + delta).rem_euclid(count) as usize;
                     }
                     Some(Dialog::Appearance { selected }) => {
-                        *selected = (*selected as isize + delta).rem_euclid(3) as usize;
+                        *selected = (*selected as isize + delta).rem_euclid(4) as usize;
                     }
                     _ => {}
                 }
@@ -700,6 +700,11 @@ impl App {
                                 % crate::model::ChartStyle::ALL.len()]
                         };
                         self.set_chart_style(style);
+                        effects.push(Effect::PersistSettings);
+                    }
+                    3 => {
+                        let next = !self.chart_gradient;
+                        self.set_chart_gradient(next);
                         effects.push(Effect::PersistSettings);
                     }
                     _ => {
@@ -1507,6 +1512,20 @@ mod tests {
         assert!(view.1.iter().any(|(label, item)| {
             *label == "Appearance..." && *item == crate::app::MenuItem::Appearance
         }));
+    }
+
+    #[test]
+    fn appearance_toggles_and_persists_the_gradient() {
+        let mut app = app();
+        assert!(app.chart_gradient);
+        app.dialog = Some(Dialog::Appearance { selected: 3 });
+        let effects = app.dispatch(Action::Confirm);
+        assert!(!app.chart_gradient);
+        assert!(!app.settings.chart_gradient);
+        assert!(effects.contains(&Effect::PersistSettings));
+        app.dialog = Some(Dialog::Appearance { selected: 3 });
+        app.dispatch(Action::Confirm);
+        assert!(app.chart_gradient);
     }
 
     #[test]

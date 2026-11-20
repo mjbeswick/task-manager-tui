@@ -502,6 +502,7 @@ pub struct App {
     pub theme_name: ThemeName,
     pub chart_style: ChartStyle,
     pub chart_color: ChartColor,
+    pub chart_gradient: bool,
     pub ascii: bool,
     pub theme: Theme,
     pub depth: crate::theme::ColorDepth,
@@ -547,6 +548,7 @@ impl App {
             theme_name,
             chart_style,
             chart_color,
+            chart_gradient: settings.chart_gradient,
             ascii,
             theme: Theme::from_name(theme_name, ascii),
             depth: crate::theme::ColorDepth::default(),
@@ -613,6 +615,11 @@ impl App {
     pub fn set_chart_style(&mut self, style: ChartStyle) {
         self.chart_style = style;
         self.settings.chart_style = style.key().to_string();
+    }
+
+    pub fn set_chart_gradient(&mut self, on: bool) {
+        self.chart_gradient = on;
+        self.settings.chart_gradient = on;
     }
 
     pub fn set_chart_color(&mut self, color: ChartColor) {
