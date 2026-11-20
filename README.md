@@ -74,6 +74,7 @@ If graph blocks show as boxes or question marks, your font lacks them. Use
 | `/` | Filter the list. `Enter` keeps the filter, `Esc` clears it |
 | `Delete`, `e` | End task |
 | `E` | End process tree |
+| `x` | Clear the selected app history entry |
 | `K` | Send a signal: TERM, KILL, INT, HUP, STOP, CONT, optionally to the tree |
 | `f` | Fewer details |
 | `t` | Next colour theme |

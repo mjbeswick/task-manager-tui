@@ -353,6 +353,8 @@ pub enum PendingAction {
     Startup(String, bool),
     Priority(ProcKey, i32),
     Signal(ProcKey, Signal, bool),
+    ClearUsage(String),
+    EndApp(String),
 }
 
 #[derive(Debug, Clone)]
@@ -516,6 +518,7 @@ pub enum Effect {
         enabled: bool,
     },
     ClearHistory,
+    ClearUsage(String),
     Priority {
         key: ProcKey,
         nice: i32,

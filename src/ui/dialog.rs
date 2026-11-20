@@ -24,6 +24,7 @@ const HELP: &[(&str, &str)] = &[
     ("<, >, r", "Sort column, reverse"),
     ("/", "Filter"),
     ("Delete, e, E", "End task, end tree"),
+    ("x", "Clear the selected app history entry"),
     ("K", "Send a signal"),
     ("f", "Fewer details"),
     ("t", "Next colour theme"),

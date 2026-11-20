@@ -62,6 +62,7 @@ pub enum Action {
     Confirm,
     Help,
     DeleteHistory,
+    ClearUsageEntry,
     RunSubmit,
     RunChar(char),
     RunBackspace,
@@ -173,6 +174,7 @@ pub fn translate(app: &App, key: KeyEvent) -> Option<Action> {
         KeyCode::Char('R') => Action::ServiceRestart,
         KeyCode::Char('i') => Action::Inspect,
         KeyCode::Char('p') => Action::SetPriority,
+        KeyCode::Char('x') => Action::ClearUsageEntry,
         KeyCode::Char('a') => Action::SetAffinity,
         KeyCode::Esc => Action::Cancel,
         _ => return None,
@@ -404,6 +406,10 @@ mod tests {
             Some(Action::Collapse)
         );
         assert_eq!(translate(&app, key(KeyCode::Char('?'))), Some(Action::Help));
+        assert_eq!(
+            translate(&app, key(KeyCode::Char('x'))),
+            Some(Action::ClearUsageEntry)
+        );
         assert_eq!(
             translate(&app, KeyEvent::new(KeyCode::Char('v'), KeyModifiers::ALT)),
             Some(Action::OpenMenu(2))

@@ -31,11 +31,12 @@ use sysinfo::{
 const SERVICES_TTL: Duration = Duration::from_secs(5);
 const HISTORY_FLUSH_EVERY: Duration = Duration::from_secs(30);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
     SetInterval(Option<Duration>),
     RefreshNow,
     ClearHistory,
+    ClearApp(String),
     Stop,
 }
 
@@ -73,6 +74,10 @@ impl Sampler {
         let _ = self.commands.send(Command::ClearHistory);
     }
 
+    pub fn clear_app(&self, name: &str) {
+        let _ = self.commands.send(Command::ClearApp(name.to_string()));
+    }
+
     pub fn stop(&mut self) {
         let _ = self.commands.send(Command::Stop);
         if let Some(handle) = self.handle.take() {
@@ -104,6 +109,11 @@ fn run(mut inner: Inner, initial: Option<Duration>, tx: Sender<Snapshot>, rx: Re
             }
             Ok(Command::ClearHistory) => {
                 inner.history.clear();
+                let _ = inner.history.flush();
+                let _ = tx.send(inner.sample());
+            }
+            Ok(Command::ClearApp(name)) => {
+                inner.history.remove(&name);
                 let _ = inner.history.flush();
                 let _ = tx.send(inner.sample());
             }

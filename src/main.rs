@@ -273,6 +273,10 @@ fn apply_effects(app: &mut App, sampler: &mut Sampler, effects: Vec<Effect>) -> 
                 sampler.clear_history();
                 app.notice("Usage history cleared.");
             }
+            Effect::ClearUsage(name) => {
+                sampler.clear_app(&name);
+                app.notice(format!("Cleared history for {name}."));
+            }
             Effect::Signal { key, signal, tree } => {
                 signal_process(app, key, signal, tree);
             }

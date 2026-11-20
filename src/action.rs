@@ -105,6 +105,12 @@ impl App {
             | Action::FilterClear
             | Action::FilterDone => {}
             Action::EndTask | Action::EndTree => {
+                if self.tab == Tab::AppHistory {
+                    if action == Action::EndTask {
+                        self.end_selected_app();
+                    }
+                    return effects;
+                }
                 let tree = action == Action::EndTree;
                 if let Some(row) = self.selected_process() {
                     effects.extend(self.confirm_end_task(&row, tree));
@@ -151,6 +157,11 @@ impl App {
             Action::Inspect => self.inspect(),
             Action::SetPriority => self.open_priority_dialog(),
             Action::OpenSignal => self.open_signal_dialog(),
+            Action::ClearUsageEntry => {
+                if self.tab == Tab::AppHistory {
+                    self.confirm_clear_usage();
+                }
+            }
             Action::SetAffinity => {
                 self.notice("Set affinity is not supported on Linux or macOS.");
             }
@@ -194,6 +205,7 @@ impl App {
             | Action::PriorityChar(_)
             | Action::PriorityBackspace
             | Action::PriorityStep(_) => {}
+            Action::ClearUsageEntry => {}
         }
         effects
     }
@@ -411,6 +423,53 @@ impl App {
             Tab::AppHistory => self.sync_history_public(),
             _ => {}
         }
+    }
+
+    fn confirm_clear_usage(&mut self) {
+        let Some(row) = self.selected_usage() else {
+            self.notice("Select an application first.");
+            return;
+        };
+        self.dialog = Some(Dialog::Confirm {
+            title: "Clear usage history".to_string(),
+            message: format!(
+                "Clear {}'s accumulated CPU time, peak memory, and disk totals? This cannot be undone.",
+                row.name
+            ),
+            confirm_label: "Clear entry".to_string(),
+            action: PendingAction::ClearUsage(row.name),
+        });
+    }
+
+    fn end_selected_app(&mut self) {
+        let Some(row) = self.selected_usage() else {
+            self.notice("Select an application first.");
+            return;
+        };
+        let count = self.app_processes(&row.name).len();
+        if count == 0 {
+            self.notice(format!("{} has no running processes.", row.name));
+            return;
+        }
+        self.dialog = Some(Dialog::Confirm {
+            title: "End app".to_string(),
+            message: format!(
+                "End {}'s {count} running process{}? Unsaved work will be lost.",
+                row.name,
+                if count == 1 { "" } else { "es" }
+            ),
+            confirm_label: "End app".to_string(),
+            action: PendingAction::EndApp(row.name),
+        });
+    }
+
+    fn app_processes(&self, name: &str) -> Vec<ProcRow> {
+        self.snapshot
+            .processes
+            .iter()
+            .filter(|process| process.kind == Kind::App && process.name == name)
+            .cloned()
+            .collect()
     }
 
     fn open_priority_dialog(&mut self) {
@@ -798,6 +857,22 @@ impl App {
                             tree: true,
                         }),
                         PendingAction::ClearHistory => effects.push(Effect::ClearHistory),
+                        PendingAction::ClearUsage(name) => effects.push(Effect::ClearUsage(name)),
+                        PendingAction::EndApp(name) => {
+                            let processes = self.app_processes(&name);
+                            let pids: std::collections::HashSet<u32> =
+                                processes.iter().map(|row| row.key.pid).collect();
+                            for row in processes {
+                                if row.parent_pid.is_some_and(|parent| pids.contains(&parent)) {
+                                    continue;
+                                }
+                                effects.push(Effect::Signal {
+                                    key: row.key,
+                                    signal: Signal::Term,
+                                    tree: false,
+                                });
+                            }
+                        }
                         PendingAction::Service(name, action) => {
                             effects.push(Effect::Service { name, action })
                         }
@@ -1689,6 +1764,64 @@ mod tests {
                 .contains("not supported on Linux or macOS")
         );
         assert!(app.dialog.is_none());
+    }
+
+    #[test]
+    fn app_history_clears_one_entry_and_ends_an_app() {
+        let mut app = app();
+        app.tab = Tab::AppHistory;
+        app.sync_history_public();
+        let row = app.history_rows()[0].name.clone();
+        app.dispatch(Action::ClearUsageEntry);
+        assert!(matches!(app.dialog, Some(Dialog::Confirm { .. })));
+        let effects = app.dispatch(Action::Confirm);
+        assert!(matches!(
+            effects.as_slice(),
+            [Effect::ClearUsage(name)] if *name == row
+        ));
+
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        app.tab = Tab::AppHistory;
+        app.sync_history_public();
+        let safari = app
+            .history_rows()
+            .iter()
+            .position(|row| row.name == "Safari")
+            .unwrap();
+        app.app_history.selected = safari;
+        app.app_history.key = Some("Safari".into());
+        app.dispatch(Action::EndTask);
+        assert!(matches!(app.dialog, Some(Dialog::Confirm { .. })));
+        let effects = app.dispatch(Action::Confirm);
+        assert!(
+            effects
+                .iter()
+                .any(|effect| matches!(effect, Effect::Signal { .. })),
+            "no signals: {effects:?}"
+        );
+    }
+
+    #[test]
+    fn app_history_without_processes_only_notices() {
+        let mut snapshot = crate::model::Snapshot::fixture();
+        snapshot.app_usage.push(crate::model::AppUsage {
+            name: "Ghost".into(),
+            ..snapshot.app_usage[0].clone()
+        });
+        let mut app = app();
+        app.apply_snapshot(snapshot);
+        app.tab = Tab::AppHistory;
+        app.sync_history_public();
+        let ghost = app
+            .history_rows()
+            .iter()
+            .position(|row| row.name == "Ghost")
+            .unwrap();
+        app.app_history.selected = ghost;
+        app.app_history.key = Some("Ghost".into());
+        app.dispatch(Action::EndTask);
+        assert!(app.dialog.is_none());
+        assert!(app.notices.last().unwrap().contains("no running processes"));
     }
 
     #[test]

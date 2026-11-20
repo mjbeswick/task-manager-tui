@@ -602,7 +602,7 @@ fn tab_hints(app: &App) -> String {
             "[Enter] {} details",
             if app.users.panel { "Hide" } else { "Show" }
         ),
-        Tab::AppHistory => "[Enter] Properties".to_string(),
+        Tab::AppHistory => "[Enter] Properties   [e] End app   [x] Clear history".to_string(),
         Tab::Performance => "[Up/Down] Resource   [F2] Appearance".to_string(),
     }
 }

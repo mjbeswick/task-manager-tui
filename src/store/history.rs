@@ -150,6 +150,13 @@ impl History {
         self.dirty = true;
     }
 
+    /// Remove one application's totals, keeping every other entry.
+    pub fn remove(&mut self, name: &str) {
+        if self.apps.remove(name).is_some() {
+            self.dirty = true;
+        }
+    }
+
     pub fn flush(&mut self) -> Result<(), String> {
         let Some(path) = self.path.clone() else {
             return Err("no data directory is available".into());
@@ -290,6 +297,17 @@ mod tests {
         let history = History::load_from(path);
         assert!(!history.apps.contains_key("Old"));
         assert!(history.apps.contains_key("New"));
+    }
+
+    #[test]
+    fn remove_one_keeps_the_others() {
+        let mut history = History::default();
+        history.apps.insert("Safari".into(), AppRecord::default());
+        history.apps.insert("Ghostty".into(), AppRecord::default());
+        history.remove("Safari");
+        assert!(!history.apps.contains_key("Safari"));
+        assert!(history.apps.contains_key("Ghostty"));
+        assert!(history.is_dirty());
     }
 
     #[test]
