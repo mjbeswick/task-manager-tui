@@ -101,7 +101,18 @@ fn draw_rail(buf: &mut Buffer, area: Rect, app: &App, narrow: bool, hits: &mut H
             let (series, max) = rail_series(app, *resource);
             let color = app.chart_color.color(theme, *resource);
             let spark = Rect::new(area.x + 2, y + 1, area.width.saturating_sub(3), 1);
-            graph::sparkline(buf, spark, series, max, color, bg, theme, app.chart_style);
+            graph::sparkline(
+                buf,
+                spark,
+                series,
+                graph::PlotSpec {
+                    max,
+                    style: app.chart_style,
+                    color,
+                    bg,
+                    theme,
+                },
+            );
             put(buf, area.x + 2, y + 2, &value, value_style, area);
         } else {
             let right = area.x + area.width - 1;
@@ -299,11 +310,13 @@ fn draw_mini(buf: &mut Buffer, area: Rect, series: &Series, app: &App) {
         buf,
         area,
         series,
-        100.0,
-        color,
-        theme.surface,
-        theme,
-        app.chart_style,
+        graph::PlotSpec {
+            max: 100.0,
+            style: app.chart_style,
+            color,
+            bg: theme.surface,
+            theme,
+        },
     );
 }
 

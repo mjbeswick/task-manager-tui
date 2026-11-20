@@ -143,35 +143,32 @@ pub fn sample_column(values: &[f32], column: usize, width: usize) -> Option<f32>
 
 /// Draw the newest samples of `series` as a sparkline across `area`.
 /// `max` of 0 autoscales like the main graph, with 10% headroom.
-pub fn sparkline(
-    buf: &mut Buffer,
-    area: Rect,
-    series: &Series,
-    max: f32,
-    color: Color,
-    bg: Color,
-    theme: &Theme,
-    style: ChartStyle,
-) {
-    let maximum = if max > 0.0 {
-        max
+pub struct PlotSpec<'a> {
+    pub max: f32,
+    pub style: ChartStyle,
+    pub color: Color,
+    pub bg: Color,
+    pub theme: &'a Theme,
+}
+
+pub fn sparkline(buf: &mut Buffer, area: Rect, series: &Series, spec: PlotSpec<'_>) {
+    let maximum = if spec.max > 0.0 {
+        spec.max
     } else {
         (series.max() * 1.1).max(f32::EPSILON)
     };
-    plot_series(buf, area, series, maximum, style, color, bg, theme);
+    plot_series(buf, area, series, maximum, spec);
 }
 
 /// Plot one column per sample, newest on the right, without grid or labels.
-fn plot_series(
-    buf: &mut Buffer,
-    area: Rect,
-    series: &Series,
-    maximum: f32,
-    style: ChartStyle,
-    color: Color,
-    bg: Color,
-    theme: &Theme,
-) {
+fn plot_series(buf: &mut Buffer, area: Rect, series: &Series, maximum: f32, spec: PlotSpec<'_>) {
+    let PlotSpec {
+        style,
+        color,
+        bg,
+        theme,
+        ..
+    } = spec;
     let width = area.width as usize;
     let height = area.height as usize;
     if width == 0 || height == 0 {
@@ -1231,11 +1228,13 @@ mod tests {
             &mut buffer,
             area,
             &series,
-            100.0,
-            theme.graph_fill,
-            theme.surface,
-            &theme,
-            style,
+            PlotSpec {
+                max: 100.0,
+                style,
+                color: theme.graph_fill,
+                bg: theme.surface,
+                theme: &theme,
+            },
         );
         symbols(&buffer)
     }
@@ -1279,11 +1278,13 @@ mod tests {
             &mut buffer,
             area,
             &series,
-            100.0,
-            theme.graph_fill,
-            theme.surface,
-            &theme,
-            ChartStyle::Filled,
+            PlotSpec {
+                max: 100.0,
+                style: ChartStyle::Filled,
+                color: theme.graph_fill,
+                bg: theme.surface,
+                theme: &theme,
+            },
         );
         let colours: std::collections::HashSet<_> = buffer
             .content
