@@ -91,8 +91,8 @@ pub fn mix(a: Color, b: Color, toward_b: f32) -> Color {
 /// A three-stop ramp: chart colour at the base, a dim tint in the middle,
 /// and the surface at the top. `rise` is 0 at the base and 1 at the top.
 pub fn ramp(edge: Color, bg: Color, rise: f32) -> Color {
-    let mid = crate::theme::mix_linear(edge, bg, 0.12);
-    let top = crate::theme::mix_linear(edge, bg, 0.28);
+    let mid = crate::theme::mix_linear(edge, bg, 0.22);
+    let top = crate::theme::mix_linear(edge, bg, 0.50);
     let rise = rise.clamp(0.0, 1.0);
     if rise < 0.5 {
         crate::theme::mix_linear(edge, mid, rise * 2.0)
@@ -1431,8 +1431,12 @@ mod tests {
                 + (a.2 as i32 - b.2 as i32).abs()
         };
         assert!(
-            distance(below_tip, theme.graph_fill) < distance(below_tip, theme.surface),
-            "the top stays closer to the chart colour"
+            distance(below_tip, theme.graph_fill) >= 25,
+            "the top is visibly lighter than the base"
+        );
+        assert!(
+            distance(below_tip, theme.surface) >= 10,
+            "the top is not the surface colour"
         );
     }
 
