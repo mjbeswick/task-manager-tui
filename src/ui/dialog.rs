@@ -12,12 +12,13 @@ const HELP: &[(&str, &str)] = &[
     ("q, Ctrl+C", "Quit"),
     ("F10, Alt+F/O/V/H", "Menu bar"),
     ("F1", "This help"),
-    ("F2", "Appearance: theme, style, colour"),
+    ("F2", "Appearance: theme, style, colour, gradient"),
     ("F5", "Refresh now"),
     ("1-7, Tab", "Switch tabs"),
     ("Up/Down, j/k, PgUp/PgDn", "Move and scroll"),
     ("g / G, Ctrl+d / Ctrl+u", "Top, bottom, half page"),
     ("Enter", "Process details, or expand a group"),
+    ("i", "Inspect, or process details"),
     ("Left/Right, h/l", "Collapse, expand, inspect"),
     ("Mouse", "Click away closes a menu; wheel scrolls"),
     ("<, >, r", "Sort column, reverse"),
@@ -29,7 +30,7 @@ const HELP: &[(&str, &str)] = &[
     ("+, -", "Update speed"),
     ("p", "Set priority by nice value"),
     ("a", "Set affinity (unavailable)"),
-    ("Space", "Toggle a startup entry"),
+    ("Space", "Startup entry, or process group"),
     ("s, S, R", "Start, stop, restart a service"),
 ];
 
@@ -47,6 +48,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
             (max_width, lines.len() as u16 + 5)
         }
         Dialog::Help => (max_width.min(72), HELP.len() as u16 + 4),
+        Dialog::About => (max_width.min(72), 12),
         Dialog::Run { .. } => (max_width.min(52), 9),
         Dialog::Priority { .. } => (max_width.min(52), 6),
         Dialog::Signal { .. } => (max_width.min(52), 10),
@@ -133,6 +135,33 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
                     inner.x + 2,
                     row,
                     line,
+                    Style::default().fg(theme.text).bg(theme.surface),
+                    inner,
+                );
+            }
+            let y = inner.y + inner.height.saturating_sub(2);
+            put(
+                buf,
+                inner.x + 2,
+                y,
+                "[Esc] Close",
+                Style::default().fg(theme.accent).bg(theme.surface),
+                inner,
+            );
+            hits.add(Rect::new(inner.x + 2, y, 11, 1), Target::DialogClose);
+        }
+        Dialog::About => {
+            let lines = about_lines(app);
+            for (index, line) in lines.iter().enumerate() {
+                let row = inner.y + 1 + index as u16;
+                if row >= inner.y + inner.height - 1 {
+                    break;
+                }
+                put(
+                    buf,
+                    inner.x + 2,
+                    row,
+                    &truncate_line(line, inner.width.saturating_sub(3) as usize),
                     Style::default().fg(theme.text).bg(theme.surface),
                     inner,
                 );
@@ -471,6 +500,24 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
     }
 }
 
+fn about_lines(app: &App) -> Vec<String> {
+    let path = |path: Option<std::path::PathBuf>| {
+        path.map(|path| path.display().to_string())
+            .unwrap_or_else(|| DASH.to_string())
+    };
+    vec![
+        format!("Task Manager {}", env!("CARGO_PKG_VERSION")),
+        format!("Platform: {}", std::env::consts::OS),
+        format!("Theme: {}", app.theme_name.label()),
+        format!("Colour depth: {}", app.depth.label()),
+        format!("Settings: {}", path(crate::store::settings::config_path())),
+        format!(
+            "History: {}",
+            path(crate::store::history::History::data_path())
+        ),
+    ]
+}
+
 fn process_info_lines(row: &crate::model::ProcRow) -> Vec<String> {
     let dash = || DASH.to_string();
     vec![
@@ -557,6 +604,8 @@ mod tests {
         let screen = render(&app, 100, 40);
         assert!(screen.contains("Keyboard shortcuts"));
         assert!(screen.contains("End task, end tree"));
+        assert!(screen.contains("Inspect"));
+        assert!(screen.contains("gradient"));
         assert!(screen.contains("F10"));
     }
 
@@ -595,6 +644,21 @@ mod tests {
         app.apply_snapshot(crate::model::Snapshot::default());
         let screen = render(&app, 120, 40);
         assert!(screen.contains("This process has exited."));
+    }
+
+    #[test]
+    fn about_shows_version_paths_and_appearance() {
+        let mut app = app();
+        app.dialog = Some(Dialog::About);
+        let screen = render(&app, 120, 40);
+        assert!(screen.contains("About"));
+        assert!(screen.contains("Task Manager"));
+        assert!(screen.contains("Platform:"));
+        assert!(screen.contains("Theme:"));
+        assert!(screen.contains("Colour depth:"));
+        assert!(screen.contains("Settings:"));
+        assert!(screen.contains("History:"));
+        assert!(screen.contains("[Esc] Close"));
     }
 
     #[test]

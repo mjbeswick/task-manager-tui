@@ -190,6 +190,7 @@ fn translate_dialog(dialog: &Dialog, key: KeyEvent) -> Option<Action> {
         },
         Dialog::Error { .. }
         | Dialog::Help
+        | Dialog::About
         | Dialog::Properties { .. }
         | Dialog::ProcessInfo { .. } => match key.code {
             KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') | KeyCode::F(1) => {
@@ -510,6 +511,8 @@ mod tests {
             key: crate::model::ProcKey::new(1, 1),
             name: "node".into(),
         });
+        assert_eq!(translate(&app, key(KeyCode::Esc)), Some(Action::Cancel));
+        app.dialog = Some(Dialog::About);
         assert_eq!(translate(&app, key(KeyCode::Esc)), Some(Action::Cancel));
         assert_eq!(translate(&app, key(KeyCode::Enter)), Some(Action::Cancel));
         assert_eq!(

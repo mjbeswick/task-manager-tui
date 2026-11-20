@@ -913,6 +913,10 @@ impl App {
             MenuItem::EndTask => Action::EndTask,
             MenuItem::ClearHistory => Action::DeleteHistory,
             MenuItem::Help => Action::Help,
+            MenuItem::About => {
+                self.dialog = Some(Dialog::About);
+                return effects;
+            }
         };
         effects.extend(self.dispatch(action));
         effects
@@ -1581,6 +1585,19 @@ mod tests {
         app.dialog = Some(Dialog::Appearance { selected: 0 });
         app.dispatch(Action::Confirm);
         assert_eq!(app.theme_name, crate::theme::ThemeName::Dark);
+    }
+
+    #[test]
+    fn help_menu_offers_about() {
+        let help = crate::app::MENUS
+            .iter()
+            .find(|(label, _)| *label == "Help")
+            .unwrap();
+        assert!(
+            help.1
+                .iter()
+                .any(|(label, item)| *label == "About" && *item == crate::app::MenuItem::About)
+        );
     }
 
     #[test]

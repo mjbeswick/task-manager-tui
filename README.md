@@ -84,6 +84,9 @@ If graph blocks show as boxes or question marks, your font lacks them. Use
 | `Space` | Enable or disable a startup entry, expand a process group |
 | `s` `S` `R` | Start, stop, restart a service |
 
+Help > About shows the version, platform, active theme and colour depth, and where the
+settings and usage history live.
+
 ## Filter
 
 Every list tab has a filter field at the right of the menu bar. Press `/` or

@@ -694,6 +694,14 @@ impl ColorDepth {
         }
     }
 
+    pub fn label(self) -> &'static str {
+        match self {
+            ColorDepth::TrueColor => "Truecolor",
+            ColorDepth::Ansi256 => "256 colours",
+            ColorDepth::Ansi16 => "16 colours",
+        }
+    }
+
     pub fn from_env() -> Self {
         let colorterm = std::env::var("COLORTERM").ok();
         let term = std::env::var("TERM").ok();

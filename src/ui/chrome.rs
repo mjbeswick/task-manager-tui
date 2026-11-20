@@ -1172,7 +1172,7 @@ mod tests {
         let theme = *app.theme();
         let buffer = buffer_for(&app, 120, 30);
         assert_eq!(buffer[(5, 0)].bg, theme.chrome, "menu bar");
-        assert_eq!(buffer[(95, 1)].bg, theme.bg, "tab strip");
+        assert_eq!(buffer[(5, 1)].bg, theme.bg, "tab strip");
         assert_eq!(buffer[(100, 29)].bg, theme.status, "status bar");
     }
 
@@ -1186,7 +1186,7 @@ mod tests {
         terminal.draw(|frame| draw(frame, &app, &mut hits)).unwrap();
         let buffer = terminal.backend().buffer();
         assert_eq!(buffer[(5, 0)].bg, theme.chrome, "menu bar");
-        assert_eq!(buffer[(95, 1)].bg, theme.bg, "tab strip");
+        assert_eq!(buffer[(5, 1)].bg, theme.bg, "tab strip");
         assert_eq!(buffer[(95, 2)].bg, theme.bg, "tab rule");
         assert_eq!(buffer[(100, 29)].bg, theme.status, "status bar");
         assert_ne!(theme.chrome, theme.status);

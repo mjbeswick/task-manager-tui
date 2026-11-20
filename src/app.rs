@@ -368,6 +368,7 @@ pub enum Dialog {
         message: String,
     },
     Help,
+    About,
     Run {
         input: String,
     },
@@ -404,6 +405,7 @@ impl Dialog {
             Dialog::Confirm { title, .. } => title,
             Dialog::Error { title, .. } => title,
             Dialog::Help => "Keyboard shortcuts",
+            Dialog::About => "About",
             Dialog::Run { .. } => "Run a new task",
             Dialog::Priority { .. } => "Set priority",
             Dialog::Signal { .. } => "Send signal",
@@ -433,6 +435,7 @@ pub enum MenuItem {
     EndTask,
     ClearHistory,
     Help,
+    About,
 }
 
 pub const MENUS: [(&str, &[(&str, MenuItem)]); 4] = [
@@ -463,7 +466,13 @@ pub const MENUS: [(&str, &[(&str, MenuItem)]); 4] = [
             ("Clear app history", MenuItem::ClearHistory),
         ],
     ),
-    ("Help", &[("Keyboard shortcuts", MenuItem::Help)]),
+    (
+        "Help",
+        &[
+            ("Keyboard shortcuts", MenuItem::Help),
+            ("About", MenuItem::About),
+        ],
+    ),
 ];
 
 #[derive(Debug, Clone, Copy, Default)]
