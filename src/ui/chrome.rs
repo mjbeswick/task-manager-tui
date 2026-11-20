@@ -1167,6 +1167,18 @@ mod tests {
     }
 
     #[test]
+    fn a_modal_dims_text_but_keeps_rules() {
+        let (mut app, _) = App::new(Settings::default(), false);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        let before = buffer_for(&app, 120, 30);
+        let rule = before[(0, 5)].fg;
+        app.dialog = Some(crate::app::Dialog::Help);
+        let after = buffer_for(&app, 120, 30);
+        assert_eq!(after[(0, 5)].fg, rule, "table rule keeps its colour");
+        assert_eq!(after[(2, 2)].fg, app.theme().muted, "tab text is dimmed");
+    }
+
+    #[test]
     fn a_modal_keeps_the_band_colours() {
         let (mut app, _) = App::new(Settings::default(), false);
         app.apply_snapshot(crate::model::Snapshot::fixture());

@@ -526,8 +526,12 @@ fn truncate_line(text: &str, width: usize) -> String {
 fn dim(buf: &mut Buffer, area: Rect, theme: &crate::theme::Theme) {
     for y in area.y..area.y + area.height {
         for x in area.x..area.x + area.width {
-            let bg = buf[(x, y)].bg;
-            buf[(x, y)].set_style(Style::default().fg(theme.muted).bg(bg));
+            let cell = &buf[(x, y)];
+            let symbol = cell.symbol().chars().next().unwrap_or(' ');
+            let structural = matches!(symbol, '\u{2500}'..='\u{257F}' | '-' | '|' | '+');
+            let (fg, bg) = (cell.fg, cell.bg);
+            let fg = if structural { fg } else { theme.muted };
+            buf[(x, y)].set_style(Style::default().fg(fg).bg(bg));
         }
     }
 }
