@@ -346,7 +346,8 @@ unchanged. The window title MUST name the application and the active tab.
 Each tab SHALL reserve its last content row for one hint line listing that tab's own
 shortcuts as `[key] action`, SHALL draw keys in the accent colour and bold against muted
 actions, SHALL order the most used actions first, and MUST clip the line at the right edge
-instead of wrapping or covering a data row.
+instead of wrapping or covering a data row. The user SHALL be able to hide the line, and
+the choice MUST persist.
 
 #### Scenario: Processes hints
 - **WHEN** the Processes tab is shown
@@ -370,7 +371,7 @@ instead of wrapping or covering a data row.
 
 #### Scenario: App history hints
 - **WHEN** the App history tab is shown
-- **THEN** the line names the properties action
+- **THEN** the line names properties, end app, and clear entry
 
 #### Scenario: Performance hints
 - **WHEN** the Performance tab is shown
@@ -391,6 +392,10 @@ instead of wrapping or covering a data row.
 #### Scenario: Key emphasis
 - **WHEN** the hint line is drawn
 - **THEN** every `[key]` including its brackets uses the accent colour and bold, and the action text stays muted
+
+#### Scenario: Hidden
+- **WHEN** the user presses F4 or selects Shortcut hints from View
+- **THEN** the line is hidden, no row is reserved, and the choice survives a restart
 
 ### Requirement: Colour depth adapts to the terminal
 
