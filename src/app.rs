@@ -370,7 +370,9 @@ pub enum Dialog {
         title: String,
         message: String,
     },
-    Help,
+    Help {
+        offset: std::cell::Cell<usize>,
+    },
     About,
     Run {
         input: String,
@@ -412,9 +414,9 @@ impl Dialog {
         match self {
             Dialog::Confirm { title, .. } => title,
             Dialog::Error { title, .. } => title,
-            Dialog::Help => "Keyboard shortcuts",
+            Dialog::Help { .. } => "Keyboard shortcuts",
             Dialog::About => "About",
-            Dialog::Run { .. } => "Run a new task",
+            Dialog::Run { .. } => "Run a command",
             Dialog::Priority { .. } => "Set priority",
             Dialog::Signal { .. } => "Send signal",
             Dialog::Password { .. } => "Administrator password",
@@ -453,62 +455,133 @@ pub enum MenuItem {
     About,
 }
 
-pub const MENUS: [(&str, &[(&str, MenuItem)]); 6] = [
+impl MenuItem {
+    /// `Some` for items that show an on/off state, with the current value.
+    pub fn checked(self, app: &App) -> Option<bool> {
+        match self {
+            MenuItem::SpeedHigh => Some(app.settings.update_speed == "high"),
+            MenuItem::SpeedNormal => Some(app.settings.update_speed == "normal"),
+            MenuItem::SpeedLow => Some(app.settings.update_speed == "low"),
+            MenuItem::SpeedPaused => Some(app.settings.update_speed == "paused"),
+            MenuItem::ToggleDetails => Some(app.process.more_details),
+            MenuItem::OptionalColumns => Some(app.process.show_optional_columns),
+            MenuItem::ToggleHints => Some(app.show_hints),
+            _ => None,
+        }
+    }
+
+    /// The short reason this item cannot act on the current tab, if any.
+    pub fn disabled(self, app: &App) -> Option<&'static str> {
+        let process = app.selected_process().is_some();
+        match self {
+            MenuItem::EndTask if app.tab == Tab::AppHistory => {
+                app.selected_usage().is_none().then_some("no app")
+            }
+            MenuItem::EndTask => (!process).then_some("no process"),
+            MenuItem::EndTree | MenuItem::Signal | MenuItem::Priority => {
+                (!process).then_some("no process")
+            }
+            MenuItem::Properties => {
+                let available = match app.tab {
+                    Tab::Services => app.selected_service().is_some(),
+                    Tab::Startup => app.selected_startup().is_some(),
+                    Tab::Users | Tab::AppHistory => false,
+                    _ => process,
+                };
+                (!available).then_some("no selection")
+            }
+            _ => None,
+        }
+    }
+}
+
+/// One dropdown row: its label, action, key hint, and whether a rule opens
+/// the group above it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MenuDef {
+    pub label: &'static str,
+    pub item: MenuItem,
+    pub shortcut: Option<&'static str>,
+    pub separator_before: bool,
+}
+
+const fn item(label: &'static str, item: MenuItem, shortcut: Option<&'static str>) -> MenuDef {
+    MenuDef {
+        label,
+        item,
+        shortcut,
+        separator_before: false,
+    }
+}
+
+const fn group(label: &'static str, item: MenuItem, shortcut: Option<&'static str>) -> MenuDef {
+    MenuDef {
+        label,
+        item,
+        shortcut,
+        separator_before: true,
+    }
+}
+
+pub const MENUS: [(&str, &[MenuDef]); 6] = [
     (
         "File",
-        &[("Run new task", MenuItem::Run), ("Exit", MenuItem::Exit)],
+        &[
+            item("Run command...", MenuItem::Run, None),
+            group("Clear app history...", MenuItem::ClearHistory, None),
+            group("Exit", MenuItem::Exit, Some("q")),
+        ],
     ),
     (
         "Options",
         &[
-            ("Update speed: High", MenuItem::SpeedHigh),
-            ("Update speed: Normal", MenuItem::SpeedNormal),
-            ("Update speed: Low", MenuItem::SpeedLow),
-            ("Update speed: Paused", MenuItem::SpeedPaused),
+            item("Update speed: High", MenuItem::SpeedHigh, None),
+            item("Update speed: Normal", MenuItem::SpeedNormal, None),
+            item("Update speed: Low", MenuItem::SpeedLow, None),
+            item("Update speed: Paused", MenuItem::SpeedPaused, None),
+            group("Shortcut hints", MenuItem::ToggleHints, Some("F4")),
+            item("Fewer details", MenuItem::ToggleDetails, Some("f")),
+            item("Optional columns", MenuItem::OptionalColumns, None),
+            group("Appearance...", MenuItem::Appearance, Some("F2")),
         ],
     ),
     (
         "View",
         &[
-            ("Refresh now", MenuItem::Refresh),
-            ("Fewer details", MenuItem::ToggleDetails),
-            ("Optional columns", MenuItem::OptionalColumns),
-            ("Shortcut hints", MenuItem::ToggleHints),
-            ("Appearance...", MenuItem::Appearance),
-            ("Sort by next column", MenuItem::SortNext),
-            ("Reverse sort", MenuItem::SortReverse),
-            ("Expand all", MenuItem::ExpandAll),
-            ("Collapse all", MenuItem::CollapseAll),
-            ("Clear app history", MenuItem::ClearHistory),
+            item("Refresh now", MenuItem::Refresh, Some("F5")),
+            group("Next sort column", MenuItem::SortNext, Some(">")),
+            item("Reverse sort", MenuItem::SortReverse, Some("r")),
+            group("Expand all", MenuItem::ExpandAll, None),
+            item("Collapse all", MenuItem::CollapseAll, None),
         ],
     ),
     (
         "Tabs",
         &[
-            ("Processes", MenuItem::Tab(0)),
-            ("Performance", MenuItem::Tab(1)),
-            ("App history", MenuItem::Tab(2)),
-            ("Startup", MenuItem::Tab(3)),
-            ("Users", MenuItem::Tab(4)),
-            ("Details", MenuItem::Tab(5)),
-            ("Services", MenuItem::Tab(6)),
+            item("Processes", MenuItem::Tab(0), Some("1")),
+            item("Performance", MenuItem::Tab(1), Some("2")),
+            item("App history", MenuItem::Tab(2), Some("3")),
+            item("Startup", MenuItem::Tab(3), Some("4")),
+            item("Users", MenuItem::Tab(4), Some("5")),
+            item("Details", MenuItem::Tab(5), Some("6")),
+            item("Services", MenuItem::Tab(6), Some("7")),
         ],
     ),
     (
         "Process",
         &[
-            ("End task", MenuItem::EndTask),
-            ("End process tree", MenuItem::EndTree),
-            ("Send signal...", MenuItem::Signal),
-            ("Set priority...", MenuItem::Priority),
-            ("Properties", MenuItem::Properties),
+            item("End task", MenuItem::EndTask, Some("Del")),
+            item("End tree", MenuItem::EndTree, Some("E")),
+            group("Send signal...", MenuItem::Signal, Some("K")),
+            item("Set priority...", MenuItem::Priority, Some("p")),
+            group("Properties", MenuItem::Properties, Some("Enter")),
         ],
     ),
     (
         "Help",
         &[
-            ("Keyboard shortcuts", MenuItem::Help),
-            ("About", MenuItem::About),
+            item("Keyboard shortcuts", MenuItem::Help, Some("F1")),
+            item("About", MenuItem::About, None),
         ],
     ),
 ];

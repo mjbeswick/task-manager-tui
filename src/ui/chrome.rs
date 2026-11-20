@@ -1,6 +1,6 @@
 //! Window chrome: menu bar, tab strip, status bar, and the frame that owns them.
 
-use crate::app::{App, MENUS, Tab};
+use crate::app::{App, MENUS, MenuDef, MenuItem, Tab};
 use crate::theme::Theme;
 use crate::ui::format::{DASH, bit_rate, pct, truncate};
 use crate::ui::hits::{HitMap, Target};
@@ -521,6 +521,38 @@ fn status_position(app: &App) -> Option<String> {
     position_text(app.list_scroll(app.tab), len)
 }
 
+fn menu_right(app: &App, def: &MenuDef) -> Option<String> {
+    if let Some(reason) = def.item.disabled(app) {
+        return Some(reason.to_string());
+    }
+    def.shortcut.map(str::to_string)
+}
+
+fn menu_marker(app: &App, def: &MenuDef) -> &'static str {
+    if def.item.checked(app) != Some(true) {
+        return "  ";
+    }
+    match def.item {
+        MenuItem::SpeedHigh
+        | MenuItem::SpeedNormal
+        | MenuItem::SpeedLow
+        | MenuItem::SpeedPaused => {
+            if app.ascii {
+                "* "
+            } else {
+                "● "
+            }
+        }
+        _ => {
+            if app.ascii {
+                "* "
+            } else {
+                "✓ "
+            }
+        }
+    }
+}
+
 fn draw_menu_dropdown(
     buf: &mut Buffer,
     area: Rect,
@@ -530,13 +562,28 @@ fn draw_menu_dropdown(
 ) {
     let theme = app.theme();
     let items = MENUS[menu.menu].1;
-    let width = items
+    let label_width = items
         .iter()
-        .map(|(label, _)| label.chars().count())
+        .map(|def| def.label.chars().count())
         .max()
-        .unwrap_or(10) as u16
-        + 4;
-    let height = items.len() as u16 + 2;
+        .unwrap_or(10);
+    let right_width = items
+        .iter()
+        .filter_map(|def| menu_right(app, def))
+        .map(|text| text.chars().count())
+        .max()
+        .unwrap_or(0);
+    let content = 2 + label_width + if right_width > 0 { 2 + right_width } else { 0 };
+    let width = content as u16 + 4;
+    let y = area.y + 1;
+    let separated =
+        items.len() as u16 + items.iter().filter(|def| def.separator_before).count() as u16 + 2;
+    let compact = y + separated > area.height;
+    let height = if compact {
+        items.len() as u16 + 2
+    } else {
+        separated
+    };
 
     let (_, cells) = menu_offsets(area);
     let x = cells
@@ -544,33 +591,70 @@ fn draw_menu_dropdown(
         .map(|(x, _)| *x)
         .unwrap_or(area.x)
         .min(area.x + area.width.saturating_sub(width));
-    let y = area.y + 1;
     let rect = Rect::new(x, y, width, height.min(area.height.saturating_sub(y)));
     let inner = panel(buf, rect, "", theme);
     hits.add(rect, Target::MenuPanel);
 
-    for (index, (label, _)) in items.iter().enumerate() {
-        let row = inner.y + index as u16;
+    let mut row = inner.y;
+    for (index, def) in items.iter().enumerate() {
+        if def.separator_before && !compact {
+            if row >= inner.y + inner.height {
+                break;
+            }
+            let rule: String = std::iter::repeat_n(
+                if app.ascii { '-' } else { '─' },
+                inner.width.saturating_sub(2) as usize,
+            )
+            .collect();
+            put(
+                buf,
+                inner.x + 1,
+                row,
+                &rule,
+                Style::default().fg(theme.border).bg(theme.surface),
+                inner,
+            );
+            row += 1;
+        }
         if row >= inner.y + inner.height {
             break;
         }
         let selected = index == menu.item;
-        let style = if selected {
+        let base = if selected {
             Style::default().fg(theme.on_accent).bg(theme.accent)
+        } else if def.item.disabled(app).is_some() {
+            Style::default().fg(theme.muted).bg(theme.surface)
         } else {
             Style::default().fg(theme.text).bg(theme.surface)
         };
         if selected {
             for x in inner.x..inner.x + inner.width {
                 buf[(x, row)].set_symbol(" ");
-                buf[(x, row)].set_style(style);
+                buf[(x, row)].set_style(base);
             }
         }
-        put(buf, inner.x + 1, row, label, style, inner);
+        let marker = menu_marker(app, def);
+        put(buf, inner.x + 1, row, marker, base, inner);
+        put(buf, inner.x + 3, row, def.label, base, inner);
+        if let Some(right) = menu_right(app, def) {
+            put_right(
+                buf,
+                inner.x + inner.width - 1,
+                row,
+                &right,
+                if selected {
+                    base
+                } else {
+                    Style::default().fg(theme.muted).bg(theme.surface)
+                },
+                inner,
+            );
+        }
         hits.add(
             Rect::new(inner.x, row, inner.width, 1),
             Target::MenuItem(menu.menu, index),
         );
+        row += 1;
     }
 }
 
@@ -578,7 +662,7 @@ fn draw_menu_dropdown(
 fn tab_hints(app: &App) -> String {
     match app.tab {
         Tab::Processes => format!(
-            "[e] End task   [K] Signal   [p] Priority   [f] {}",
+            "[e] End task   [E] End tree   [K] Signal   [p] Priority   [f] {}",
             if app.process.more_details {
                 "Fewer details"
             } else {
@@ -586,7 +670,7 @@ fn tab_hints(app: &App) -> String {
             }
         ),
         Tab::Details => format!(
-            "[Enter] {}   [e] End task   [K] Signal   [p] Priority",
+            "[Enter] {}   [e] End task   [E] End tree   [K] Signal   [p] Priority",
             if app.details.panel {
                 "Hide panel"
             } else {
@@ -854,9 +938,13 @@ mod tests {
     fn render(width: u16, height: u16) -> String {
         let (mut app, _) = App::new(Settings::default(), false);
         app.apply_snapshot(crate::model::Snapshot::fixture());
+        render_for(&app, width, height)
+    }
+
+    fn render_for(app: &App, width: u16, height: u16) -> String {
         let mut hits = crate::ui::hits::HitMap::default();
         let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
-        terminal.draw(|frame| draw(frame, &app, &mut hits)).unwrap();
+        terminal.draw(|frame| draw(frame, app, &mut hits)).unwrap();
         let buffer = terminal.backend().buffer().clone();
         let mut out = String::new();
         for y in 0..height {
@@ -866,6 +954,60 @@ mod tests {
             out.push('\n');
         }
         out
+    }
+
+    #[test]
+    fn dropdown_shows_marks_shortcuts_and_reasons() {
+        let (mut app, _) = App::new(Settings::default(), false);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        let options = MENUS
+            .iter()
+            .position(|(label, _)| *label == "Options")
+            .unwrap();
+        app.menu = Some(crate::app::MenuState {
+            menu: options,
+            item: 1,
+        });
+        let screen = render_for(&app, 60, 24);
+        assert!(screen.contains("● Update speed: Normal"), "{screen}");
+        assert!(screen.contains("✓ Shortcut hints"), "{screen}");
+        assert!(screen.contains("F4"));
+        assert!(screen.contains("F2"));
+    }
+
+    #[test]
+    fn dropdown_drops_rules_when_the_terminal_is_short() {
+        let (mut app, _) = App::new(Settings::default(), false);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        let options = MENUS
+            .iter()
+            .position(|(label, _)| *label == "Options")
+            .unwrap();
+        app.menu = Some(crate::app::MenuState {
+            menu: options,
+            item: 0,
+        });
+        let screen = render_for(&app, 40, 12);
+        assert!(screen.contains("Appearance..."), "{screen}");
+    }
+
+    #[test]
+    fn dropdown_mutes_unavailable_process_items() {
+        let (mut app, _) = App::new(Settings::default(), false);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        app.tab = crate::app::Tab::Performance;
+        app.details.key = None;
+        let process = MENUS
+            .iter()
+            .position(|(label, _)| *label == "Process")
+            .unwrap();
+        app.menu = Some(crate::app::MenuState {
+            menu: process,
+            item: 0,
+        });
+        let screen = render_for(&app, 80, 24);
+        assert!(screen.contains("no process"), "{screen}");
+        assert!(screen.contains("End task"));
     }
 
     #[test]
@@ -1195,7 +1337,9 @@ mod tests {
         let before = buffer_for(&app, 120, 30);
         let rule = before[(0, 5)].fg;
         let text = before[(2, 2)].fg;
-        app.dialog = Some(crate::app::Dialog::Help);
+        app.dialog = Some(crate::app::Dialog::Help {
+            offset: std::cell::Cell::new(0),
+        });
         let after = buffer_for(&app, 120, 30);
         assert_eq!(after[(0, 5)].fg, rule, "table rule keeps its colour");
         assert_eq!(after[(2, 2)].fg, text, "tab text keeps its colour");
@@ -1205,7 +1349,9 @@ mod tests {
     fn a_modal_keeps_the_band_colours() {
         let (mut app, _) = App::new(Settings::default(), false);
         app.apply_snapshot(crate::model::Snapshot::fixture());
-        app.dialog = Some(crate::app::Dialog::Help);
+        app.dialog = Some(crate::app::Dialog::Help {
+            offset: std::cell::Cell::new(0),
+        });
         let theme = *app.theme();
         let buffer = buffer_for(&app, 120, 30);
         assert_eq!(buffer[(5, 0)].bg, theme.chrome, "menu bar");

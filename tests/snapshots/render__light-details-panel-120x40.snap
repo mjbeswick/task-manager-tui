@@ -40,5 +40,5 @@ launchd                                            1      Running     michael   
 │ Priority: Normal                                                                                                     │
 │ Affinity: not supported on this platform                                                                             │
 └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-[Enter] Hide panel   [e] End task   [K] Signal   [p] Priority                                                           
+[Enter] Hide panel   [e] End task   [E] End tree   [K] Signal   [p] Priority                                            
     1/   6                                CPU  27.0%   Memory  62.5%   Disk    5.3 MB/s   Network   12.0 Mbps   Normal

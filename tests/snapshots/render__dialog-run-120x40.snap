@@ -17,7 +17,7 @@ Name                                                                  Status    
 ▾ System processes (2)                                                                                                  
   ▸ WindowServer (1)                                                           4.8%   1.2 GB  15.0 KB/s                 
   ▸ launchd (1)                                                                0.2%  12.0 MB  15.0 KB/s                 
-                                  ┌─ Run a new task ─────────────────────────────────┐                                  
+                                  ┌─ Run a command ──────────────────────────────────┐                                  
                                   │                                                  │                                  
                                   │  Type a command. Arguments run without a shell.  │                                  
                                   │                                                  │                                  
@@ -40,5 +40,5 @@ Name                                                                  Status    
                                                                                                                         
                                                                                                                         
                                                                                                                         
-[e] End task   [K] Signal   [p] Priority   [f] Fewer details                                                            
+[e] End task   [E] End tree   [K] Signal   [p] Priority   [f] Fewer details                                             
     1/   9                                CPU  27.0%   Memory  62.5%   Disk    5.3 MB/s   Network   12.0 Mbps   Normal

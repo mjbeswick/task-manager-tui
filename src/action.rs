@@ -131,6 +131,9 @@ impl App {
                 }
             }
             Action::ServiceStart | Action::ServiceStop | Action::ServiceRestart => {
+                if self.tab != Tab::Services {
+                    return effects;
+                }
                 let service_action = match action {
                     Action::ServiceStart => ServiceAction::Start,
                     Action::ServiceStop => ServiceAction::Stop,
@@ -191,7 +194,11 @@ impl App {
                 self.notice("Set affinity is not supported on Linux or macOS.");
             }
             Action::ShowProperties => self.show_properties(),
-            Action::Help => self.dialog = Some(Dialog::Help),
+            Action::Help => {
+                self.dialog = Some(Dialog::Help {
+                    offset: std::cell::Cell::new(0),
+                })
+            }
             Action::DeleteHistory => {
                 self.dialog = Some(Dialog::Confirm {
                     title: "Delete usage history".to_string(),
@@ -266,10 +273,14 @@ impl App {
                 Vec::new()
             }
             Target::Menu(index) => {
-                self.menu = Some(MenuState {
-                    menu: index.min(MENUS.len() - 1),
-                    item: 0,
-                });
+                if self.menu.is_some_and(|state| state.menu == index) {
+                    self.menu = None;
+                } else {
+                    self.menu = Some(MenuState {
+                        menu: index.min(MENUS.len() - 1),
+                        item: 0,
+                    });
+                }
                 Vec::new()
             }
             Target::MenuItem(menu, item) => {
@@ -740,6 +751,22 @@ impl App {
 
     fn dispatch_dialog(&mut self, action: Action) -> Vec<Effect> {
         let mut effects = Vec::new();
+        if let Some(Dialog::Help { offset }) = &self.dialog {
+            let current = offset.get();
+            let next = match action {
+                Action::MoveUp => Some(current.saturating_sub(1)),
+                Action::MoveDown => Some(current + 1),
+                Action::PageUp => Some(current.saturating_sub(10)),
+                Action::PageDown => Some(current + 10),
+                Action::Top => Some(0),
+                Action::Bottom => Some(usize::MAX),
+                _ => None,
+            };
+            if let Some(next) = next {
+                offset.set(next.min(crate::ui::dialog::HELP.len()));
+                return effects;
+            }
+        }
         match action {
             Action::Cancel => {
                 self.dialog = None;
@@ -1032,10 +1059,14 @@ impl App {
                 self.menu = Some(state);
             }
             Action::MenuActivate => {
-                let item = MENUS[state.menu].1.get(state.item).map(|(_, item)| *item);
+                let def = MENUS[state.menu].1.get(state.item).copied();
+                if def.is_some_and(|def| def.item.disabled(self).is_some()) {
+                    self.menu = Some(state);
+                    return Vec::new();
+                }
                 self.menu = None;
-                if let Some(item) = item {
-                    return self.menu_item(item);
+                if let Some(def) = def {
+                    return self.menu_item(def.item);
                 }
             }
             _ => {
@@ -1829,7 +1860,9 @@ mod tests {
         });
         let effects = app.click(crate::ui::hits::Target::DialogConfirm);
         assert_eq!(effects, vec![Effect::ClearHistory]);
-        app.dialog = Some(Dialog::Help);
+        app.dialog = Some(Dialog::Help {
+            offset: std::cell::Cell::new(0),
+        });
         let effects = app.click(crate::ui::hits::Target::DialogClose);
         assert!(effects.is_empty());
         assert!(app.dialog.is_none());
@@ -1874,7 +1907,7 @@ mod tests {
         let labels: Vec<&str> = crate::app::MENUS[index]
             .1
             .iter()
-            .map(|(label, _)| *label)
+            .map(|def| def.label)
             .collect();
         assert_eq!(
             labels,
@@ -1898,17 +1931,49 @@ mod tests {
     }
 
     #[test]
+    fn service_keys_do_nothing_on_other_tabs() {
+        let mut app = app();
+        app.tab = Tab::Processes;
+        assert!(app.dispatch(Action::ServiceStop).is_empty());
+        assert!(app.dispatch(Action::ServiceRestart).is_empty());
+        assert!(app.dialog.is_none());
+    }
+
+    #[test]
+    fn clicking_the_open_menu_label_closes_it() {
+        use crate::ui::hits::Target;
+        let mut app = app();
+        app.menu = Some(crate::app::MenuState { menu: 2, item: 1 });
+        app.click(Target::Menu(2));
+        assert!(app.menu.is_none());
+        app.click(Target::Menu(2));
+        assert!(app.menu.is_some());
+    }
+
+    #[test]
+    fn help_scrolls_to_the_last_row_on_a_short_terminal() {
+        let mut app = app();
+        app.dispatch(Action::Help);
+        for _ in 0..8 {
+            app.dispatch(Action::PageDown);
+        }
+        let screen = crate::ui::test_util::render(&app, 40, 12);
+        assert!(screen.contains("Services and startup"), "{screen}");
+        assert!(screen.contains("s, S, R"), "{screen}");
+    }
+
+    #[test]
     fn process_menu_lists_the_process_actions() {
         let menu = crate::app::MENUS
             .iter()
             .find(|(label, _)| *label == "Process")
             .unwrap();
-        let labels: Vec<&str> = menu.1.iter().map(|(label, _)| *label).collect();
+        let labels: Vec<&str> = menu.1.iter().map(|def| def.label).collect();
         assert_eq!(
             labels,
             vec![
                 "End task",
-                "End process tree",
+                "End tree",
                 "Send signal...",
                 "Set priority...",
                 "Properties"
@@ -1925,40 +1990,151 @@ mod tests {
         assert!(
             help.1
                 .iter()
-                .any(|(label, item)| *label == "About" && *item == crate::app::MenuItem::About)
+                .any(|def| def.label == "About" && def.item == crate::app::MenuItem::About)
+        );
+    }
+
+    fn menu(name: &str) -> &'static [crate::app::MenuDef] {
+        crate::app::MENUS
+            .iter()
+            .find(|(label, _)| *label == name)
+            .unwrap()
+            .1
+    }
+
+    #[test]
+    fn menus_are_grouped_in_windows_order() {
+        let labels: Vec<&str> = crate::app::MENUS.iter().map(|(label, _)| *label).collect();
+        assert_eq!(
+            labels,
+            vec!["File", "Options", "View", "Tabs", "Process", "Help"]
+        );
+        let file: Vec<&str> = menu("File").iter().map(|def| def.label).collect();
+        assert_eq!(file, vec!["Run command...", "Clear app history...", "Exit"]);
+        let view: Vec<&str> = menu("View").iter().map(|def| def.label).collect();
+        assert_eq!(
+            view,
+            vec![
+                "Refresh now",
+                "Next sort column",
+                "Reverse sort",
+                "Expand all",
+                "Collapse all"
+            ]
+        );
+        let tabs: Vec<&str> = menu("Tabs").iter().map(|def| def.label).collect();
+        assert_eq!(
+            tabs,
+            vec![
+                "Processes",
+                "Performance",
+                "App history",
+                "Startup",
+                "Users",
+                "Details",
+                "Services"
+            ]
         );
     }
 
     #[test]
-    fn options_menu_has_no_theme_entry() {
-        let options = crate::app::MENUS
-            .iter()
-            .find(|(label, _)| *label == "Options")
-            .unwrap();
+    fn options_menu_holds_speed_and_display_settings() {
+        use crate::app::MenuItem;
+        let options = menu("Options");
         assert!(
             !options
-                .1
                 .iter()
-                .any(|(label, _)| *label == "Next theme" || label.to_lowercase().contains("theme")),
+                .any(|def| def.label.to_lowercase().contains("theme")),
             "theme is switched from t and Appearance"
         );
-        assert!(
-            options
-                .1
-                .iter()
-                .all(|(label, _)| label.starts_with("Update speed"))
-        );
+        for label in [
+            "Update speed: High",
+            "Shortcut hints",
+            "Fewer details",
+            "Optional columns",
+            "Appearance...",
+        ] {
+            assert!(
+                options.iter().any(|def| def.label == label),
+                "missing {label}"
+            );
+        }
+        assert!(options.iter().all(|def| matches!(
+            def.item,
+            MenuItem::SpeedHigh
+                | MenuItem::SpeedNormal
+                | MenuItem::SpeedLow
+                | MenuItem::SpeedPaused
+                | MenuItem::ToggleHints
+                | MenuItem::ToggleDetails
+                | MenuItem::OptionalColumns
+                | MenuItem::Appearance
+        )));
     }
 
     #[test]
-    fn view_menu_offers_appearance() {
-        let view = crate::app::MENUS
+    fn view_menu_holds_refresh_sort_and_expansion() {
+        use crate::app::MenuItem;
+        let view = menu("View");
+        assert!(
+            view.iter()
+                .any(|def| def.label == "Refresh now" && def.shortcut == Some("F5"))
+        );
+        assert!(view.iter().any(|def| def.label == "Collapse all"));
+        assert!(!view.iter().any(|def| def.item == MenuItem::Appearance));
+    }
+
+    #[test]
+    fn menus_mark_speed_and_toggles_and_disable_process_actions() {
+        use crate::app::{MenuItem, MenuState};
+        let mut app = app();
+        app.settings.update_speed = "low".into();
+        assert_eq!(MenuItem::SpeedLow.checked(&app), Some(true));
+        assert_eq!(MenuItem::SpeedNormal.checked(&app), Some(false));
+        assert_eq!(MenuItem::ToggleHints.checked(&app), Some(true));
+        assert_eq!(MenuItem::Refresh.checked(&app), None);
+
+        app.tab = Tab::Performance;
+        app.details.key = None;
+        assert_eq!(MenuItem::EndTask.disabled(&app), Some("no process"));
+        assert_eq!(MenuItem::Signal.disabled(&app), Some("no process"));
+        assert_eq!(MenuItem::Refresh.disabled(&app), None);
+
+        let process = crate::app::MENUS
             .iter()
-            .find(|(label, _)| *label == "View")
+            .position(|(label, _)| *label == "Process")
             .unwrap();
-        assert!(view.1.iter().any(|(label, item)| {
-            *label == "Appearance..." && *item == crate::app::MenuItem::Appearance
-        }));
+        let end = menu("Process")
+            .iter()
+            .position(|def| def.item == MenuItem::EndTask)
+            .unwrap();
+        app.menu = Some(MenuState {
+            menu: process,
+            item: end,
+        });
+        let effects = app.dispatch(Action::MenuActivate);
+        assert!(effects.is_empty());
+        assert!(
+            app.menu.is_some(),
+            "disabled activation keeps the menu open"
+        );
+        assert!(app.dialog.is_none());
+    }
+
+    #[test]
+    fn process_menu_shows_each_shortcut() {
+        let expected = [
+            ("End task", Some("Del")),
+            ("End tree", Some("E")),
+            ("Send signal...", Some("K")),
+            ("Set priority...", Some("p")),
+            ("Properties", Some("Enter")),
+        ];
+        let got: Vec<(&str, Option<&str>)> = menu("Process")
+            .iter()
+            .map(|def| (def.label, def.shortcut))
+            .collect();
+        assert_eq!(got, expected);
     }
 
     #[test]
@@ -2074,7 +2250,7 @@ mod tests {
         let item = crate::app::MENUS[view]
             .1
             .iter()
-            .position(|(label, _)| *label == "Collapse all")
+            .position(|def| def.label == "Collapse all")
             .unwrap();
         app.menu = Some(crate::app::MenuState { menu: view, item });
         app.dispatch(Action::MenuActivate);

@@ -194,7 +194,7 @@ fn open_menu_publishes_its_items() {
     let (_, hits) = render_with_hits(&app, 120, 40);
     let found = targets(&hits, 120, 40);
     assert!(found.contains(&Target::MenuItem(2, 0)));
-    assert!(found.contains(&Target::MenuItem(2, 5)));
+    assert!(found.contains(&Target::MenuItem(2, 4)));
 }
 
 #[test]

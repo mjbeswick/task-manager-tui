@@ -30,7 +30,7 @@ Name                                              Status    CPU ▼ Memory      
 ▾ Background processes (6)
   ▸ node (1)                                              12.5%   512 MB  15.0 KB/s
   ⋮
-[e] End task   [K] Signal   [p] Priority   [f] Fewer details
+[e] End task   [E] End tree   [K] Signal   [p] Priority   [f] Fewer details
     1/  20            CPU  27.0%   Memory  62.5%   Disk    5.3 MB/s   Network   12.0 Mbps   Normal
 ```
 
@@ -135,7 +135,7 @@ If graph blocks show as boxes or question marks, your font lacks them. Use
 | `Enter` | Open process details, or expand a group |
 | `Left`/`Right`, `h`/`l` | Collapse, expand, inspect |
 | `<` `>` `r` | Sort column, reverse |
-| `/` | Filter the list. `Enter` keeps the filter, `Esc` clears it |
+| `/`, `Ctrl+F` | Filter the list. `Enter` keeps the filter, `Esc` clears it |
 | `Delete`, `e` | End task |
 | `E` | End process tree |
 | `x` | Clear the selected app history entry |
@@ -151,12 +151,25 @@ If graph blocks show as boxes or question marks, your font lacks them. Use
 
 Help > About shows the version, platform, active theme and colour depth, and where the
 settings and usage history live. The Tabs menu lists all seven tabs, so every tab stays
-reachable when a narrow terminal drops strip labels. The Process menu mirrors `e`, `E`,
-`K`, `p`, and the details dialog.
+reachable when a narrow terminal drops strip labels.
+
+## Menus
+
+- **File** - Run command..., Clear app history..., Exit.
+- **Options** - update speed, shortcut hints, fewer details, optional columns, and
+  Appearance. Speed shows a radio and each toggle shows a check.
+- **View** - refresh, sort, and expand or collapse all.
+- **Tabs** - all seven tabs with their `1`-`7` keys.
+- **Process** - end task, end tree, signals, priority, and properties. Items that cannot
+  act on the current tab are muted with a reason.
+
+Every item shows its key at the right edge. Items in a group are separated by a rule,
+and clicking an open menu label closes it. The help panel scrolls with Up/Down and
+PgUp/PgDn, so every key is reachable even at 40x12.
 
 ## Filter
 
-Every list tab has a filter field at the right of the menu bar. Press `/` or
+Every list tab has a filter field at the right of the menu bar. Press `/`, `Ctrl+F`, or
 click it, type, and press `Enter`. Matches are case-insensitive and the matching
 part of each name is highlighted. Each tab keeps its own filter.
 
@@ -198,7 +211,7 @@ dropped and the position counter in the status bar takes over.
   and network graphs scale to the largest value in the window and label that
   maximum. Filled charts use a gamma-correct colour ramp, line and dot charts take
   the colour of the highest sample in each braille cell, and resampling interpolates
-  when the plot is wide and keeps peaks when it is narrow. View > Appearance, or F2,
+  when the plot is wide and keeps peaks when it is narrow. Options > Appearance, or F2,
   switches between Filled, Line, Dots, and Blocks rendering, chart colours Teal, Blue,
   Orange, Magenta, Mono, or Theme, and turns chart gradients on or off. Blocks fills with quadrants, eighth blocks, and
   half-cell triangles to draw a sloped area edge. Per resource takes five distinct colours from the
@@ -277,7 +290,7 @@ Both paths come from the platform's standard directories.
 History is versioned JSON, written to a temporary file and renamed, so an
 interrupted write leaves the previous copy readable. A corrupt file is moved
 aside and the application starts with an empty history. Records unseen for 30
-days are dropped. Clear it with View > Clear app history.
+days are dropped. Clear it with File > Clear app history.
 
 ## Services and startup backends
 

@@ -155,7 +155,9 @@ fn golden_dialogs() {
     });
     insta::assert_snapshot!("dialog-error-120x40", screen(&app, 120, 40));
 
-    app.dialog = Some(Dialog::Help);
+    app.dialog = Some(Dialog::Help {
+        offset: std::cell::Cell::new(0),
+    });
     insta::assert_snapshot!("dialog-help-120x40", screen(&app, 120, 40));
 
     app.dialog = Some(Dialog::Run {

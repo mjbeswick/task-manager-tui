@@ -40,5 +40,5 @@ Name                                                                            
                                                                                                                         
                                                                                                                         
                                                                                                                         
-[e] End task   [K] Signal   [p] Priority   [f] More details                                                             
+[e] End task   [E] End tree   [K] Signal   [p] Priority   [f] More details                                              
     1/   9                                CPU  27.0%   Memory  62.5%   Disk    5.3 MB/s   Network   12.0 Mbps   Normal

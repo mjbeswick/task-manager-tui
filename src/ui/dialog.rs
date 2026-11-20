@@ -1,39 +1,52 @@
 //! Modal panels drawn over the window.
 
 use crate::app::{App, Dialog};
-use crate::ui::chrome::{fill_area, panel, put};
+use crate::ui::chrome::{fill_area, panel, put, put_right};
 use crate::ui::format::{DASH, bit_rate, bytes, duration, pct, rate, wrap};
 use crate::ui::hits::{HitMap, Target};
 use ratatui::buffer::Buffer;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 
-const HELP: &[(&str, &str)] = &[
-    ("q, Ctrl+C", "Quit"),
-    ("F10, Alt+F/O/V/T/P/H", "Menu bar"),
-    ("F1", "This help"),
-    ("F2", "Appearance: theme, style, colour, gradient"),
-    ("F4", "Show or hide shortcut hints"),
-    ("F5", "Refresh now"),
-    ("1-7, Tab", "Switch tabs"),
-    ("Up/Down, j/k, PgUp/PgDn", "Move and scroll"),
-    ("g / G, Ctrl+d / Ctrl+u", "Top, bottom, half page"),
-    ("Enter", "Process details, or expand a group"),
-    ("i", "Inspect, or process details"),
-    ("Left/Right, h/l", "Collapse, expand, inspect"),
-    ("Mouse", "Click away closes a menu; wheel scrolls"),
-    ("<, >, r", "Sort column, reverse"),
-    ("/", "Filter"),
-    ("Delete, e, E", "End task, end tree"),
-    ("x", "Clear the selected app history entry"),
-    ("K", "Send a signal"),
-    ("f", "Fewer details"),
-    ("t", "Next colour theme"),
-    ("+, -", "Update speed"),
-    ("p", "Set priority by nice value"),
-    ("a", "Set affinity (unavailable)"),
-    ("Space", "Startup entry, or process group"),
-    ("s, S, R", "Start, stop, restart a service"),
+pub(crate) enum HelpRow {
+    Section(&'static str),
+    Key(&'static str, &'static str),
+}
+
+pub(crate) const HELP: &[HelpRow] = &[
+    HelpRow::Section("General"),
+    HelpRow::Key("q, Ctrl+C", "Quit"),
+    HelpRow::Key("F10, Alt+F/O/V/T/P/H", "Menu bar"),
+    HelpRow::Key("F1, ?", "This help"),
+    HelpRow::Key("F2", "Appearance: theme, style, colour, gradient"),
+    HelpRow::Key("F4", "Show or hide shortcut hints"),
+    HelpRow::Key("F5", "Refresh now"),
+    HelpRow::Key("t", "Next colour theme"),
+    HelpRow::Key("+, -", "Update speed"),
+    HelpRow::Section("Tabs and filter"),
+    HelpRow::Key("1-7, Tab, Shift+Tab", "Switch tabs"),
+    HelpRow::Key("/, Ctrl+F", "Filter the list"),
+    HelpRow::Key("Esc", "Clear the filter"),
+    HelpRow::Section("Lists and moving"),
+    HelpRow::Key("Up/Down, j/k", "Move one row"),
+    HelpRow::Key("PgUp/PgDn, Ctrl+u/d", "Move ten rows"),
+    HelpRow::Key("g / G, Home / End", "First and last row"),
+    HelpRow::Key("Enter", "Process details, or expand a group"),
+    HelpRow::Key("i", "Inspect, or process details"),
+    HelpRow::Key("Left/Right, h/l", "Collapse, expand, inspect"),
+    HelpRow::Key("<, >, r", "Sort column, reverse"),
+    HelpRow::Key("x", "Clear the selected app history entry"),
+    HelpRow::Section("Processes"),
+    HelpRow::Key("Delete, e", "End task"),
+    HelpRow::Key("E", "End process tree"),
+    HelpRow::Key("K", "Send a signal"),
+    HelpRow::Key("p", "Set priority by nice value"),
+    HelpRow::Key("a", "Set affinity (unavailable)"),
+    HelpRow::Key("f", "Fewer details"),
+    HelpRow::Key("Space", "Expand a process group"),
+    HelpRow::Section("Services and startup"),
+    HelpRow::Key("s, S, R", "Start, stop, restart a service"),
+    HelpRow::Key("Space", "Enable or disable a startup entry"),
 ];
 
 pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut HitMap) {
@@ -49,7 +62,7 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
             let lines = wrap(message, max_width.saturating_sub(6) as usize);
             (max_width, lines.len() as u16 + 5)
         }
-        Dialog::Help => (max_width.min(72), HELP.len() as u16 + 4),
+        Dialog::Help { .. } => (max_width.min(72), HELP.len() as u16 + 4),
         Dialog::About => (max_width.min(72), 12),
         Dialog::Run { .. } => (max_width.min(52), 9),
         Dialog::Priority { .. } => (max_width.min(52), 6),
@@ -180,36 +193,62 @@ pub fn draw(buf: &mut Buffer, area: Rect, app: &App, dialog: &Dialog, hits: &mut
             );
             hits.add(Rect::new(inner.x + 2, y, 11, 1), Target::DialogClose);
         }
-        Dialog::Help => {
+        Dialog::Help { offset } => {
             let [list, footer] =
                 Layout::vertical([Constraint::Min(0), Constraint::Length(2)]).areas(inner);
-            for (index, (key, meaning)) in HELP.iter().enumerate() {
-                let row = list.y + index as u16;
-                if row >= list.y + list.height {
-                    break;
+            let visible = list.height as usize;
+            let max = HELP.len().saturating_sub(visible);
+            let start = offset.get().min(max);
+            offset.set(start);
+            for (row, index) in (start..HELP.len()).take(visible).enumerate() {
+                let y = list.y + row as u16;
+                match HELP[index] {
+                    HelpRow::Section(title) => put(
+                        buf,
+                        list.x + 2,
+                        y,
+                        title,
+                        Style::default()
+                            .fg(theme.muted)
+                            .bg(theme.surface)
+                            .add_modifier(Modifier::BOLD),
+                        list,
+                    ),
+                    HelpRow::Key(key, meaning) => {
+                        put(
+                            buf,
+                            list.x + 2,
+                            y,
+                            &format!("{:<24}", key),
+                            Style::default().fg(theme.accent).bg(theme.surface),
+                            list,
+                        );
+                        put(
+                            buf,
+                            list.x + 26,
+                            y,
+                            &truncate_line(meaning, list.width.saturating_sub(27) as usize),
+                            Style::default().fg(theme.text).bg(theme.surface),
+                            list,
+                        );
+                    }
                 }
-                put(
-                    buf,
-                    list.x + 2,
-                    row,
-                    &format!("{:<24}", key),
-                    Style::default().fg(theme.accent).bg(theme.surface),
-                    list,
-                );
-                put(
-                    buf,
-                    list.x + 26,
-                    row,
-                    &truncate_line(meaning, list.width.saturating_sub(27) as usize),
-                    Style::default().fg(theme.text).bg(theme.surface),
-                    list,
-                );
             }
+            let end = (start + visible).min(HELP.len());
+            let position = format!("{}-{end} of {}", start + 1, HELP.len());
+            put_right(
+                buf,
+                footer.x + footer.width - 2,
+                footer.y,
+                &position,
+                Style::default().fg(theme.muted).bg(theme.surface),
+                footer,
+            );
             put(
                 buf,
                 footer.x + 2,
                 footer.y,
-                "[Esc] Close",
+                "[Up/Down] Scroll   [PgUp/PgDn] Page   [Esc] Close",
                 Style::default().fg(theme.accent).bg(theme.surface),
                 footer,
             );
@@ -660,10 +699,13 @@ mod tests {
     #[test]
     fn help_lists_the_keys() {
         let mut app = app();
-        app.dialog = Some(Dialog::Help);
+        app.dialog = Some(Dialog::Help {
+            offset: std::cell::Cell::new(0),
+        });
         let screen = render(&app, 100, 40);
         assert!(screen.contains("Keyboard shortcuts"));
-        assert!(screen.contains("End task, end tree"));
+        assert!(screen.contains("End task"));
+        assert!(screen.contains("End process tree"));
         assert!(screen.contains("Inspect"));
         assert!(screen.contains("gradient"));
         assert!(screen.contains("F10"));
@@ -676,7 +718,7 @@ mod tests {
             input: "open -a Calculator".into(),
         });
         let screen = render(&app, 100, 30);
-        assert!(screen.contains("Run a new task"));
+        assert!(screen.contains("Run a command"));
         assert!(screen.contains("open -a Calculator"));
         assert!(screen.contains("[Enter] Run"));
     }

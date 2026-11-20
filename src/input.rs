@@ -81,22 +81,6 @@ pub fn translate(app: &App, key: KeyEvent) -> Option<Action> {
     if ctrl && matches!(key.code, KeyCode::Char('c')) {
         return Some(Action::Quit);
     }
-    if key.modifiers.contains(KeyModifiers::ALT)
-        && let KeyCode::Char(letter) = key.code
-    {
-        let index = match letter.to_ascii_lowercase() {
-            'f' => Some(0),
-            'o' => Some(1),
-            'v' => Some(2),
-            't' => Some(3),
-            'p' => Some(4),
-            'h' => Some(5),
-            _ => None,
-        };
-        if let Some(index) = index {
-            return Some(Action::OpenMenu(index));
-        }
-    }
 
     if let Some(dialog) = &app.dialog {
         return translate_dialog(dialog, key);
@@ -124,13 +108,45 @@ pub fn translate(app: &App, key: KeyEvent) -> Option<Action> {
             KeyCode::Esc => Some(Action::FilterClear),
             KeyCode::Enter => Some(Action::FilterDone),
             KeyCode::Backspace => Some(Action::FilterBackspace),
-            KeyCode::Char(ch) => Some(Action::FilterChar(ch)),
+            KeyCode::Char(ch)
+                if !key
+                    .modifiers
+                    .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+            {
+                Some(Action::FilterChar(ch))
+            }
+            _ => None,
+        };
+    }
+
+    if key.modifiers.contains(KeyModifiers::ALT)
+        && let KeyCode::Char(letter) = key.code
+    {
+        let index = match letter.to_ascii_lowercase() {
+            'f' => Some(0),
+            'o' => Some(1),
+            'v' => Some(2),
+            't' => Some(3),
+            'p' => Some(4),
+            'h' => Some(5),
+            _ => None,
+        };
+        if let Some(index) = index {
+            return Some(Action::OpenMenu(index));
+        }
+    }
+
+    if ctrl {
+        return match key.code {
+            KeyCode::Char('d') => Some(Action::PageDown),
+            KeyCode::Char('u') => Some(Action::PageUp),
+            KeyCode::Char('f') | KeyCode::Char('F') => Some(Action::FilterStart),
             _ => None,
         };
     }
 
     let action = match key.code {
-        KeyCode::Char('q') if !ctrl => Action::Quit,
+        KeyCode::Char('q') => Action::Quit,
         KeyCode::F(10) => Action::MenuOpen,
         KeyCode::F(1) => Action::Help,
         KeyCode::F(2) => Action::Appearance,
@@ -141,8 +157,6 @@ pub fn translate(app: &App, key: KeyEvent) -> Option<Action> {
         KeyCode::Char(ch @ '1'..='7') => Action::GoTab(ch as usize - '1' as usize),
         KeyCode::Up | KeyCode::Char('k') => Action::MoveUp,
         KeyCode::Down | KeyCode::Char('j') => Action::MoveDown,
-        KeyCode::Char('d') if ctrl => Action::PageDown,
-        KeyCode::Char('u') if ctrl => Action::PageUp,
         KeyCode::Char('g') => Action::Top,
         KeyCode::Char('G') => Action::Bottom,
         KeyCode::PageUp => Action::PageUp,
@@ -197,8 +211,19 @@ fn translate_dialog(dialog: &Dialog, key: KeyEvent) -> Option<Action> {
             }
             _ => None,
         },
+        Dialog::Help { .. } => match key.code {
+            KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') | KeyCode::F(1) => {
+                Some(Action::Cancel)
+            }
+            KeyCode::Up | KeyCode::Char('k') => Some(Action::MoveUp),
+            KeyCode::Down | KeyCode::Char('j') => Some(Action::MoveDown),
+            KeyCode::PageUp => Some(Action::PageUp),
+            KeyCode::PageDown => Some(Action::PageDown),
+            KeyCode::Home => Some(Action::Top),
+            KeyCode::End => Some(Action::Bottom),
+            _ => None,
+        },
         Dialog::Error { .. }
-        | Dialog::Help
         | Dialog::About
         | Dialog::Properties { .. }
         | Dialog::ProcessInfo { .. } => match key.code {
@@ -467,6 +492,61 @@ mod tests {
             ),
             Some(Action::PageUp)
         );
+    }
+
+    #[test]
+    fn control_f_starts_the_filter_and_other_control_letters_do_nothing() {
+        let app = app();
+        let ctrl = |ch| KeyEvent::new(KeyCode::Char(ch), KeyModifiers::CONTROL);
+        assert_eq!(translate(&app, ctrl('f')), Some(Action::FilterStart));
+        assert_eq!(translate(&app, ctrl('s')), None);
+        assert_eq!(translate(&app, ctrl('r')), None);
+        assert_eq!(translate(&app, ctrl('p')), None);
+    }
+
+    #[test]
+    fn alt_is_ignored_while_a_dialog_is_open() {
+        let mut app = app();
+        app.dialog = Some(Dialog::Confirm {
+            title: "Clear".into(),
+            message: "Clear the history?".into(),
+            confirm_label: "Clear".into(),
+            action: crate::app::PendingAction::ClearHistory,
+        });
+        assert_eq!(
+            translate(&app, KeyEvent::new(KeyCode::Char('f'), KeyModifiers::ALT)),
+            None
+        );
+    }
+
+    #[test]
+    fn alt_is_ignored_while_filtering() {
+        let mut app = app();
+        app.filter_editing = true;
+        assert_eq!(
+            translate(&app, KeyEvent::new(KeyCode::Char('f'), KeyModifiers::ALT)),
+            None
+        );
+        assert_eq!(
+            translate(&app, key(KeyCode::Char('f'))),
+            Some(Action::FilterChar('f'))
+        );
+    }
+
+    #[test]
+    fn help_dialog_keys_scroll() {
+        let mut app = app();
+        app.dialog = Some(Dialog::Help {
+            offset: std::cell::Cell::new(0),
+        });
+        assert_eq!(translate(&app, key(KeyCode::Down)), Some(Action::MoveDown));
+        assert_eq!(translate(&app, key(KeyCode::Up)), Some(Action::MoveUp));
+        assert_eq!(
+            translate(&app, key(KeyCode::PageDown)),
+            Some(Action::PageDown)
+        );
+        assert_eq!(translate(&app, key(KeyCode::Home)), Some(Action::Top));
+        assert_eq!(translate(&app, key(KeyCode::Esc)), Some(Action::Cancel));
     }
 
     #[test]
