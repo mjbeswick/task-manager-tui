@@ -767,6 +767,10 @@ impl App {
     }
 
     pub fn apply_snapshot(&mut self, snapshot: Snapshot) {
+        let in_view: Vec<Tab> = Tab::ALL
+            .into_iter()
+            .filter(|tab| self.selection_in_view(*tab))
+            .collect();
         self.snapshot = snapshot;
         self.last_sample_at = Some(std::time::Instant::now());
         self.sample_count += 1;
@@ -780,6 +784,10 @@ impl App {
         // Samples refresh values; they must not pull the viewport back to the
         // selection, or pointer scrolling would last less than one interval.
         self.clamp_viewports();
+        // A selection the user could see must not sink out of view on a re-sort.
+        for tab in in_view {
+            self.keep_selection_visible(tab);
+        }
     }
 
     pub fn filter(&self) -> &str {
@@ -1167,17 +1175,32 @@ impl App {
         self.scroll_list(tab, direction * step);
     }
 
-    fn keep_selection_visible(&mut self) {
-        let tab = self.tab;
+    fn list_selected(&self, tab: Tab) -> Option<usize> {
+        match tab {
+            Tab::Processes => Some(self.process.selected),
+            Tab::Details => Some(self.details.selected),
+            Tab::Services => Some(self.services.selected),
+            Tab::Startup => Some(self.startup.selected),
+            Tab::Users => Some(self.users.selected),
+            Tab::AppHistory => Some(self.app_history.selected),
+            Tab::Performance => None,
+        }
+    }
+
+    /// True when a frame has drawn the tab and its selection sits in the viewport.
+    fn selection_in_view(&self, tab: Tab) -> bool {
         let visible = self.list_visible(tab);
-        let selected = match tab {
-            Tab::Processes => self.process.selected,
-            Tab::Details => self.details.selected,
-            Tab::Services => self.services.selected,
-            Tab::Startup => self.startup.selected,
-            Tab::Users => self.users.selected,
-            Tab::AppHistory => self.app_history.selected,
-            Tab::Performance => return,
+        let scroll = self.list_scroll(tab);
+        visible > 0
+            && self
+                .list_selected(tab)
+                .is_some_and(|selected| (scroll..scroll + visible).contains(&selected))
+    }
+
+    fn keep_selection_visible(&mut self, tab: Tab) {
+        let visible = self.list_visible(tab);
+        let Some(selected) = self.list_selected(tab) else {
+            return;
         };
         let Some(scroll) = self.scroll_mut(tab) else {
             return;
@@ -1280,7 +1303,7 @@ impl App {
             }
         };
         if moved {
-            self.keep_selection_visible();
+            self.keep_selection_visible(self.tab);
         }
         moved
     }
@@ -1496,6 +1519,32 @@ mod tests {
             app.list_scroll(Tab::Processes),
             5,
             "pointer scrolling must survive a sample"
+        );
+    }
+
+    #[test]
+    fn a_visible_selection_follows_its_row_after_a_resort() {
+        let mut app = app();
+        app.tab = Tab::Details;
+        app.details.visible.set(2);
+        let top = app.details.key.unwrap();
+        let mut snapshot = Snapshot::fixture();
+        for row in snapshot.processes.iter_mut() {
+            row.cpu = if row.key == top { 0.0 } else { 50.0 };
+        }
+        app.apply_snapshot(snapshot.clone());
+        let selected = app.details.selected;
+        assert!(selected >= 2, "the row sank below the viewport");
+        assert!(
+            (app.details.scroll..app.details.scroll + 2).contains(&selected),
+            "the viewport followed it"
+        );
+
+        app.set_list_scroll(Tab::Details, 0);
+        app.apply_snapshot(snapshot);
+        assert_eq!(
+            app.details.scroll, 0,
+            "an out-of-view selection is not chased"
         );
     }
 
