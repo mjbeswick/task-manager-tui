@@ -373,12 +373,12 @@ impl Signal {
 
     pub fn number(self) -> i32 {
         match self {
-            Signal::Hup => 1,
-            Signal::Int => 2,
-            Signal::Kill => 9,
-            Signal::Term => 15,
-            Signal::Cont => 18,
-            Signal::Stop => 19,
+            Signal::Hup => libc::SIGHUP,
+            Signal::Int => libc::SIGINT,
+            Signal::Kill => libc::SIGKILL,
+            Signal::Term => libc::SIGTERM,
+            Signal::Cont => libc::SIGCONT,
+            Signal::Stop => libc::SIGSTOP,
         }
     }
 
@@ -822,11 +822,15 @@ mod tests {
     }
 
     #[test]
-    fn signals_have_posix_numbers_and_unique_names() {
+    fn signals_have_platform_numbers_and_unique_names() {
         assert_eq!(
             Signal::ALL.iter().map(|s| s.number()).collect::<Vec<_>>(),
-            vec![15, 9, 2, 1, 19, 18]
+            vec![15, 9, 2, 1, libc::SIGSTOP, libc::SIGCONT]
         );
+        #[cfg(target_os = "macos")]
+        assert_eq!((Signal::Stop.number(), Signal::Cont.number()), (17, 19));
+        #[cfg(target_os = "linux")]
+        assert_eq!((Signal::Stop.number(), Signal::Cont.number()), (19, 18));
         let mut names: Vec<_> = Signal::ALL.iter().map(|s| s.name()).collect();
         names.sort_unstable();
         names.dedup();
