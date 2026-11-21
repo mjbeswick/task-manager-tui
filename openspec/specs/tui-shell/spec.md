@@ -36,8 +36,12 @@ terminal. It MUST use the flat Windows 10 borders rather than a double-line box.
 ### Requirement: Seven tabs in the Windows 10 order
 
 The system SHALL present Processes, Performance, App history, Startup, Users,
-Details, and Services, in that order, with labels only. The active tab MUST be drawn as
-an open box whose outline uses the rule colour, with an accent label.
+Details, and Services, in that order, with labels only. When all seven full labels fit,
+the strip SHALL draw them. When they do not fit, the strip MUST be replaced by one
+`Tabs: <active> ▾` button naming the active tab. The active tab MUST be drawn as
+an open box whose outline uses the rule colour, with an accent label. The button MUST
+open a dropdown that lists all seven tabs with their `1`-`7` keys and a mark on the
+active tab.
 
 #### Scenario: Cycle tabs
 - **WHEN** the user presses Tab or Shift+Tab
@@ -56,16 +60,16 @@ an open box whose outline uses the rule colour, with an accent label.
 - **THEN** no digits are printed, and the 1-7 keys still jump to their tabs
 
 #### Scenario: Active tab
-- **WHEN** a tab is active
+- **WHEN** a tab is active and the labels are shown
 - **THEN** its label uses the accent colour, its outline uses the rule colour, and every other tab keeps the window background
 
 #### Scenario: Centred underlines
-- **WHEN** the tab strip is drawn
+- **WHEN** the tab strip draws its labels
 - **THEN** each label sits over the continuous rule and the active tab opens through it
 
 #### Scenario: Narrow strip
-- **WHEN** the terminal is narrower than 90 columns
-- **THEN** labels shorten and the open box is still drawn around the active label if it is visible
+- **WHEN** the terminal cannot fit all seven full labels
+- **THEN** the strip is replaced by one button naming the active tab, with the same raised box and accent label
 
 #### Scenario: Labels only
 - **WHEN** the tab strip is drawn
@@ -88,12 +92,16 @@ an open box whose outline uses the rule colour, with an accent label.
 - **THEN** a `┘` closes the left side, a `└` closes the right side, and the space between them is empty
 
 #### Scenario: Active tab hidden
-- **WHEN** the strip is too narrow for the active tab
-- **THEN** no box is drawn and the remaining labels keep the continuous rule
+- **WHEN** the strip is in button mode
+- **THEN** no separate labels are drawn and the button carries the active tab's name
+
+#### Scenario: Tab button
+- **WHEN** the user clicks the button or presses Alt+T
+- **THEN** a dropdown lists all seven tabs with their `1`-`7` keys and a mark on the active tab
 
 ### Requirement: Menu bar is keyboard operable
 
-The menu bar SHALL expose File, Options, View, Tabs, Process, and Help. F10 SHALL focus
+The menu bar SHALL expose File, Options, View, Process, and Help. F10 SHALL focus
 the menu bar, the arrow keys SHALL move between menus and items, Enter SHALL activate an
 item, and Esc SHALL close the menu without acting. On a narrow terminal the labels MUST use
 compact spacing so no menu is truncated. Each item MUST show its shortcut hint right-aligned,
@@ -106,7 +114,7 @@ drawn muted with a short reason and MUST do nothing when activated.
 - **THEN** the View menu opens, its groups are separated by rules, and every item shows its shortcut hint
 
 #### Scenario: Tabs menu
-- **WHEN** the user opens Tabs
+- **WHEN** the user opens the tab list from its button or with Alt+T
 - **THEN** it lists Processes, Performance, App history, Startup, Users, Details, and Services with their `1`-`7` keys
 - **AND** choosing one switches to that tab
 
@@ -120,11 +128,11 @@ drawn muted with a short reason and MUST do nothing when activated.
 
 #### Scenario: Alt shortcuts
 - **WHEN** the user presses Alt+T
-- **THEN** the Tabs menu opens at its first item
+- **THEN** the tab list opens at the active tab
 
 #### Scenario: Narrow menu bar
 - **WHEN** the terminal is 40 columns wide
-- **THEN** all six menu labels are drawn and clickable, with compact spacing and no truncation
+- **THEN** all five menu labels are drawn and clickable, with compact spacing and no truncation
 
 #### Scenario: Activate an item
 - **WHEN** an item is highlighted and the user presses Enter
@@ -216,8 +224,8 @@ pointer.
 - **THEN** Up/Down and k/j move one row, PgUp/PgDn and Ctrl+u/Ctrl+d move ten, g and G jump to the first and last row, and h/l collapse and expand
 
 #### Scenario: Direct menu access
-- **WHEN** the user presses Alt+F, Alt+O, Alt+V, or Alt+H
-- **THEN** the File, Options, View, or Help menu opens with its first item selected
+- **WHEN** the user presses Alt+F, Alt+O, Alt+V, Alt+P, or Alt+H
+- **THEN** the matching menu opens with its first item selected, and Alt+T opens the tab list at the active tab
 
 ### Requirement: Mouse support
 
