@@ -45,11 +45,9 @@ the tab list. The content rule and every content row are unchanged.
 ### Requirement: Seven tabs are keyboard reachable
 
 The system SHALL present Processes, Performance, App history, Startup, Users,
-Details, and Services, in that order, reachable from the keyboard. `Tab` and
-`Shift+Tab` MUST cycle through the tabs and wrap at both ends, `1`-`7` MUST jump to
-their tab, and `Alt+T` MUST open a dropdown that lists all seven tabs with their keys
-and a mark on the active tab. The dropdown MUST anchor at the left edge below the
-content rule.
+Details, and Services in that order. `Tab` and `Shift+Tab` MUST cycle with wrap,
+`1`-`7` MUST jump to their tab, and `Alt+T` MUST open a dropdown listing all seven
+with their keys and a mark on the active tab, anchored at the left edge below the rule.
 
 #### Scenario: Cycle tabs
 - **WHEN** the user presses Tab or Shift+Tab
