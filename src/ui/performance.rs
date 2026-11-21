@@ -228,8 +228,11 @@ fn draw_cpu(buf: &mut Buffer, inner: Rect, app: &App) {
         .areas(inner);
         (graph_area, boxes_area, Some(cores_area))
     } else {
-        let [graph_area, boxes_area] =
-            Layout::vertical([Constraint::Min(3), Constraint::Length(3)]).areas(inner);
+        let [graph_area, boxes_area] = Layout::vertical([
+            Constraint::Min(3),
+            Constraint::Length(stat_height(inner.width)),
+        ])
+        .areas(inner);
         (graph_area, boxes_area, None)
     };
 
@@ -323,9 +326,12 @@ fn draw_mini(buf: &mut Buffer, area: Rect, series: &Series, app: &App) {
 fn draw_memory(buf: &mut Buffer, inner: Rect, app: &App) {
     let theme = app.theme();
     let memory = &app.snapshot.memory;
-    let [graph_area, boxes_area] = Layout::vertical([
+    // The footnote gets its own row, so it never covers the last stat values.
+    let note = u16::from(inner.height >= 4 + stat_height(inner.width));
+    let [graph_area, boxes_area, note_area] = Layout::vertical([
         Constraint::Min(3),
         Constraint::Length(stat_height(inner.width)),
+        Constraint::Length(note),
     ])
     .areas(inner);
     let used_pct = if memory.total > 0 {
@@ -350,18 +356,17 @@ fn draw_memory(buf: &mut Buffer, inner: Rect, app: &App) {
         ("Swap used", bytes(memory.swap_used), ""),
     ];
     draw_stat_row(buf, boxes_area, &boxes, app);
-    let note = format!("Committed {} is not reported on this platform.", DASH);
-    if inner.height >= 5 {
-        put(
-            buf,
-            inner.x,
-            inner.y + inner.height - 1,
+    put(
+        buf,
+        note_area.x,
+        note_area.y,
+        &truncate(
             "A dash means the platform does not report that figure.",
-            Style::default().fg(theme.muted).bg(theme.surface),
-            inner,
-        );
-    }
-    let _ = note;
+            note_area.width as usize,
+        ),
+        Style::default().fg(theme.muted).bg(theme.surface),
+        note_area,
+    );
 }
 
 fn draw_disk(buf: &mut Buffer, inner: Rect, app: &App) {
@@ -534,8 +539,8 @@ fn draw_gpu(buf: &mut Buffer, inner: Rect, app: &App) {
     draw_stat_row(buf, boxes_area, &boxes, app);
 }
 
-/// Height the stat boxes need: label and value on wide panels, two stacked rows
-/// of both on narrow ones.
+/// Height the stat boxes need: one row of label and value on wide panels, two
+/// on narrow ones. `draw_stat_row` never wraps to more than two rows.
 fn stat_height(width: u16) -> u16 {
     if width >= 80 { 2 } else { 4 }
 }
@@ -547,23 +552,23 @@ fn draw_stat_row(buf: &mut Buffer, area: Rect, boxes: &[(&str, String, &str)], a
     }
     let per_row = if area.width >= 80 {
         boxes.len()
-    } else if area.width >= 40 {
-        boxes.len().div_ceil(2)
     } else {
-        2
+        boxes.len().div_ceil(2)
     };
-    let rows = boxes.len().div_ceil(per_row) as u16;
-    let row_height = (area.height / rows.max(1)).max(1);
     let width = area.width / per_row as u16;
 
     for (index, (label, value, _unit)) in boxes.iter().enumerate() {
         let column = index % per_row;
         let row = index / per_row;
         let x = area.x + column as u16 * width;
-        let y = area.y + row as u16 * row_height;
+        let y = area.y + row as u16 * 2;
+        // A label without its value reads as broken; leave out a row that does not fit.
+        if y + 2 > area.y + area.height {
+            break;
+        }
         draw_stat_box(
             buf,
-            Rect::new(x, y, width.saturating_sub(1), row_height),
+            Rect::new(x, y, width.saturating_sub(1), 2),
             label,
             value,
             app,
@@ -636,6 +641,35 @@ mod tests {
         );
         assert!(rail[2].contains("GHz"), "value under CPU: {:?}", rail[2]);
         assert!(rail.iter().any(|l| l.contains("16.0 GB (62%)")));
+    }
+
+    #[test]
+    fn narrow_stat_boxes_keep_their_values() {
+        let panels = [
+            (crate::app::ResourceChoice::Cpu, ["Utilization", "Up time"]),
+            (crate::app::ResourceChoice::Memory, ["In use", "Swap used"]),
+        ];
+        for (width, height) in [(40, 16), (60, 20)] {
+            for (resource, labels) in panels {
+                let mut app = app();
+                app.performance.resource = resource;
+                let screen = render(&app, width, height);
+                let lines: Vec<&str> = screen.lines().collect();
+                for label in labels {
+                    let row = lines
+                        .iter()
+                        .position(|line| line.contains(label))
+                        .unwrap_or_else(|| panic!("{label} at {width}x{height}:\n{screen}"));
+                    let column = lines[row].find(label).unwrap();
+                    let value = lines[row + 1].get(column..).unwrap_or("").trim();
+                    // CPU and Memory values start with a digit or a dash, never a label.
+                    assert!(
+                        value.starts_with(|c: char| c.is_ascii_digit() || c == '-'),
+                        "{label} value at {width}x{height}:\n{screen}"
+                    );
+                }
+            }
+        }
     }
 
     #[test]
