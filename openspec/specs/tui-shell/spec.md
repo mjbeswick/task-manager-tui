@@ -8,18 +8,18 @@ area, and status bar - inside a terminal, driven entirely by the keyboard.
 
 ### Requirement: Window layout matches Windows 10
 
-The application SHALL draw a menu bar on its own background at the top, one rule row
-directly beneath it, the active tab's content in the middle, and a status bar at the
-bottom, filling the whole terminal. It MUST use the flat Windows 10 borders rather than
-a double-line box. The window chrome MUST NOT draw tab labels.
+The application SHALL draw a menu bar on its own background at the top, a tab strip
+directly beneath it, a rule of centred tab underlines beneath the strip, the active
+tab's content in the middle, and a status bar at the bottom, filling the whole
+terminal. It MUST use the flat Windows 10 borders rather than a double-line box.
 
 #### Scenario: Standard terminal
 - **WHEN** the application starts in a terminal of at least 100 columns by 30 rows
-- **THEN** the menu bar, the rule, the content area, and the status bar are visible without scrolling
+- **THEN** the menu bar, all seven tab labels, the tab rule, the content area, and the status bar are visible without scrolling
 
 #### Scenario: Narrow terminal
 - **WHEN** the terminal is narrower than 100 columns
-- **THEN** optional columns are dropped first, the process name stays visible, and the rule stays continuous
+- **THEN** optional columns are dropped first, the process name stays visible, and the tab strip and its rule remain readable
 
 #### Scenario: Terminal below the minimum
 - **WHEN** the terminal is smaller than 40 columns by 12 rows
@@ -30,8 +30,74 @@ a double-line box. The window chrome MUST NOT draw tab labels.
 - **THEN** it fills its row with the chrome background, and the filter field keeps a surface-coloured inset
 
 #### Scenario: Tab rule row
-- **WHEN** the window is drawn
-- **THEN** the row under the menu bar is one unbroken horizontal rule and carries no tab label
+- **WHEN** the tab strip is drawn
+- **THEN** one row beneath it is reserved for the tab underlines and is not used for tab labels
+
+### Requirement: Seven tabs in the Windows 10 order
+
+The system SHALL present Processes, Performance, App history, Startup, Users,
+Details, and Services, in that order, with labels only. When all seven full labels fit,
+the strip SHALL draw them. When they do not fit, the strip MUST be replaced by one
+`Tabs: <active> ▾` button naming the active tab. The active tab MUST be drawn as
+an open box whose outline uses the rule colour, with an accent label. The button MUST
+open a dropdown that lists all seven tabs with their `1`-`7` keys and a mark on the
+active tab.
+
+#### Scenario: Cycle tabs
+- **WHEN** the user presses Tab or Shift+Tab
+- **THEN** the active tab moves to the next or previous tab, wrapping at the ends
+
+#### Scenario: Jump to a tab
+- **WHEN** the user presses a digit from 1 to 7
+- **THEN** the matching tab becomes active
+
+#### Scenario: Tab state is kept
+- **WHEN** the user leaves a tab and returns to it
+- **THEN** its selection, scroll position, and sort order are as they were left
+
+#### Scenario: Tab numbers
+- **WHEN** the tab strip is drawn
+- **THEN** no digits are printed, and the 1-7 keys still jump to their tabs
+
+#### Scenario: Active tab
+- **WHEN** a tab is active and the labels are shown
+- **THEN** its label uses the accent colour, its outline uses the rule colour, and every other tab keeps the window background
+
+#### Scenario: Centred underlines
+- **WHEN** the tab strip draws its labels
+- **THEN** each label sits over the continuous rule and the active tab opens through it
+
+#### Scenario: Narrow strip
+- **WHEN** the terminal cannot fit all seven full labels
+- **THEN** the strip is replaced by one button naming the active tab, with the same raised box and accent label
+
+#### Scenario: Labels only
+- **WHEN** the tab strip is drawn
+- **THEN** each tab shows its label with no digit prefix
+
+#### Scenario: No separators
+- **WHEN** the tab strip is drawn
+- **THEN** labels are separated by empty space and no vertical bar appears between them
+
+#### Scenario: Matching outline
+- **WHEN** a tab is active and visible
+- **THEN** its top border, sides, and outward bottom corners use the same colour as the rule
+
+#### Scenario: Accent label
+- **WHEN** a tab is active and visible
+- **THEN** only its label uses the accent colour
+
+#### Scenario: Bottom corners
+- **WHEN** the rule row is drawn under the active tab
+- **THEN** a `┘` closes the left side, a `└` closes the right side, and the space between them is empty
+
+#### Scenario: Active tab hidden
+- **WHEN** the strip is in button mode
+- **THEN** no separate labels are drawn and the button carries the active tab's name
+
+#### Scenario: Tab button
+- **WHEN** the user clicks the button or presses Alt+T
+- **THEN** a dropdown lists all seven tabs with their `1`-`7` keys and a mark on the active tab
 
 ### Requirement: Menu bar is keyboard operable
 
@@ -489,30 +555,3 @@ accelerator while a dialog or the filter field has focus.
 #### Scenario: Filter shortcut
 - **WHEN** the user presses `Ctrl+F` on a list tab
 - **THEN** the filter field takes focus, as `/` does
-
-### Requirement: Seven tabs are keyboard reachable
-
-The system SHALL present Processes, Performance, App history, Startup, Users,
-Details, and Services in that order. `Tab` and `Shift+Tab` MUST cycle with wrap,
-`1`-`7` MUST jump to their tab, and `Alt+T` MUST open a dropdown listing all seven
-with their keys and a mark on the active tab, anchored at the left edge below the rule.
-
-#### Scenario: Cycle tabs
-- **WHEN** the user presses Tab or Shift+Tab
-- **THEN** the active tab moves to the next or previous tab, wrapping at the ends
-
-#### Scenario: Jump to a tab
-- **WHEN** the user presses a digit from 1 to 7
-- **THEN** the matching tab becomes active
-
-#### Scenario: Tab state is kept
-- **WHEN** the user leaves a tab and returns to it
-- **THEN** its selection, scroll position, and sort order are as they were left
-
-#### Scenario: Tab list
-- **WHEN** the user presses Alt+T
-- **THEN** a dropdown lists all seven tabs with their `1`-`7` keys and a mark on the active tab
-
-#### Scenario: No strip labels
-- **WHEN** the window is drawn at any width
-- **THEN** no tab label, active-tab box, or `Tabs:` button appears above the content
