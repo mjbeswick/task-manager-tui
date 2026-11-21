@@ -3,13 +3,13 @@ source: tests/render.rs
 expression: "screen(&app(tab, \"light\"), 120, 40)"
 ---
  File  Options  View  Process  Help                                                        / Filter                     
-                                                              ┌────────┐                                                
- Processes  Performance  App history  Startup  Users  Details │Services│                                                
-──────────────────────────────────────────────────────────────┘        └────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 Name                                                             PID  Description                         Status   Group
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 com.apple.metadata.mds                                            312 -                                  Running  system
 homebrew.mxcl.nginx                                                 - nginx web server                   Stopped    user
+                                                                                                                        
+                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

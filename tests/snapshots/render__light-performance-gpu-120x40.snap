@@ -3,9 +3,7 @@ source: tests/render.rs
 expression: "screen(&app, 120, 40)"
 ---
  File  Options  View  Process  Help                                                                                     
-           ┌───────────┐                                                                                                
- Processes │Performance│ App history  Startup  Users  Details  Services                                                 
-───────────┘           └────────────────────────────────────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   CPU                                                                                                                   
   ▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂                                                                                                     
   27% 3.20 GHz                                                                                                          
@@ -23,8 +21,10 @@ expression: "screen(&app, 120, 40)"
   12.0 Mbps                                                                                                             
                                                                                                                         
 ▌ GPU                                                                                                                   
-▌                                                       Not available on this system                                    
-▌ -                                                                                                                     
+▌                                                                                                                       
+▌ -                                                     Not available on this system                                    
+                                                                                                                        
+                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

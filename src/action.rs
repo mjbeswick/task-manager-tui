@@ -254,8 +254,7 @@ impl App {
         if self.tab_menu.is_some()
             && !matches!(
                 target,
-                Some(crate::ui::hits::Target::TabButton)
-                    | Some(crate::ui::hits::Target::TabMenuItem(_))
+                Some(crate::ui::hits::Target::TabMenuItem(_))
                     | Some(crate::ui::hits::Target::TabMenuPanel)
             )
         {
@@ -283,14 +282,6 @@ impl App {
     pub fn click(&mut self, target: crate::ui::hits::Target) -> Vec<Effect> {
         use crate::ui::hits::Target;
         match target {
-            Target::Tab(tab) => {
-                self.switch_tab(tab);
-                Vec::new()
-            }
-            Target::TabButton => {
-                self.open_tab_menu();
-                Vec::new()
-            }
             Target::TabMenuItem(index) => {
                 self.tab_menu = None;
                 self.switch_tab(Tab::ALL[index.min(Tab::ALL.len() - 1)]);
@@ -1878,14 +1869,6 @@ mod tests {
     }
 
     #[test]
-    fn clicking_a_tab_switches_to_it() {
-        let mut app = app();
-        let effects = app.click(crate::ui::hits::Target::Tab(Tab::Performance));
-        assert!(effects.is_empty());
-        assert_eq!(app.tab, Tab::Performance);
-    }
-
-    #[test]
     fn clicking_a_row_selects_it() {
         let mut app = app();
         app.dispatch(Action::GoTab(5));
@@ -1963,16 +1946,16 @@ mod tests {
     }
 
     #[test]
-    fn clicking_the_tab_button_opens_and_an_item_switches() {
+    fn clicking_the_tab_list_switches() {
         use crate::ui::hits::Target;
         let mut app = app();
-        app.click(Target::TabButton);
+        app.dispatch(Action::TabMenuOpen);
         assert!(app.tab_menu.is_some());
         app.click(Target::TabMenuItem(2));
         assert_eq!(app.tab, Tab::AppHistory);
         assert!(app.tab_menu.is_none());
 
-        app.click(Target::TabButton);
+        app.dispatch(Action::TabMenuOpen);
         app.mouse_click(Some(Target::Row(0)));
         assert!(app.tab_menu.is_none(), "an outside click closes the list");
     }

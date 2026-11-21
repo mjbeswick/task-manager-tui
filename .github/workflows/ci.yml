@@ -43,10 +43,17 @@ jobs:
         run: cargo build --release
       - name: Render one frame of every tab
         run: |
-          for tab in processes performance app-history startup users details services; do
-            ./target/release/taskmgr --once --tab "$tab" > "/tmp/$tab.txt"
-            grep -q "Services" "/tmp/$tab.txt"
-          done
+          check() {
+            ./target/release/taskmgr --once --tab "$1" > "/tmp/$1.txt"
+            grep -q "$2" "/tmp/$1.txt"
+          }
+          check processes "Name"
+          check performance "Utilization"
+          check app-history "CPU time"
+          check startup "Startup impact"
+          check users "Session"
+          check details "PID"
+          check services "Description"
           echo "all tabs rendered"
 
   linux-container:
@@ -59,9 +66,16 @@ jobs:
         run: cargo build --release
       - name: Render one frame of every tab
         run: |
-          for tab in processes performance app-history startup users details services; do
-            ./target/release/taskmgr --once --tab "$tab" > "/tmp/$tab.txt"
-            grep -q "Services" "/tmp/$tab.txt"
-          done
+          check() {
+            ./target/release/taskmgr --once --tab "$1" > "/tmp/$1.txt"
+            grep -q "$2" "/tmp/$1.txt"
+          }
+          check processes "Name"
+          check performance "Utilization"
+          check app-history "CPU time"
+          check startup "Startup impact"
+          check users "Session"
+          check details "PID"
+          check services "Description"
           grep -q "Services are unavailable" /tmp/services.txt
           echo "all tabs rendered without systemd"

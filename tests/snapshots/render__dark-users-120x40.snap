@@ -3,12 +3,12 @@ source: tests/render.rs
 expression: "screen(&app(tab, \"dark\"), 120, 40)"
 ---
  File  Options  View  Process  Help                                                        / Filter                     
-                                              ┌─────┐                                                                   
- Processes  Performance  App history  Startup │Users│ Details  Services                                                 
-──────────────────────────────────────────────┘     └───────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 User                                                              Session         Status     CPU    Memory        Disk  
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 michael  (current)                                                ttys001         Active   24.0%    4.0 GB  576.0 KB/s  
+                                                                                                                        
+                                                                                                                        
                                                                                                                         
                                                                                                                         
                                                                                                                         

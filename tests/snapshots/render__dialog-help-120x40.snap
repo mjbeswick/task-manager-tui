@@ -3,20 +3,20 @@ source: tests/render.rs
 expression: "screen(&app, 120, 40)"
 ---
  File  Options  View  Process  Help                                                        / Filter                     
-┌─────────┐             ┌─ Keyboard shortcuts ─────────────────────────────────────────────────┐                        
-│Processes│ Performance │  General                                                             │                        
-┘         └─────────────│  q, Ctrl+C               Quit                                        │────────────────────────
-Name                    │  F10, Alt+F/O/V/P/H      Menu bar                                    │   Disk   Network  GPU  
-────────────────────────│  Alt+T                   Tab list                                    │────────────────────────
-▾ Apps (2)              │  F1, ?                   This help                                   │5.3MB/s  12.0Mbps    -  
-  ▸ Safari (1)          │  F2                      Appearance: theme, style, colour, gradient  │.0 KB/s                 
-  ▸ Ghostty (1)         │  F4                      Show or hide shortcut hints                 │.0 KB/s                 
-▾ Background processes (│  F5                      Refresh now                                 │                        
-  ▸ node (1)            │  t                       Next colour theme                           │.0 KB/s                 
-  ▸ postgres (1)        │  +, -                    Update speed                                │.0 KB/s                 
-▾ System processes (2)  │  Tabs and filter                                                     │                        
-  ▸ WindowServer (1)    │  1-7, Tab, Shift+Tab     Switch tabs                                 │.0 KB/s                 
-  ▸ launchd (1)         │  /, Ctrl+F               Filter the list                             │.0 KB/s                 
+────────────────────────┌─ Keyboard shortcuts ─────────────────────────────────────────────────┐────────────────────────
+Name                    │  General                                                             │   Disk   Network  GPU  
+────────────────────────│  q, Ctrl+C               Quit                                        │────────────────────────
+▾ Apps (2)              │  F10, Alt+F/O/V/P/H      Menu bar                                    │5.3MB/s  12.0Mbps    -  
+  ▸ Safari (1)          │  Alt+T                   Tab list                                    │.0 KB/s                 
+  ▸ Ghostty (1)         │  F1, ?                   This help                                   │.0 KB/s                 
+▾ Background processes (│  F2                      Appearance: theme, style, colour, gradient  │                        
+  ▸ node (1)            │  F4                      Show or hide shortcut hints                 │.0 KB/s                 
+  ▸ postgres (1)        │  F5                      Refresh now                                 │.0 KB/s                 
+▾ System processes (2)  │  t                       Next colour theme                           │                        
+  ▸ WindowServer (1)    │  +, -                    Update speed                                │.0 KB/s                 
+  ▸ launchd (1)         │  Tabs and filter                                                     │.0 KB/s                 
+                        │  1-7, Tab, Shift+Tab     Switch tabs                                 │                        
+                        │  /, Ctrl+F               Filter the list                             │                        
                         │  Esc                     Clear the filter                            │                        
                         │  Lists and moving                                                    │                        
                         │  Up/Down, j/k            Move one row                                │                        
