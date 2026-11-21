@@ -5,5 +5,5 @@ expression: "screen(&app(Tab::Processes, \"light\"), 30, 8)"
                               
                               
                               
-                              
-taskmgr needs at least 40 colu
+  taskmgr needs at least 40   
+columns and 12 rows (now 30x8)
