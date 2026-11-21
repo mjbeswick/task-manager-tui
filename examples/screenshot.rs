@@ -124,8 +124,7 @@ fn demo_snapshot() -> Snapshot {
 }
 
 fn fill_graphs(app: &mut App) {
-    // Thirty seconds of history: the charts fill the right half of the plot.
-    for i in 0..30 {
+    for i in 0..70 {
         let wave = (i as f32 * 0.35).sin();
         app.graphs.cpu.push(38.0 + wave * 14.0);
         app.graphs.memory.push(62.0 + wave * 4.0);

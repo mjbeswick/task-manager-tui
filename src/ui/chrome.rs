@@ -31,7 +31,9 @@ pub fn draw(frame: &mut Frame, app: &App, hits: &mut HitMap) {
         return;
     }
 
-    let [menu_row, rule_row, content, status_row] = Layout::vertical([
+    let [menu_row, tab_top, tab_row, rule_row, content, status_row] = Layout::vertical([
+        Constraint::Length(1),
+        Constraint::Length(1),
         Constraint::Length(1),
         Constraint::Length(1),
         Constraint::Min(0),
@@ -40,7 +42,7 @@ pub fn draw(frame: &mut Frame, app: &App, hits: &mut HitMap) {
     .areas(area);
 
     draw_menu_bar(buf, menu_row, app, hits);
-    draw_rule(buf, rule_row, app);
+    draw_tabs(buf, tab_top, tab_row, rule_row, app, hits);
 
     match app.tab {
         Tab::Processes => crate::ui::processes::draw(buf, content, app, hits),
@@ -272,15 +274,125 @@ fn draw_filter_field(buf: &mut Buffer, bar: Rect, free: u16, app: &App, hits: &m
     }
 }
 
-/// The single rule under the menu bar, with no tab gaps.
-fn draw_rule(buf: &mut Buffer, area: Rect, app: &App) {
+fn tab_cells(area: Rect) -> Option<Vec<(Tab, u16, u16)>> {
+    let mut x = area.x + 1;
+    let mut cells = Vec::new();
+    for tab in Tab::ALL {
+        let width = tab.label().chars().count() as u16 + 1;
+        if x + width > area.x + area.width {
+            return None;
+        }
+        cells.push((tab, x, width));
+        x += width;
+        if tab != Tab::Services {
+            // One empty cell separates the labels; no rule glyph between them.
+            x += 1;
+        }
+    }
+    Some(cells)
+}
+
+fn draw_tabs(buf: &mut Buffer, top: Rect, area: Rect, rule: Rect, app: &App, hits: &mut HitMap) {
     let theme = app.theme();
+    fill_area(buf, top, Style::default().bg(theme.bg));
     fill_area(buf, area, Style::default().bg(theme.bg));
+    fill_area(buf, rule, Style::default().bg(theme.bg));
     let glyphs = theme.glyphs();
     let border = Style::default().fg(theme.border).bg(theme.bg);
     for x in area.x..area.x + area.width {
-        buf[(x, area.y)].set_char(glyphs.hline).set_style(border);
+        buf[(x, rule.y)].set_char(glyphs.hline).set_style(border);
     }
+
+    let Some(cells) = tab_cells(area) else {
+        draw_tab_button(buf, top, area, rule, app, hits);
+        return;
+    };
+
+    for (tab, x, width) in &cells {
+        let active = *tab == app.tab;
+        let style = if active {
+            Style::default()
+                .fg(theme.accent)
+                .bg(theme.bg)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(theme.muted).bg(theme.bg)
+        };
+        put(buf, *x, area.y, &format!("{} ", tab.label()), style, area);
+        let hit = if active {
+            Rect::new(x.saturating_sub(1), area.y, width + 1, 1)
+        } else {
+            Rect::new(*x, area.y, *width, 1)
+        };
+        hits.add(hit, Target::Tab(*tab));
+    }
+
+    if let Some((_, start, width)) = cells.iter().find(|(tab, _, _)| *tab == app.tab) {
+        let (start, width) = (*start, *width);
+        let frame = Style::default().fg(theme.border).bg(theme.bg);
+        let left = start.saturating_sub(1);
+        let right = start + width - 1;
+        // Top border.
+        buf[(left, top.y)].set_char(glyphs.tl).set_style(frame);
+        for dx in 0..width - 1 {
+            buf[(start + dx, top.y)]
+                .set_char(glyphs.hline)
+                .set_style(frame);
+        }
+        buf[(right, top.y)].set_char(glyphs.tr).set_style(frame);
+        // Sides.
+        buf[(left, area.y)].set_char(glyphs.vline).set_style(frame);
+        buf[(right, area.y)].set_char(glyphs.vline).set_style(frame);
+        // Open bottom: clear the rule under the tab and keep the sides going.
+        let blank = Style::default().fg(theme.text).bg(theme.bg);
+        for x in left..=right {
+            buf[(x, rule.y)].set_char(' ').set_style(blank);
+        }
+        // Outward junctions: the rule flows into each side.
+        buf[(left, rule.y)].set_char(glyphs.br).set_style(frame);
+        buf[(right, rule.y)].set_char(glyphs.bl).set_style(frame);
+    }
+}
+
+/// One button in the strip's place when the seven labels do not fit.
+fn draw_tab_button(
+    buf: &mut Buffer,
+    top: Rect,
+    area: Rect,
+    rule: Rect,
+    app: &App,
+    hits: &mut HitMap,
+) {
+    let theme = app.theme();
+    let glyphs = theme.glyphs();
+    let text = format!("Tabs: {} {} ", app.tab.label(), glyphs.expanded);
+    let width = text.chars().count() as u16;
+    let x = area.x + 2;
+    let left = x - 1;
+    let right = x + width - 1;
+    if right >= area.x + area.width {
+        return;
+    }
+    let accent = Style::default()
+        .fg(theme.accent)
+        .bg(theme.bg)
+        .add_modifier(Modifier::BOLD);
+    put(buf, x, area.y, &text, accent, area);
+    let frame = Style::default().fg(theme.border).bg(theme.bg);
+    buf[(left, top.y)].set_char(glyphs.tl).set_style(frame);
+    for dx in 0..width - 1 {
+        buf[(x + dx, top.y)].set_char(glyphs.hline).set_style(frame);
+    }
+    buf[(right, top.y)].set_char(glyphs.tr).set_style(frame);
+    buf[(left, area.y)].set_char(glyphs.vline).set_style(frame);
+    buf[(right, area.y)].set_char(glyphs.vline).set_style(frame);
+    let blank = Style::default().fg(theme.text).bg(theme.bg);
+    for x in left..=right {
+        buf[(x, rule.y)].set_char(' ').set_style(blank);
+    }
+    buf[(left, rule.y)].set_char(glyphs.br).set_style(frame);
+    buf[(right, rule.y)].set_char(glyphs.bl).set_style(frame);
+    hits.add(Rect::new(left, area.y, width + 1, 1), Target::TabButton);
 }
 
 fn draw_tab_menu(
@@ -293,8 +405,16 @@ fn draw_tab_menu(
     let theme = app.theme();
     let width = 20;
     let height = Tab::ALL.len() as u16 + 2;
-    let x = (area.x + 1).min(area.x + area.width.saturating_sub(width));
-    let y = area.y + 2;
+    let anchor = match tab_cells(area) {
+        Some(cells) => cells
+            .iter()
+            .find(|(tab, _, _)| *tab == app.tab)
+            .map(|(_, x, _)| x.saturating_sub(1))
+            .unwrap_or(area.x + 1),
+        None => area.x + 1,
+    };
+    let x = anchor.min(area.x + area.width.saturating_sub(width));
+    let y = area.y + 4;
     let rect = Rect::new(x, y, width, height.min(area.height.saturating_sub(y)));
     let inner = panel(buf, rect, "", theme);
     hits.add(rect, Target::TabMenuPanel);
@@ -1010,10 +1130,11 @@ mod tests {
     }
 
     #[test]
-    fn chrome_contains_menu_and_status() {
+    fn chrome_contains_menu_tabs_and_status() {
         let screen = render(120, 40);
         assert!(screen.contains("File"));
-        assert!(screen.contains("Name"));
+        assert!(screen.contains("Processes"));
+        assert!(screen.contains("App history"));
         assert!(
             screen.contains("/ Filter"),
             "list tabs show the filter field"
@@ -1153,18 +1274,13 @@ mod tests {
     }
 
     #[test]
-    fn narrow_terminal_has_no_tab_strip() {
-        for width in [40, 60, 72, 120] {
-            let screen = render(width, 20);
-            let mut lines = screen.lines();
-            let _menu = lines.next().unwrap();
-            let rule = lines.next().unwrap();
-            assert!(
-                !rule.contains("Performance") && !rule.contains("Services"),
-                "{width}: no tab labels in the rule: {rule:?}"
-            );
-            assert!(!screen.contains("Tabs:"), "{width}: no tab button");
-        }
+    fn narrow_terminal_keeps_the_tab_strip() {
+        let screen = render(60, 20);
+        assert!(screen.contains("Proc"));
+        assert!(screen.contains("Serv"));
+        let wide = render(120, 20);
+        assert!(wide.contains("Performance"));
+        assert!(wide.contains("App history"));
     }
 
     #[test]
@@ -1238,23 +1354,111 @@ mod tests {
     }
 
     #[test]
-    fn chrome_draws_one_rule_and_no_tab_labels() {
+    fn tabs_draw_an_open_active_tab() {
         let (mut app, _) = App::new(Settings::default(), false);
         app.apply_snapshot(crate::model::Snapshot::fixture());
+        let screen = crate::ui::test_util::render(&app, 120, 30);
+        let line = screen.lines().nth(2).unwrap();
+        assert!(line.starts_with("│Processes│"), "{line:?}");
+        assert!(line.contains("Performance"));
+        assert!(line.contains("Services"));
+        assert_eq!(line.matches('│').count(), 2, "only the active sides");
+        let mut hits = crate::ui::hits::HitMap::default();
+        let mut terminal = Terminal::new(TestBackend::new(120, 30)).unwrap();
+        terminal.draw(|frame| draw(frame, &app, &mut hits)).unwrap();
+        let buffer = terminal.backend().buffer().clone();
         let theme = *app.theme();
         let glyphs = theme.glyphs();
-        let screen = crate::ui::test_util::render(&app, 120, 30);
-        let rule = screen.lines().nth(1).unwrap();
+        assert_eq!(buffer[(1, 2)].fg, theme.accent, "active label");
+        assert_eq!(buffer[(1, 2)].bg, theme.bg);
+        assert_eq!(buffer[(0, 1)].symbol(), glyphs.tl.to_string());
+        assert_eq!(buffer[(10, 1)].symbol(), glyphs.tr.to_string());
+        assert_eq!(buffer[(0, 2)].symbol(), glyphs.vline.to_string());
+        assert_eq!(buffer[(10, 2)].symbol(), glyphs.vline.to_string());
+        // The bottom is open: sides continue, the rule span is blank.
+        assert_eq!(buffer[(0, 3)].symbol(), glyphs.br.to_string());
+        assert_eq!(buffer[(10, 3)].symbol(), glyphs.bl.to_string());
+        assert_eq!(buffer[(0, 3)].fg, theme.border, "outline matches the rule");
+        assert_eq!(
+            buffer[(5, 3)].symbol(),
+            " ",
+            "the tab opens into the content"
+        );
+        assert_eq!(buffer[(5, 3)].bg, theme.bg);
+        let rule: String = (0..120).map(|x| buffer[(x, 3)].symbol()).collect();
+        assert!(rule.contains(glyphs.bl) && rule.contains(glyphs.br));
+        assert_eq!(buffer[(0, 3)].symbol(), glyphs.br.to_string());
+        assert_eq!(buffer[(10, 3)].symbol(), glyphs.bl.to_string());
         assert_eq!(
             rule.chars().filter(|ch| *ch == glyphs.hline).count(),
-            120,
-            "one unbroken rule: {rule:?}"
+            120 - 11,
+            "the rule stops at the tab and resumes after it"
         );
-        let content = screen.lines().nth(2).unwrap();
-        assert!(
-            !content.contains("Performance") && !content.contains("Services"),
-            "no tab labels above the content: {content:?}"
+        let inactive = line[..line.find("Performance").unwrap()].chars().count() as u16;
+        assert_eq!(buffer[(inactive, 3)].fg, theme.border, "inactive rule");
+        assert_eq!(
+            hits.hit(0, 2),
+            Some(Target::Tab(crate::app::Tab::Processes))
         );
+        assert_eq!(
+            hits.hit(10, 2),
+            Some(Target::Tab(crate::app::Tab::Processes))
+        );
+    }
+
+    #[test]
+    fn ascii_tabs_use_ascii_box_characters() {
+        let mut app = App::new(Settings::default(), false).0;
+        app.ascii = true;
+        app.set_theme(app.theme_name);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        let screen = crate::ui::test_util::render(&app, 120, 30);
+        let top = screen.lines().nth(1).unwrap();
+        let labels = screen.lines().nth(2).unwrap();
+        let rule = screen.lines().nth(3).unwrap();
+        assert!(top.contains('+'), "ascii top corners: {top:?}");
+        assert_eq!(rule.chars().next(), Some('+'), "ascii left corner");
+        assert_eq!(rule.chars().nth(10), Some('+'), "ascii right corner");
+        assert!(labels.starts_with("|Processes|"), "{labels:?}");
+        for ch in top.chars().chain(labels.chars()) {
+            assert!(ch.is_ascii(), "non ascii {ch:?}");
+        }
+    }
+
+    #[test]
+    fn tab_rule_stays_readable_when_narrow() {
+        let screen = render(80, 20);
+        let line = screen.lines().nth(2).unwrap();
+        let rule = screen.lines().nth(3).unwrap();
+        let glyphs = crate::theme::UNICODE_GLYPHS;
+        assert_eq!(
+            line.matches(glyphs.vline).count(),
+            2,
+            "the active box sides: {line:?}"
+        );
+        assert_eq!(
+            rule.matches(glyphs.bl).count() + rule.matches(glyphs.br).count(),
+            2,
+            "the corners reach the rule row: {rule:?}"
+        );
+        assert_eq!(
+            rule.chars().filter(|ch| *ch == glyphs.hline).count(),
+            80 - 11,
+            "the rule stops under the active tab: {rule:?}"
+        );
+        assert!(rule.contains(glyphs.bl) && rule.contains(glyphs.br));
+    }
+
+    #[test]
+    fn tab_list_marks_the_active_tab() {
+        let (mut app, _) = App::new(Settings::default(), false);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        app.tab = crate::app::Tab::Users;
+        app.tab_menu = Some(crate::app::TabMenuState { item: 4 });
+        let screen = render_for(&app, 40, 24);
+        assert!(screen.contains("Tabs: Users"), "{screen}");
+        assert!(screen.contains("● Users"), "{screen}");
+        assert!(screen.contains("Services"), "{screen}");
     }
 
     #[test]
@@ -1266,6 +1470,27 @@ mod tests {
                 .starts_with("File  Options  View  Process  Help")
         );
         assert!(!bar.contains("Tabs"), "{bar:?}");
+    }
+
+    #[test]
+    fn tab_strip_becomes_one_button_when_it_does_not_fit() {
+        let screen = render(60, 20);
+        let line = screen.lines().nth(2).unwrap();
+        let rule = screen.lines().nth(3).unwrap();
+        let glyphs = crate::theme::UNICODE_GLYPHS;
+        assert!(line.contains("Tabs: Processes"), "{line:?}");
+        assert!(!line.contains("Performance"), "{line:?}");
+        assert_eq!(
+            line.matches(glyphs.vline).count(),
+            2,
+            "the button's sides: {line:?}"
+        );
+        let span = "Tabs: Processes ▾ ".chars().count() as u16 + 1;
+        assert_eq!(
+            rule.chars().filter(|ch| *ch == glyphs.hline).count(),
+            60 - span as usize,
+            "the rule stops under the button: {rule:?}"
+        );
     }
 
     #[test]
@@ -1307,8 +1532,8 @@ mod tests {
         terminal.draw(|frame| draw(frame, &app, &mut hits)).unwrap();
         let buffer = terminal.backend().buffer();
         assert_eq!(buffer[(5, 0)].bg, theme.chrome, "menu bar");
-        assert_eq!(buffer[(5, 1)].bg, theme.bg, "content rule");
-        assert_eq!(buffer[(95, 1)].fg, theme.border, "content rule");
+        assert_eq!(buffer[(5, 1)].bg, theme.bg, "tab strip");
+        assert_eq!(buffer[(95, 2)].bg, theme.bg, "tab rule");
         assert_eq!(buffer[(100, 29)].bg, theme.status, "status bar");
         assert_ne!(theme.chrome, theme.status);
     }

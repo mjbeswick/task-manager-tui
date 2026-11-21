@@ -3,20 +3,20 @@ source: tests/render.rs
 expression: "screen(&app, 120, 40)"
 ---
  File  Options  View  Process  Help                                                        / Filter                     
-──────┌────────────────────────────┐────────────────────────────────────────────────────────────────────────────────────
-Name  │   Update speed: High       │                                  Status    CPU ▼ Memory       Disk   Network  GPU  
-──────│ ● Update speed: Normal     │────────────────────────────────────────────────────────────────────────────────────
-▾ Apps│   Update speed: Low        │                                            27%      62%    5.3MB/s  12.0Mbps    -  
-  ▸ Sa│   Update speed: Paused     │                                           6.4%   1.2 GB  15.0 KB/s                 
-  ▸ Gh│ ────────────────────────── │                                           2.1%   380 MB  15.0 KB/s                 
-▾ Back│ ✓ Shortcut hints        F4 │                                                                                    
-  ▸ no│ ✓ Fewer details          f │                                          12.5%   512 MB  15.0 KB/s                 
-  ▸ po│ ✓ Optional columns         │                                           1.1%  96.0 MB  15.0 KB/s                 
-▾ Syst│ ────────────────────────── │                                                                                    
-  ▸ Wi│   Appearance...         F2 │                                           4.8%   1.2 GB  15.0 KB/s                 
-  ▸ la└────────────────────────────┘                                           0.2%  12.0 MB  15.0 KB/s                 
-                                                                                                                        
-                                                                                                                        
+┌─────┌────────────────────────────┐                                                                                    
+│Proce│   Update speed: High       │  Startup  Users  Details  Services                                                 
+┘     │ ● Update speed: Normal     │────────────────────────────────────────────────────────────────────────────────────
+Name  │   Update speed: Low        │                                  Status    CPU ▼ Memory       Disk   Network  GPU  
+──────│   Update speed: Paused     │────────────────────────────────────────────────────────────────────────────────────
+▾ Apps│ ────────────────────────── │                                            27%      62%    5.3MB/s  12.0Mbps    -  
+  ▸ Sa│ ✓ Shortcut hints        F4 │                                           6.4%   1.2 GB  15.0 KB/s                 
+  ▸ Gh│ ✓ Fewer details          f │                                           2.1%   380 MB  15.0 KB/s                 
+▾ Back│ ✓ Optional columns         │                                                                                    
+  ▸ no│ ────────────────────────── │                                          12.5%   512 MB  15.0 KB/s                 
+  ▸ po│   Appearance...         F2 │                                           1.1%  96.0 MB  15.0 KB/s                 
+▾ Syst└────────────────────────────┘                                                                                    
+  ▸ WindowServer (1)                                                           4.8%   1.2 GB  15.0 KB/s                 
+  ▸ launchd (1)                                                                0.2%  12.0 MB  15.0 KB/s                 
                                                                                                                         
                                                                                                                         
                                                                                                                         

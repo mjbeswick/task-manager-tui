@@ -151,8 +151,8 @@ If graph blocks show as boxes or question marks, your font lacks them. Use
 | `s` `S` `R` | Start, stop, restart a service |
 
 Help > About shows the version, platform, active theme and colour depth, and where the
-settings and usage history live. `Alt+T` opens the tab list at any width, and the
-`1`-`7`, `Tab`, and `Shift+Tab` keys switch tabs without it.
+settings and usage history live. The tab strip draws all seven labels when they fit and
+becomes one `Tabs: <active>` button when they do not, so every tab stays reachable.
 
 ## Menus
 
@@ -163,9 +163,9 @@ settings and usage history live. `Alt+T` opens the tab list at any width, and th
 - **Process** - end task, end tree, signals, priority, and properties. Items that cannot
   act on the current tab are muted with a reason.
 
-`Alt+T` opens the tab list, with the seven tabs, their `1`-`7` keys, and a mark on the
-active one. The window draws no tab strip: one rule under the menu bar separates the
-chrome from the content, and every other row belongs to the active tab.
+The tab strip shows its seven full labels when they fit. Below that it is replaced by one
+`Tabs: <active>` button, with the same seven tabs, their `1`-`7` keys, and a mark on the
+active one. `Alt+T` opens the same list.
 
 Every item shows its key at the right edge. Items in a group are separated by a rule,
 and clicking an open menu label closes it. The help panel scrolls with Up/Down and
@@ -179,7 +179,7 @@ part of each name is highlighted. Each tab keeps its own filter.
 
 ## Mouse
 
-Mouse capture is on. Click a menu label to open it, a menu item to
+Mouse capture is on. Click a tab to switch, a menu label to open it, a menu item to
 activate it, a table row to select it, or a resource in the Performance rail to show
 it. Click a row twice to expand or inspect it. Dialog buttons respond to clicks.
 Click a column header to sort by it, and click it again to reverse. Click the filter
@@ -255,8 +255,11 @@ beyond their text: Not responding is red, Suspended and Stopped are amber, servi
 Running is green, and service Stopped is muted. A selected row always uses the
 selection colour, so the stripe and the status tone never compete with it. Every tab
 names its own keys in a line at the bottom of its content, and `F4` hides that line.
-One continuous rule runs beneath the menu bar. The 1-7 keys jump to a tab and `Alt+T`
-lists all seven with their keys; the chrome prints no tab labels and draws no tab box.
+One continuous line runs beneath the tabs. The active tab
+is drawn as an open box with box characters: a top border, vertical sides, and outward
+`┘` `└` corners that join the line, with an empty bottom. The 1-7 keys still jump to a
+tab even though the digits are not printed. Its label and box use the accent colour. The
+box costs one extra chrome row.
 
 ## What each platform reports
 

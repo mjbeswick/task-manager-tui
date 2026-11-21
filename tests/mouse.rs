@@ -28,11 +28,13 @@ fn targets(hits: &HitMap, width: u16, height: u16) -> Vec<Target> {
 }
 
 #[test]
-fn chrome_publishes_menus_and_rows() {
+fn chrome_publishes_menu_tabs_and_rows() {
     let app = app(Tab::Processes);
     let (_, hits) = render_with_hits(&app, 120, 40);
     let found = targets(&hits, 120, 40);
     assert!(found.contains(&Target::Menu(0)), "File menu");
+    assert!(found.contains(&Target::Tab(Tab::Performance)));
+    assert!(found.contains(&Target::Tab(Tab::Services)));
     assert!(found.contains(&Target::Row(0)));
     assert!(found.contains(&Target::Row(5)));
 }
@@ -76,7 +78,7 @@ fn click_away_closes_the_menu_without_acting() {
 #[test]
 fn click_away_does_not_switch_a_tab_sort_or_filter() {
     let mut tab = menu_app();
-    tab.mouse_click(Some(Target::Row(0)));
+    tab.mouse_click(Some(Target::Tab(Tab::Performance)));
     assert!(tab.menu.is_none());
     assert_eq!(tab.tab, Tab::Processes);
 
