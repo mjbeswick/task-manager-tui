@@ -8,4 +8,4 @@
 - [x] Regenerate snapshots; update README prose and help.
 - [ ] Regenerate screenshots. Not run: both PNGs render at 120 columns, where the full tier is unchanged, and the PNG step needs a browser capture.
 - [x] Run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test`, `cargo build --release`, and `openspec validate restore-tab-strip --strict`.
-- [ ] Deploy to this Mac, hackberry, and rock-5b; push `main`.
+- [x] Deploy to this Mac, hackberry, and rock-5b; push `main`.
