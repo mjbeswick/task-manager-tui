@@ -24,9 +24,22 @@ pub fn draw(frame: &mut Frame, app: &App, hits: &mut HitMap) {
             "taskmgr needs at least {MIN_WIDTH} columns and {MIN_HEIGHT} rows (now {}x{})",
             area.width, area.height
         );
-        let y = area.y + area.height / 2;
-        let x = area.x + area.width.saturating_sub(message.chars().count() as u16) / 2;
-        put(buf, x, y, &message, theme.base(), area);
+        // Wrap at words so the sizes are never cut off.
+        let mut lines: Vec<String> = Vec::new();
+        for word in message.split(' ') {
+            match lines.last_mut() {
+                Some(line) if line.len() + 1 + word.len() <= area.width as usize => {
+                    line.push(' ');
+                    line.push_str(word);
+                }
+                _ => lines.push(word.to_string()),
+            }
+        }
+        let top = area.y + area.height.saturating_sub(lines.len() as u16) / 2;
+        for (row, line) in lines.iter().enumerate() {
+            let x = area.x + area.width.saturating_sub(line.len() as u16) / 2;
+            put(buf, x, top + row as u16, line, theme.base(), area);
+        }
         app.depth.apply(buf, theme);
         return;
     }
@@ -1351,6 +1364,20 @@ mod tests {
                 assert!(line.contains(label(tab)), "{width}: {line:?}");
             }
             assert!(!line.contains("Tabs:"), "{line:?}");
+        }
+    }
+
+    #[test]
+    fn the_too_small_message_wraps_instead_of_clipping() {
+        for (width, height) in [(39, 12), (20, 8)] {
+            let screen = render(width, height);
+            let text = screen.split_whitespace().collect::<Vec<_>>().join(" ");
+            assert!(
+                text.contains(&format!(
+                    "taskmgr needs at least 40 columns and 12 rows (now {width}x{height})"
+                )),
+                "{screen}"
+            );
         }
     }
 
