@@ -14,9 +14,6 @@ impl App {
         if self.dialog.is_some() {
             return self.dispatch_dialog(action);
         }
-        if self.tab_menu.is_some() {
-            return self.dispatch_tab_menu(action);
-        }
         if self.menu.is_some() {
             return self.dispatch_menu(action);
         }
@@ -212,7 +209,6 @@ impl App {
                 });
             }
             Action::MenuOpen => self.menu = Some(MenuState::default()),
-            Action::TabMenuOpen => self.open_tab_menu(),
             Action::OpenMenu(index) => {
                 self.menu = Some(MenuState {
                     menu: index.min(MENUS.len() - 1),
@@ -251,17 +247,6 @@ impl App {
     /// A left click, which first dismisses an open menu unless the click is
     /// on the menu itself.
     pub fn mouse_click(&mut self, target: Option<crate::ui::hits::Target>) -> Vec<Effect> {
-        if self.tab_menu.is_some()
-            && !matches!(
-                target,
-                Some(crate::ui::hits::Target::TabButton)
-                    | Some(crate::ui::hits::Target::TabMenuItem(_))
-                    | Some(crate::ui::hits::Target::TabMenuPanel)
-            )
-        {
-            self.tab_menu = None;
-            return Vec::new();
-        }
         if self.menu.is_some()
             && !matches!(
                 target,
@@ -287,18 +272,7 @@ impl App {
                 self.switch_tab(tab);
                 Vec::new()
             }
-            Target::TabButton => {
-                self.open_tab_menu();
-                Vec::new()
-            }
-            Target::TabMenuItem(index) => {
-                self.tab_menu = None;
-                self.switch_tab(Tab::ALL[index.min(Tab::ALL.len() - 1)]);
-                Vec::new()
-            }
-            Target::TabMenuPanel => Vec::new(),
             Target::Menu(index) => {
-                self.tab_menu = None;
                 if self.menu.is_some_and(|state| state.menu == index) {
                     self.menu = None;
                 } else {
@@ -1048,45 +1022,6 @@ impl App {
             _ => {}
         }
         effects
-    }
-
-    fn open_tab_menu(&mut self) {
-        if self.tab_menu.take().is_none() {
-            self.menu = None;
-            self.tab_menu = Some(crate::app::TabMenuState {
-                item: self.tab.index(),
-            });
-        }
-    }
-
-    fn dispatch_tab_menu(&mut self, action: Action) -> Vec<Effect> {
-        let mut state = self.tab_menu.unwrap_or_default();
-        let count = Tab::ALL.len().max(1);
-        match action {
-            Action::MenuClose | Action::Cancel | Action::TabMenuOpen => self.tab_menu = None,
-            Action::MenuUp => {
-                state.item = (state.item + count - 1) % count;
-                self.tab_menu = Some(state);
-            }
-            Action::MenuDown => {
-                state.item = (state.item + 1) % count;
-                self.tab_menu = Some(state);
-            }
-            Action::MenuFirst => {
-                state.item = 0;
-                self.tab_menu = Some(state);
-            }
-            Action::MenuLast => {
-                state.item = count - 1;
-                self.tab_menu = Some(state);
-            }
-            Action::MenuActivate => {
-                self.tab_menu = None;
-                self.switch_tab(Tab::ALL[state.item.min(count - 1)]);
-            }
-            _ => self.tab_menu = Some(state),
-        }
-        Vec::new()
     }
 
     fn dispatch_menu(&mut self, action: Action) -> Vec<Effect> {
@@ -1960,42 +1895,6 @@ mod tests {
         assert!(!app.show_hints);
         assert!(!app.settings.show_hints);
         assert!(effects.contains(&Effect::PersistSettings));
-    }
-
-    #[test]
-    fn clicking_the_tab_button_opens_and_an_item_switches() {
-        use crate::ui::hits::Target;
-        let mut app = app();
-        app.click(Target::TabButton);
-        assert!(app.tab_menu.is_some());
-        app.click(Target::TabMenuItem(2));
-        assert_eq!(app.tab, Tab::AppHistory);
-        assert!(app.tab_menu.is_none());
-
-        app.click(Target::TabButton);
-        app.mouse_click(Some(Target::Row(0)));
-        assert!(app.tab_menu.is_none(), "an outside click closes the list");
-    }
-
-    #[test]
-    fn tab_list_lists_and_switches_every_tab() {
-        let mut app = app();
-        app.tab = Tab::Processes;
-        app.dispatch(Action::TabMenuOpen);
-        assert!(app.tab_menu.is_some(), "Alt+T or the button opens the list");
-        app.dispatch(Action::MenuDown);
-        app.dispatch(Action::MenuActivate);
-        assert_eq!(app.tab, Tab::Performance);
-        assert!(app.tab_menu.is_none());
-
-        app.dispatch(Action::TabMenuOpen);
-        app.dispatch(Action::MenuLast);
-        app.dispatch(Action::MenuActivate);
-        assert_eq!(app.tab, Tab::Services);
-
-        app.dispatch(Action::TabMenuOpen);
-        app.dispatch(Action::MenuClose);
-        assert!(app.tab_menu.is_none());
     }
 
     #[test]

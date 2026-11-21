@@ -7,17 +7,16 @@ expression: "screen(&app, 120, 40)"
 │Processes│ Performance │  General                                                             │                        
 ┘         └─────────────│  q, Ctrl+C               Quit                                        │────────────────────────
 Name                    │  F10, Alt+F/O/V/P/H      Menu bar                                    │   Disk   Network  GPU  
-────────────────────────│  Alt+T                   Tab list                                    │────────────────────────
-▾ Apps (2)              │  F1, ?                   This help                                   │5.3MB/s  12.0Mbps    -  
-  ▸ Safari (1)          │  F2                      Appearance: theme, style, colour, gradient  │.0 KB/s                 
-  ▸ Ghostty (1)         │  F4                      Show or hide shortcut hints                 │.0 KB/s                 
-▾ Background processes (│  F5                      Refresh now                                 │                        
-  ▸ node (1)            │  t                       Next colour theme                           │.0 KB/s                 
-  ▸ postgres (1)        │  +, -                    Update speed                                │.0 KB/s                 
-▾ System processes (2)  │  Tabs and filter                                                     │                        
-  ▸ WindowServer (1)    │  1-7, Tab, Shift+Tab     Switch tabs                                 │.0 KB/s                 
-  ▸ launchd (1)         │  /, Ctrl+F               Filter the list                             │.0 KB/s                 
-                        │  Esc                     Clear the filter                            │                        
+────────────────────────│  F1, ?                   This help                                   │────────────────────────
+▾ Apps (2)              │  F2                      Appearance: theme, style, colour, gradient  │5.3MB/s  12.0Mbps    -  
+  ▸ Safari (1)          │  F4                      Show or hide shortcut hints                 │.0 KB/s                 
+  ▸ Ghostty (1)         │  F5                      Refresh now                                 │.0 KB/s                 
+▾ Background processes (│  t                       Next colour theme                           │                        
+  ▸ node (1)            │  +, -                    Update speed                                │.0 KB/s                 
+  ▸ postgres (1)        │  Tabs and filter                                                     │.0 KB/s                 
+▾ System processes (2)  │  1-7, Tab, Shift+Tab     Switch tabs                                 │                        
+  ▸ WindowServer (1)    │  /, Ctrl+F               Filter the list                             │.0 KB/s                 
+  ▸ launchd (1)         │  Esc                     Clear the filter                            │.0 KB/s                 
                         │  Lists and moving                                                    │                        
                         │  Up/Down, j/k            Move one row                                │                        
                         │  PgUp/PgDn, Ctrl+u/d     Move ten rows                               │                        
@@ -38,7 +37,8 @@ Name                    │  F10, Alt+F/O/V/P/H      Menu bar                   
                         │  Services and startup                                                │                        
                         │  s, S, R                 Start, stop, restart a service              │                        
                         │  Space                   Enable or disable a startup entry           │                        
-                        │  [Up/Down] Scroll   [PgUp/PgDn] Page   [Esc] Close       1-34 of 34  │                        
+                        │  [Up/Down] Scroll   [PgUp/PgDn] Page   [Esc] Close       1-33 of 33  │                        
                         │                                                                      │                        
-[e] End task   [E] End t└──────────────────────────────────────────────────────────────────────┘                        
+                        └──────────────────────────────────────────────────────────────────────┘                        
+[e] End task   [E] End tree   [K] Signal   [p] Priority   [f] Fewer details                                             
     1/   9                                CPU  27.0%   Memory  62.5%   Disk    5.3 MB/s   Network   12.0 Mbps   Normal

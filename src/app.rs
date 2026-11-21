@@ -45,6 +45,32 @@ impl Tab {
         }
     }
 
+    /// Four to seven characters, for a strip that cannot hold the full labels.
+    pub fn short_label(self) -> &'static str {
+        match self {
+            Tab::Processes => "Proc",
+            Tab::Performance => "Perf",
+            Tab::AppHistory => "History",
+            Tab::Startup => "Startup",
+            Tab::Users => "Users",
+            Tab::Details => "Details",
+            Tab::Services => "Services",
+        }
+    }
+
+    /// Three letters, for the minimum terminal width.
+    pub fn mini_label(self) -> &'static str {
+        match self {
+            Tab::Processes => "Pro",
+            Tab::Performance => "Per",
+            Tab::AppHistory => "App",
+            Tab::Startup => "Sta",
+            Tab::Users => "Usr",
+            Tab::Details => "Det",
+            Tab::Services => "Svc",
+        }
+    }
+
     pub fn index(self) -> usize {
         Self::ALL.iter().position(|tab| *tab == self).unwrap_or(0)
     }
@@ -561,12 +587,6 @@ pub const MENUS: [(&str, &[MenuDef]); 5] = [
     ),
 ];
 
-/// The tab list opened from the tab strip's button.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct TabMenuState {
-    pub item: usize,
-}
-
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MenuState {
     pub menu: usize,
@@ -624,7 +644,6 @@ pub struct App {
     pub graphs: GraphStore,
     pub dialog: Option<Dialog>,
     pub menu: Option<MenuState>,
-    pub tab_menu: Option<TabMenuState>,
     pub quit: bool,
     pub process: ProcessTab,
     pub details: DetailsTab,
@@ -672,7 +691,6 @@ impl App {
             graphs: GraphStore::default(),
             dialog: None,
             menu: None,
-            tab_menu: None,
             quit: false,
             process: ProcessTab::default(),
             details: DetailsTab::default(),

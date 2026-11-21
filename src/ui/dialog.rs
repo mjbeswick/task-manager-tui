@@ -17,7 +17,6 @@ pub(crate) const HELP: &[HelpRow] = &[
     HelpRow::Section("General"),
     HelpRow::Key("q, Ctrl+C", "Quit"),
     HelpRow::Key("F10, Alt+F/O/V/P/H", "Menu bar"),
-    HelpRow::Key("Alt+T", "Tab list"),
     HelpRow::Key("F1, ?", "This help"),
     HelpRow::Key("F2", "Appearance: theme, style, colour, gradient"),
     HelpRow::Key("F4", "Show or hide shortcut hints"),

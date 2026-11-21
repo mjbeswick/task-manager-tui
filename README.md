@@ -125,7 +125,6 @@ If graph blocks show as boxes or question marks, your font lacks them. Use
 |---|---|
 | `q`, `Ctrl+C` | Quit |
 | `F10`, `Alt+F`/`Alt+O`/`Alt+V`/`Alt+P`/`Alt+H` | Menu bar, arrows navigate, Enter activates |
-| `Alt+T` | Open the tab list at the active tab |
 | `F1` | Keyboard help |
 | `F2` | Appearance: theme, chart style, chart colour, chart gradient |
 | `F4` | Show or hide shortcut hints |
@@ -151,8 +150,8 @@ If graph blocks show as boxes or question marks, your font lacks them. Use
 | `s` `S` `R` | Start, stop, restart a service |
 
 Help > About shows the version, platform, active theme and colour depth, and where the
-settings and usage history live. The tab strip draws all seven labels when they fit and
-becomes one `Tabs: <active>` button when they do not, so every tab stays reachable.
+settings and usage history live. The tab strip always shows all seven tabs, shortening
+the labels as the terminal narrows.
 
 ## Menus
 
@@ -163,9 +162,8 @@ becomes one `Tabs: <active>` button when they do not, so every tab stays reachab
 - **Process** - end task, end tree, signals, priority, and properties. Items that cannot
   act on the current tab are muted with a reason.
 
-The tab strip shows its seven full labels when they fit. Below that it is replaced by one
-`Tabs: <active>` button, with the same seven tabs, their `1`-`7` keys, and a mark on the
-active one. `Alt+T` opens the same list.
+The tab strip shows full labels from 72 columns, short labels such as `Proc` and `Perf`
+from 56, and three-letter labels down to the 40-column minimum. No tab is ever hidden.
 
 Every item shows its key at the right edge. Items in a group are separated by a rule,
 and clicking an open menu label closes it. The help panel scrolls with Up/Down and

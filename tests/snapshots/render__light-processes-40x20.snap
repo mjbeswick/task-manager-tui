@@ -3,9 +3,9 @@ source: tests/render.rs
 expression: "screen(&app(Tab::Processes, \"light\"), 40, 20)"
 ---
  File  Options  View  Process  Help   / 
- ┌─────────────────┐                    
- │Tabs: Processes ▾│                    
-─┘                 └────────────────────
+┌───┐                                   
+│Pro│ Per  App  Sta  Usr  Det  Svc      
+┘   └───────────────────────────────────
 Name                      CPU ▼ Memory  
 ────────────────────────────────────────
 ▾ Apps (2)                27%      62%  
