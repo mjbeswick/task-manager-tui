@@ -131,9 +131,8 @@ pub fn translate(app: &App, key: KeyEvent) -> Option<Action> {
             'h' => Some(4),
             _ => None,
         };
-        if let Some(index) = index {
-            return Some(Action::OpenMenu(index));
-        }
+        // An unbound Alt chord must not fall through to its plain key.
+        return index.map(Action::OpenMenu);
     }
 
     if ctrl {
@@ -467,8 +466,13 @@ mod tests {
         );
         assert_eq!(
             translate(&app, KeyEvent::new(KeyCode::Char('t'), KeyModifiers::ALT)),
-            Some(Action::ToggleTheme),
-            "Alt+T opens no tab list; it falls through to t"
+            None,
+            "Alt+T opens no list and keeps the theme"
+        );
+        assert_eq!(
+            translate(&app, KeyEvent::new(KeyCode::Char('e'), KeyModifiers::ALT)),
+            None,
+            "Alt+E must not end a task"
         );
         assert_eq!(
             translate(&app, KeyEvent::new(KeyCode::Char('h'), KeyModifiers::ALT)),
