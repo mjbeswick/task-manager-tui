@@ -53,6 +53,7 @@ pub enum Action {
     SetAffinity,
     ShowProperties,
     MenuOpen,
+    TabMenuOpen,
     OpenMenu(usize),
     MenuFirst,
     MenuLast,
@@ -84,6 +85,19 @@ pub fn translate(app: &App, key: KeyEvent) -> Option<Action> {
 
     if let Some(dialog) = &app.dialog {
         return translate_dialog(dialog, key);
+    }
+
+    if app.tab_menu.is_some() {
+        return Some(match key.code {
+            KeyCode::Esc | KeyCode::F(10) => Action::MenuClose,
+            KeyCode::Up => Action::MenuUp,
+            KeyCode::Down => Action::MenuDown,
+            KeyCode::Home => Action::MenuFirst,
+            KeyCode::End => Action::MenuLast,
+            KeyCode::Enter => Action::MenuActivate,
+            KeyCode::Char('t') if key.modifiers.contains(KeyModifiers::ALT) => Action::TabMenuOpen,
+            _ => return None,
+        });
     }
 
     if let Some(menu) = app.menu {
@@ -122,13 +136,16 @@ pub fn translate(app: &App, key: KeyEvent) -> Option<Action> {
     if key.modifiers.contains(KeyModifiers::ALT)
         && let KeyCode::Char(letter) = key.code
     {
-        let index = match letter.to_ascii_lowercase() {
+        let letter = letter.to_ascii_lowercase();
+        if letter == 't' {
+            return Some(Action::TabMenuOpen);
+        }
+        let index = match letter {
             'f' => Some(0),
             'o' => Some(1),
             'v' => Some(2),
-            't' => Some(3),
-            'p' => Some(4),
-            'h' => Some(5),
+            'p' => Some(3),
+            'h' => Some(4),
             _ => None,
         };
         if let Some(index) = index {
@@ -463,15 +480,15 @@ mod tests {
         );
         assert_eq!(
             translate(&app, KeyEvent::new(KeyCode::Char('p'), KeyModifiers::ALT)),
-            Some(Action::OpenMenu(4))
-        );
-        assert_eq!(
-            translate(&app, KeyEvent::new(KeyCode::Char('t'), KeyModifiers::ALT)),
             Some(Action::OpenMenu(3))
         );
         assert_eq!(
+            translate(&app, KeyEvent::new(KeyCode::Char('t'), KeyModifiers::ALT)),
+            Some(Action::TabMenuOpen)
+        );
+        assert_eq!(
             translate(&app, KeyEvent::new(KeyCode::Char('h'), KeyModifiers::ALT)),
-            Some(Action::OpenMenu(5))
+            Some(Action::OpenMenu(4))
         );
     }
 

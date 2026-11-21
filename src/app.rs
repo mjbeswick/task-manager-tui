@@ -45,18 +45,6 @@ impl Tab {
         }
     }
 
-    pub fn short_label(self) -> &'static str {
-        match self {
-            Tab::Processes => "Proc",
-            Tab::Performance => "Perf",
-            Tab::AppHistory => "History",
-            Tab::Startup => "Startup",
-            Tab::Users => "Users",
-            Tab::Details => "Details",
-            Tab::Services => "Services",
-        }
-    }
-
     pub fn index(self) -> usize {
         Self::ALL.iter().position(|tab| *tab == self).unwrap_or(0)
     }
@@ -450,7 +438,6 @@ pub enum MenuItem {
     Priority,
     Properties,
     ClearHistory,
-    Tab(usize),
     Help,
     About,
 }
@@ -523,7 +510,7 @@ const fn group(label: &'static str, item: MenuItem, shortcut: Option<&'static st
     }
 }
 
-pub const MENUS: [(&str, &[MenuDef]); 6] = [
+pub const MENUS: [(&str, &[MenuDef]); 5] = [
     (
         "File",
         &[
@@ -556,18 +543,6 @@ pub const MENUS: [(&str, &[MenuDef]); 6] = [
         ],
     ),
     (
-        "Tabs",
-        &[
-            item("Processes", MenuItem::Tab(0), Some("1")),
-            item("Performance", MenuItem::Tab(1), Some("2")),
-            item("App history", MenuItem::Tab(2), Some("3")),
-            item("Startup", MenuItem::Tab(3), Some("4")),
-            item("Users", MenuItem::Tab(4), Some("5")),
-            item("Details", MenuItem::Tab(5), Some("6")),
-            item("Services", MenuItem::Tab(6), Some("7")),
-        ],
-    ),
-    (
         "Process",
         &[
             item("End task", MenuItem::EndTask, Some("Del")),
@@ -585,6 +560,12 @@ pub const MENUS: [(&str, &[MenuDef]); 6] = [
         ],
     ),
 ];
+
+/// The tab list opened from the tab strip's button.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct TabMenuState {
+    pub item: usize,
+}
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct MenuState {
@@ -643,6 +624,7 @@ pub struct App {
     pub graphs: GraphStore,
     pub dialog: Option<Dialog>,
     pub menu: Option<MenuState>,
+    pub tab_menu: Option<TabMenuState>,
     pub quit: bool,
     pub process: ProcessTab,
     pub details: DetailsTab,
@@ -690,6 +672,7 @@ impl App {
             graphs: GraphStore::default(),
             dialog: None,
             menu: None,
+            tab_menu: None,
             quit: false,
             process: ProcessTab::default(),
             details: DetailsTab::default(),

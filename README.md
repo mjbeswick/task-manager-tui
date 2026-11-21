@@ -17,7 +17,7 @@ Performance, in the Phosphor theme:
 The sample below is the same layout at 100 columns:
 
 ```
- File  Options  View  Tabs  Process  Help                              / Filter
+ File  Options  View  Process  Help                                    / Filter
 ┌─────────┐
 │Processes│ Performance  App history  Startup  Users  Details  Services
 ┘         └─────────────────────────────────────────────────────────────────────────────────────────
@@ -124,7 +124,8 @@ If graph blocks show as boxes or question marks, your font lacks them. Use
 | Key | Action |
 |---|---|
 | `q`, `Ctrl+C` | Quit |
-| `F10`, `Alt+F`/`Alt+O`/`Alt+V`/`Alt+T`/`Alt+P`/`Alt+H` | Menu bar, arrows navigate, Enter activates |
+| `F10`, `Alt+F`/`Alt+O`/`Alt+V`/`Alt+P`/`Alt+H` | Menu bar, arrows navigate, Enter activates |
+| `Alt+T` | Open the tab list at the active tab |
 | `F1` | Keyboard help |
 | `F2` | Appearance: theme, chart style, chart colour, chart gradient |
 | `F4` | Show or hide shortcut hints |
@@ -150,8 +151,8 @@ If graph blocks show as boxes or question marks, your font lacks them. Use
 | `s` `S` `R` | Start, stop, restart a service |
 
 Help > About shows the version, platform, active theme and colour depth, and where the
-settings and usage history live. The Tabs menu lists all seven tabs, so every tab stays
-reachable when a narrow terminal drops strip labels.
+settings and usage history live. The tab strip draws all seven labels when they fit and
+becomes one `Tabs: <active>` button when they do not, so every tab stays reachable.
 
 ## Menus
 
@@ -159,9 +160,12 @@ reachable when a narrow terminal drops strip labels.
 - **Options** - update speed, shortcut hints, fewer details, optional columns, and
   Appearance. Speed shows a radio and each toggle shows a check.
 - **View** - refresh, sort, and expand or collapse all.
-- **Tabs** - all seven tabs with their `1`-`7` keys.
 - **Process** - end task, end tree, signals, priority, and properties. Items that cannot
   act on the current tab are muted with a reason.
+
+The tab strip shows its seven full labels when they fit. Below that it is replaced by one
+`Tabs: <active>` button, with the same seven tabs, their `1`-`7` keys, and a mark on the
+active one. `Alt+T` opens the same list.
 
 Every item shows its key at the right edge. Items in a group are separated by a rule,
 and clicking an open menu label closes it. The help panel scrolls with Up/Down and

@@ -2,7 +2,7 @@
 source: tests/render.rs
 expression: "screen(&app(tab, \"dark\"), 120, 40)"
 ---
- File  Options  View  Tabs  Process  Help                                                  / Filter                     
+ File  Options  View  Process  Help                                                        / Filter                     
                                               ┌─────┐                                                                   
  Processes  Performance  App history  Startup │Users│ Details  Services                                                 
 ──────────────────────────────────────────────┘     └───────────────────────────────────────────────────────────────────

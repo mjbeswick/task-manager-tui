@@ -2,10 +2,10 @@
 source: tests/render.rs
 expression: "screen(&app(Tab::Details, \"light\"), 80, 24)"
 ---
- File  Options  View  Tabs  Process  Help          / Filter                     
-                              ┌────┐                                            
- Proc  Perf  Hist  Star  User │Deta│ Serv                                       
-──────────────────────────────┘    └────────────────────────────────────────────
+ File  Options  View  Process  Help                / Filter                     
+                                                     ┌───────┐                  
+ Processes  Performance  App history  Startup  Users │Details│ Services         
+─────────────────────────────────────────────────────┘       └──────────────────
 Name                              PID       Status   User name    CPU ▼ Memory  
 ────────────────────────────────────────────────────────────────────────────────
 node                              900      Running     michael  12.5%   512 MB  

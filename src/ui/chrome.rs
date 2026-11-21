@@ -56,6 +56,9 @@ pub fn draw(frame: &mut Frame, app: &App, hits: &mut HitMap) {
 
     draw_status_bar(buf, status_row, app);
 
+    if let Some(tab_menu) = app.tab_menu {
+        draw_tab_menu(buf, area, app, tab_menu, hits);
+    }
     if let Some(menu) = app.menu {
         draw_menu_dropdown(buf, area, app, menu, hits);
     }
@@ -271,18 +274,42 @@ fn draw_filter_field(buf: &mut Buffer, bar: Rect, free: u16, app: &App, hits: &m
     }
 }
 
+fn tab_cells(area: Rect) -> Option<Vec<(Tab, u16, u16)>> {
+    let mut x = area.x + 1;
+    let mut cells = Vec::new();
+    for tab in Tab::ALL {
+        let width = tab.label().chars().count() as u16 + 1;
+        if x + width > area.x + area.width {
+            return None;
+        }
+        cells.push((tab, x, width));
+        x += width;
+        if tab != Tab::Services {
+            // One empty cell separates the labels; no rule glyph between them.
+            x += 1;
+        }
+    }
+    Some(cells)
+}
+
 fn draw_tabs(buf: &mut Buffer, top: Rect, area: Rect, rule: Rect, app: &App, hits: &mut HitMap) {
     let theme = app.theme();
     fill_area(buf, top, Style::default().bg(theme.bg));
     fill_area(buf, area, Style::default().bg(theme.bg));
     fill_area(buf, rule, Style::default().bg(theme.bg));
     let glyphs = theme.glyphs();
-    let compact = area.width < 90;
-    // One spare cell on the left so the first tab can carry a box side.
-    let mut x = area.x + 1;
-    let mut cells: Vec<(Tab, u16, u16)> = Vec::new();
-    for tab in Tab::ALL {
-        let active = tab == app.tab;
+    let border = Style::default().fg(theme.border).bg(theme.bg);
+    for x in area.x..area.x + area.width {
+        buf[(x, rule.y)].set_char(glyphs.hline).set_style(border);
+    }
+
+    let Some(cells) = tab_cells(area) else {
+        draw_tab_button(buf, top, area, rule, app, hits);
+        return;
+    };
+
+    for (tab, x, width) in &cells {
+        let active = *tab == app.tab;
         let style = if active {
             Style::default()
                 .fg(theme.accent)
@@ -291,42 +318,23 @@ fn draw_tabs(buf: &mut Buffer, top: Rect, area: Rect, rule: Rect, app: &App, hit
         } else {
             Style::default().fg(theme.muted).bg(theme.bg)
         };
-        let text = if compact {
-            let short: String = tab.short_label().chars().take(4).collect();
-            format!("{short} ")
-        } else {
-            format!("{} ", tab.label())
-        };
-        if x + text.chars().count() as u16 > area.x + area.width {
-            break;
-        }
-        let width = text.chars().count() as u16;
-        put(buf, x, area.y, &text, style, area);
+        put(buf, *x, area.y, &format!("{} ", tab.label()), style, area);
         let hit = if active {
             Rect::new(x.saturating_sub(1), area.y, width + 1, 1)
         } else {
-            Rect::new(x, area.y, width, 1)
+            Rect::new(*x, area.y, *width, 1)
         };
-        hits.add(hit, Target::Tab(tab));
-        cells.push((tab, x, width));
-        x += width;
-        if tab != Tab::Services {
-            // One empty cell separates the labels; no rule glyph between them.
-            x += 1;
-        }
+        hits.add(hit, Target::Tab(*tab));
     }
-    // One continuous rule first, then the active tab's box sits on it.
-    let border = Style::default().fg(theme.border).bg(theme.bg);
-    for x in area.x..area.x + area.width {
-        buf[(x, rule.y)].set_char(glyphs.hline).set_style(border);
-    }
+
     if let Some((_, start, width)) = cells.iter().find(|(tab, _, _)| *tab == app.tab) {
+        let (start, width) = (*start, *width);
         let frame = Style::default().fg(theme.border).bg(theme.bg);
         let left = start.saturating_sub(1);
         let right = start + width - 1;
         // Top border.
         buf[(left, top.y)].set_char(glyphs.tl).set_style(frame);
-        for dx in 0..*width - 1 {
+        for dx in 0..width - 1 {
             buf[(start + dx, top.y)]
                 .set_char(glyphs.hline)
                 .set_style(frame);
@@ -343,6 +351,115 @@ fn draw_tabs(buf: &mut Buffer, top: Rect, area: Rect, rule: Rect, app: &App, hit
         // Outward junctions: the rule flows into each side.
         buf[(left, rule.y)].set_char(glyphs.br).set_style(frame);
         buf[(right, rule.y)].set_char(glyphs.bl).set_style(frame);
+    }
+}
+
+/// One button in the strip's place when the seven labels do not fit.
+fn draw_tab_button(
+    buf: &mut Buffer,
+    top: Rect,
+    area: Rect,
+    rule: Rect,
+    app: &App,
+    hits: &mut HitMap,
+) {
+    let theme = app.theme();
+    let glyphs = theme.glyphs();
+    let text = format!("Tabs: {} {} ", app.tab.label(), glyphs.expanded);
+    let width = text.chars().count() as u16;
+    let x = area.x + 2;
+    let left = x - 1;
+    let right = x + width - 1;
+    if right >= area.x + area.width {
+        return;
+    }
+    let accent = Style::default()
+        .fg(theme.accent)
+        .bg(theme.bg)
+        .add_modifier(Modifier::BOLD);
+    put(buf, x, area.y, &text, accent, area);
+    let frame = Style::default().fg(theme.border).bg(theme.bg);
+    buf[(left, top.y)].set_char(glyphs.tl).set_style(frame);
+    for dx in 0..width - 1 {
+        buf[(x + dx, top.y)].set_char(glyphs.hline).set_style(frame);
+    }
+    buf[(right, top.y)].set_char(glyphs.tr).set_style(frame);
+    buf[(left, area.y)].set_char(glyphs.vline).set_style(frame);
+    buf[(right, area.y)].set_char(glyphs.vline).set_style(frame);
+    let blank = Style::default().fg(theme.text).bg(theme.bg);
+    for x in left..=right {
+        buf[(x, rule.y)].set_char(' ').set_style(blank);
+    }
+    buf[(left, rule.y)].set_char(glyphs.br).set_style(frame);
+    buf[(right, rule.y)].set_char(glyphs.bl).set_style(frame);
+    hits.add(Rect::new(left, area.y, width + 1, 1), Target::TabButton);
+}
+
+fn draw_tab_menu(
+    buf: &mut Buffer,
+    area: Rect,
+    app: &App,
+    state: crate::app::TabMenuState,
+    hits: &mut HitMap,
+) {
+    let theme = app.theme();
+    let width = 20;
+    let height = Tab::ALL.len() as u16 + 2;
+    let anchor = match tab_cells(area) {
+        Some(cells) => cells
+            .iter()
+            .find(|(tab, _, _)| *tab == app.tab)
+            .map(|(_, x, _)| x.saturating_sub(1))
+            .unwrap_or(area.x + 1),
+        None => area.x + 1,
+    };
+    let x = anchor.min(area.x + area.width.saturating_sub(width));
+    let y = area.y + 4;
+    let rect = Rect::new(x, y, width, height.min(area.height.saturating_sub(y)));
+    let inner = panel(buf, rect, "", theme);
+    hits.add(rect, Target::TabMenuPanel);
+
+    for (index, tab) in Tab::ALL.iter().enumerate() {
+        let row = inner.y + index as u16;
+        if row >= inner.y + inner.height {
+            break;
+        }
+        let selected = index == state.item;
+        let base = if selected {
+            Style::default().fg(theme.on_accent).bg(theme.accent)
+        } else {
+            Style::default().fg(theme.text).bg(theme.surface)
+        };
+        if selected {
+            for x in inner.x..inner.x + inner.width {
+                buf[(x, row)].set_symbol(" ");
+                buf[(x, row)].set_style(base);
+            }
+        }
+        let marker = if *tab == app.tab {
+            if app.ascii { "* " } else { "● " }
+        } else {
+            "  "
+        };
+        put(buf, inner.x + 1, row, marker, base, inner);
+        put(buf, inner.x + 3, row, tab.label(), base, inner);
+        let digit = (index + 1).to_string();
+        put_right(
+            buf,
+            inner.x + inner.width - 1,
+            row,
+            &digit,
+            if selected {
+                base
+            } else {
+                Style::default().fg(theme.muted).bg(theme.surface)
+            },
+            inner,
+        );
+        hits.add(
+            Rect::new(inner.x, row, inner.width, 1),
+            Target::TabMenuItem(index),
+        );
     }
 }
 
@@ -874,7 +991,9 @@ mod tests {
         // At 40 columns the menus stay whole and the field shrinks to its key.
         let narrow = bar(screen_for(Tab::Processes, 40, "", false));
         assert!(
-            narrow.starts_with("File Options View Tabs Process Help"),
+            narrow
+                .trim_start()
+                .starts_with("File  Options  View  Process  Help"),
             "{narrow:?}"
         );
         assert!(narrow.trim_end().ends_with('/'), "{narrow:?}");
@@ -1308,7 +1427,7 @@ mod tests {
 
     #[test]
     fn tab_rule_stays_readable_when_narrow() {
-        let screen = render(60, 20);
+        let screen = render(80, 20);
         let line = screen.lines().nth(2).unwrap();
         let rule = screen.lines().nth(3).unwrap();
         let glyphs = crate::theme::UNICODE_GLYPHS;
@@ -1324,10 +1443,54 @@ mod tests {
         );
         assert_eq!(
             rule.chars().filter(|ch| *ch == glyphs.hline).count(),
-            60 - 6,
+            80 - 11,
             "the rule stops under the active tab: {rule:?}"
         );
         assert!(rule.contains(glyphs.bl) && rule.contains(glyphs.br));
+    }
+
+    #[test]
+    fn tab_list_marks_the_active_tab() {
+        let (mut app, _) = App::new(Settings::default(), false);
+        app.apply_snapshot(crate::model::Snapshot::fixture());
+        app.tab = crate::app::Tab::Users;
+        app.tab_menu = Some(crate::app::TabMenuState { item: 4 });
+        let screen = render_for(&app, 40, 24);
+        assert!(screen.contains("Tabs: Users"), "{screen}");
+        assert!(screen.contains("● Users"), "{screen}");
+        assert!(screen.contains("Services"), "{screen}");
+    }
+
+    #[test]
+    fn five_menu_labels_fit_at_forty_columns() {
+        let screen = render(40, 20);
+        let bar = screen.lines().next().unwrap();
+        assert!(
+            bar.trim_start()
+                .starts_with("File  Options  View  Process  Help")
+        );
+        assert!(!bar.contains("Tabs"), "{bar:?}");
+    }
+
+    #[test]
+    fn tab_strip_becomes_one_button_when_it_does_not_fit() {
+        let screen = render(60, 20);
+        let line = screen.lines().nth(2).unwrap();
+        let rule = screen.lines().nth(3).unwrap();
+        let glyphs = crate::theme::UNICODE_GLYPHS;
+        assert!(line.contains("Tabs: Processes"), "{line:?}");
+        assert!(!line.contains("Performance"), "{line:?}");
+        assert_eq!(
+            line.matches(glyphs.vline).count(),
+            2,
+            "the button's sides: {line:?}"
+        );
+        let span = "Tabs: Processes ▾ ".chars().count() as u16 + 1;
+        assert_eq!(
+            rule.chars().filter(|ch| *ch == glyphs.hline).count(),
+            60 - span as usize,
+            "the rule stops under the button: {rule:?}"
+        );
     }
 
     #[test]

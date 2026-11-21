@@ -15,6 +15,11 @@ pub enum Target {
     MenuItem(usize, usize),
     /// The dropdown panel itself, including its border and empty space.
     MenuPanel,
+    /// The single tab control drawn when the strip's labels do not fit.
+    TabButton,
+    /// The tab list dropdown, its panel, and its rows.
+    TabMenuPanel,
+    TabMenuItem(usize),
     Tab(Tab),
     /// A table row, by index in the tab's visible row list.
     Row(usize),
